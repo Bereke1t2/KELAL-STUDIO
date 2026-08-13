@@ -46,12 +46,9 @@ actually catch problems, not just satisfy the hook.
 
 6. Commit with a Conventional Commits message (`feat:`, `fix:`, `refactor:`,
    `test:`, `chore:`, etc.) summarizing the *why*, not a restatement of the
-   diff. Include `$ARGUMENTS` as additional context if provided. End the
-   message with:
-   ```
-
-   Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
-   ```
+   diff. Include `$ARGUMENTS` as additional context if provided. **Never**
+   add a `Co-Authored-By: Claude`/AI-attribution trailer — explicit
+   project rule, not a default to fall back to.
 
 7. Report what was committed and any PLAUSIBLE/lower-severity findings
    from step 4 that the user should know about.

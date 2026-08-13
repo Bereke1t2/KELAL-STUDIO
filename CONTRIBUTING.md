@@ -9,6 +9,8 @@ how changes move from a local branch to `main`, not what's in them.
 - [Conventional Commits](https://www.conventionalcommits.org/) —
   `feat:`, `fix:`, `refactor:`, `test:`, `chore:`, `docs:`. Summarize
   *why*, not a restatement of the diff.
+- **Never** add a `Co-Authored-By: Claude`/AI-attribution trailer to a
+  commit message, from any agent, ever — explicit project rule.
 - A change under `mobile/` must go through `mobile/.claude/commands/commit.md`
   (`/commit`) — it runs `flutter analyze`, tests, and the
   `flutter-code-reviewer` subagent before committing, and a root
