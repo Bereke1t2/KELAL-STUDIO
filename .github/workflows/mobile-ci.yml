@@ -92,13 +92,15 @@ jobs:
           path: mobile/coverage/lcov.info
 
   golden:
-    name: Golden / screenshot tests (deterministic font mode)
+    name: Golden / screenshot tests
     runs-on: ubuntu-latest
     needs: analyze
-    env:
-      # Alchemist's CI-deterministic mode — avoids cross-OS font-rendering
-      # flakiness (see mobile/.claude/skills/flutter-testing/SKILL.md).
-      CI: "true"
+    # No CI env var needed — Alchemist doesn't gate on one; it always runs
+    # both the `goldens/linux/*.png` (real render) and `goldens/ci/*.png`
+    # scenarios as separate test cases, comparing against whatever's
+    # committed for each. See mobile/CLAUDE.md's Golden testing section
+    # for why `goldens/ci/*.png` shows real text here rather than
+    # Alchemist's obscured-box default.
     steps:
       - uses: actions/checkout@v7.0.1
 

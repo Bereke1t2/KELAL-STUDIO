@@ -114,6 +114,16 @@ for the reference usage. Don't hand-write a `GoldenTestGroup` with
 separate light/dark `GoldenTestScenario`s per variant; that's exactly the
 duplication this helper exists to remove.
 
+`test/flutter_test_config.dart` overrides Alchemist's default
+`CiGoldensConfig.obscureText` from `true` to `false` — Alchemist's
+default blocks text out as solid boxes in the `goldens/ci/*.png`
+baseline (the one actually asserted in `mobile-ci.yml`) to dodge
+cross-machine font differences, which would make it useless for exactly
+what this project needs goldens for: catching real Ethiopic rendering
+regressions (PRD §6.7). Safe here because the font is bundled and the
+Flutter SDK is exact-pinned via FVM — always run `fvm flutter test`, not
+the system Flutter, or this stops being true.
+
 ## Decisions log (so these aren't re-litigated per session)
 
 - Android `minSdk 24` / iOS `13.0`, app id `com.kelalstudio.app`. (The
