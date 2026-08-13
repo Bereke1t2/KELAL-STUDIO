@@ -1,0 +1,68 @@
+# FVM Version Cache — .fvm/versions/<version> is the actual cached SDK
+# checkout (in this environment it's a bind mount of the global FVM cache,
+# same inodes as ~/fvm/versions — hundreds of MB and thousands of files,
+# NEVER git-add this). .fvm/flutter_sdk is a symlink to the same. Only
+# .fvmrc / fvm_config.json (the tiny version pointer) should ever be
+# tracked.
+.fvm/flutter_sdk
+.fvm/versions/
+
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+lib/**/*.g.dart
+lib/**/*.freezed.dart
+lib/**/*.gr.dart
+lib/**/*.config.dart
+lib/core/env/env.g.dart
+lib/core/l10n/gen/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Coverage
+coverage/
+
+# Secrets — never commit real values, only .env.example
+.env
+*.env
+!.env.example
+
+# Claude Code review-passed marker (regenerated per commit, not source)
+.claude/.review-passed

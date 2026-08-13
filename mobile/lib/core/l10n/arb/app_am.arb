@@ -1,0 +1,9 @@
+{
+  "@@locale": "am",
+  "appTitle": "ቀላል ስቱዲዮ",
+  "appTagline": "ንግድዎን በመስመር ላይ ያሳድጉ",
+  "emailLabel": "ኢሜይል",
+  "passwordLabel": "የይለፍ ቃል",
+  "signIn": "ግባ",
+  "invalidCredentials": "ኢሜይል ወይም የይለፍ ቃል ትክክል አይደለም።"
+}

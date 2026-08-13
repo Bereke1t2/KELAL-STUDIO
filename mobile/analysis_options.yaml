@@ -1,0 +1,27 @@
+# This file configures the analyzer. See mobile/CLAUDE.md and
+# mobile/.claude/skills/flutter-architecture/SKILL.md for the conventions
+# this is meant to enforce, not just this file's own comments.
+
+include: package:very_good_analysis/analysis_options.yaml
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/*.config.dart"
+    - "lib/core/env/env.g.dart"
+
+linter:
+  rules:
+    # very_good_analysis requires public member docs by default; this
+    # project relies on the skills/CLAUDE.md for architectural intent and
+    # only writes a doc comment where the WHY is non-obvious (see root
+    # CLAUDE.md's general house style) rather than mandating one on every
+    # public member.
+    public_member_api_docs: false
+
+    # Single-method abstract classes are the deliberate, repeated shape of
+    # every feature's *RemoteDataSource/*Repository interface (see
+    # flutter-architecture skill) — not an accidental over-abstraction this
+    # lint is meant to catch.
+    one_member_abstracts: false

@@ -1,0 +1,15 @@
+{
+  "@@locale": "en",
+  "appTitle": "Kelal Studio",
+  "@appTitle": {
+    "description": "App name, shown on the login/splash screen."
+  },
+  "appTagline": "Grow your business online",
+  "@appTagline": {
+    "description": "Login screen tagline. English/Amharic pair sourced verbatim from the Figma Typography Foundations sample (node 12:2) — do not reword independently of the Amharic pair below."
+  },
+  "emailLabel": "Email",
+  "passwordLabel": "Password",
+  "signIn": "Sign in",
+  "invalidCredentials": "Invalid email or password."
+}

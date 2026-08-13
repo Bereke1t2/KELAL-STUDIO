@@ -1,0 +1,7 @@
+# Declares the `golden` tag alchemist applies automatically to every
+# goldenTest() so `flutter test --tags golden` / `--exclude-tags golden`
+# (used by mobile-ci.yml's separate golden job and mobile/CLAUDE.md's
+# documented commands) work without a warning.
+tags:
+  golden:
+    description: Golden/screenshot tests (alchemist)

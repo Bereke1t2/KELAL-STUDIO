@@ -1,0 +1,77 @@
+name: kelal_studio
+description: "Kelal Studio: bilingual AI content generation for Ethiopian businesses"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: 3.12.2
+
+# Every dependency below is pinned to an EXACT version (no `^`, no `any`) —
+# deliberate project rule, not an oversight. Reproducible builds matter
+# more here than auto-picking up patch releases: golden-test pixel output
+# is sensitive to package versions (fonts/rendering), and this app also
+# runs entirely through generated code (freezed/injectable/retrofit/drift/
+# envied) where a silent transitive bump has broken the build before (see
+# git history / mobile/CLAUDE.md decisions log). To intentionally upgrade a
+# package: bump it here, run `flutter pub get && dart run build_runner
+# build --delete-conflicting-outputs`, run the full test suite including
+# goldens, then commit the version bump as its own reviewed change — never
+# let an upgrade happen silently as a side effect of `flutter pub upgrade`.
+dependencies:
+  bloc_concurrency: 0.3.0
+  crypto: 3.0.7
+  cupertino_icons: 1.0.9
+  dio: 5.11.0
+  drift: 2.31.0
+  drift_flutter: 0.2.8
+  envied: 1.3.8
+  equatable: 2.1.0
+  flutter:
+    sdk: flutter
+  flutter_bloc: 9.1.1
+  flutter_localizations:
+    sdk: flutter
+  flutter_secure_storage: 9.2.4
+  freezed_annotation: 3.1.0
+  get_it: 8.3.0
+  go_router: 14.8.1
+  hydrated_bloc: 10.1.1
+  injectable: 2.7.1+4
+  intl: 0.20.2
+  json_annotation: 4.12.0
+  path_provider: 2.1.6
+  pretty_dio_logger: 1.4.0
+  retrofit: 4.10.0
+
+dev_dependencies:
+  alchemist: 0.14.0
+  bloc_test: 10.0.0
+  build_runner: 2.15.1
+  drift_dev: 2.31.0
+  envied_generator: 1.3.8
+  flutter_test:
+    sdk: flutter
+  freezed: 3.2.5
+  injectable_generator: 2.12.1
+  integration_test:
+    sdk: flutter
+  json_serializable: 6.14.1
+  mocktail: 1.0.5
+  retrofit_generator: 10.2.8
+  very_good_analysis: 7.0.0
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+flutter:
+  uses-material-design: true
+  generate: true
+
+  assets:
+    - api_contract/openapi.yaml
+
+  fonts:
+    - family: NotoSansEthiopic
+      fonts:
+        - asset: assets/fonts/NotoSansEthiopic-Regular.ttf

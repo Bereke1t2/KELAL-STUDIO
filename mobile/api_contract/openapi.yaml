@@ -1,0 +1,379 @@
+openapi: 3.0.3
+info:
+  title: Kelal Studio API (mobile-local contract)
+  version: 0.1.0-draft
+  description: >
+    Hand-authored from the Kelal Studio PRD §11 endpoint skeleton. This spec
+    lives entirely inside mobile/ and is NOT a commitment from a real
+    backend team — no web/backend code exists in this repo yet. It exists
+    so the mobile app has a typed Dart client (via retrofit.dart codegen)
+    and a professionally-faked data layer to build against today, and a
+    concrete contract to hand a backend team later. Every endpoint here is
+    a transcription of the PRD's documented skeleton (Section 11) plus its
+    typed error taxonomy — it is not new API design.
+
+    When the real backend exists and diverges from this file, this file
+    loses, not the backend: regenerate the client from the backend's own
+    spec and delete this file's authority. Until then, this is the only
+    source of truth the mobile app has.
+servers:
+  - url: https://api.kelalstudio.app/v1
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error_code, message]
+      properties:
+        error_code:
+          type: string
+          enum:
+            - quota_exceeded
+            - provider_timeout
+            - moderation_refused
+            - malformed_output
+            - validation_error
+        message:
+          type: string
+          description: Plain-language, already localized to the user's input language where applicable. Never a raw classifier code (PRD §6.4).
+        resets_at:
+          type: string
+          format: date-time
+          description: Present only for quota_exceeded.
+
+    AuthTokens:
+      type: object
+      required: [access_token, refresh_token]
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+
+    User:
+      type: object
+      required: [id, email, email_verified]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        email_verified: { type: boolean }
+
+    BrandKit:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        brand_name: { type: string }
+        logo_asset_id: { type: string, format: uuid, nullable: true }
+        primary_color_hex: { type: string }
+        secondary_color_hex: { type: string }
+        tone_of_voice: { type: string }
+        contact_info: { type: string }
+        updated_at: { type: string, format: date-time }
+
+    GenerateTextRequest:
+      type: object
+      required: [input_text, input_lang, platform]
+      properties:
+        input_text: { type: string }
+        input_lang: { type: string, enum: [en, am, auto] }
+        platform: { type: string, enum: [instagram, tiktok, telegram] }
+        brand_kit_id: { type: string, format: uuid }
+
+    GenerateTextResponse:
+      type: object
+      properties:
+        caption_en: { type: string }
+        caption_am: { type: string }
+        call_to_action: { type: string }
+        hashtags:
+          type: array
+          items: { type: string }
+          minItems: 5
+          maxItems: 8
+
+    GenerateImageRequest:
+      type: object
+      required: [caption_en, aspect_ratio, brand_kit_id]
+      properties:
+        caption_en: { type: string }
+        aspect_ratio:
+          type: string
+          description: "OQ-02 in the PRD is open (2 vs 3 ratios) — 1:1 and 4:5 are the two the PRD's P0 list agrees on; 9:16 is NOT enabled here pending that decision. Flag, don't silently add it."
+          enum: ["1:1", "4:5"]
+        brand_kit_id: { type: string, format: uuid }
+
+    GenerateImageResponse:
+      type: object
+      properties:
+        asset_id: { type: string, format: uuid }
+        image_url: { type: string, format: uri }
+        width: { type: integer }
+        height: { type: integer }
+
+    Job:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [queued, running, done, failed] }
+        result_asset_id: { type: string, format: uuid, nullable: true }
+
+    Quota:
+      type: object
+      properties:
+        text_calls_used: { type: integer }
+        text_calls_limit: { type: integer }
+        image_calls_used: { type: integer }
+        image_calls_limit: { type: integer }
+        resets_at: { type: string, format: date-time }
+
+paths:
+  /auth/register:
+    post:
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthTokens' }
+        default:
+          description: Error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /auth/login:
+    post:
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthTokens' }
+        default:
+          description: Error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /auth/refresh:
+    post:
+      operationId: refresh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthTokens' }
+
+  /auth/password-reset/request:
+    post:
+      operationId: requestPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200':
+          description: >
+            Always 200 regardless of whether the email exists
+            (anti-enumeration, PRD §6.1) — the client must not branch UI on
+            this response implying account existence.
+
+  /auth/password-reset/confirm:
+    post:
+      operationId: confirmPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, new_password]
+              properties:
+                token: { type: string }
+                new_password: { type: string, minLength: 8 }
+      responses:
+        '200': { description: OK }
+
+  /auth/account:
+    delete:
+      operationId: deleteAccount
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+
+  /brand-kits/{id}:
+    get:
+      operationId: getBrandKit
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BrandKit' }
+    put:
+      operationId: updateBrandKit
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BrandKit' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BrandKit' }
+
+  /generate/text:
+    post:
+      operationId: generateText
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GenerateTextRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenerateTextResponse' }
+        default:
+          description: Error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /generate/image:
+    post:
+      operationId: generateImage
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GenerateImageRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenerateImageResponse' }
+        default:
+          description: Error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /generate/video:
+    post:
+      operationId: generateVideo
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [storyboard_text, brand_kit_id]
+              properties:
+                storyboard_text: { type: string }
+                brand_kit_id: { type: string, format: uuid }
+      responses:
+        '202':
+          description: Queued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+
+  /jobs/{id}:
+    get:
+      operationId: getJob
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+
+  /quota/me:
+    get:
+      operationId: getMyQuota
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Quota' }
+
+  /reminders:
+    post:
+      operationId: createReminder
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [draft_local_id, scheduled_at_utc]
+              properties:
+                draft_local_id: { type: string }
+                scheduled_at_utc:
+                  type: string
+                  format: date-time
+                  description: Always UTC; converted only at the presentation layer (PRD §6.12).
+      responses:
+        '201': { description: Created }
