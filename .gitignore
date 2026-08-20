@@ -1,0 +1,3 @@
+# Python bytecode cache from repo tooling (e.g. .claude/hooks/*.py)
+__pycache__/
+*.pyc

@@ -1,0 +1,42 @@
+# Local dev stack. `docker compose up -d` starts ONLY Postgres (what you need to
+# run the API from your host). `docker compose --profile full up` also builds and
+# runs the API container.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: kelal
+      POSTGRES_PASSWORD: kelal
+      POSTGRES_DB: kelal_studio
+    ports:
+      - "5432:5432"
+    volumes:
+      - kelal_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kelal -d kelal_studio"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    profiles: ["full"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: kelal
+      DB_PASSWORD: kelal
+      DB_NAME: kelal_studio
+      DB_SSLMODE: disable
+      # Dev-only secrets; the real deployment injects these from a secret store.
+      JWT_ACCESS_SECRET: dev-access-secret-change-me
+      JWT_REFRESH_SECRET: dev-refresh-secret-change-me
+    ports:
+      - "8080:8080"
+
+volumes:
+  kelal_pg:

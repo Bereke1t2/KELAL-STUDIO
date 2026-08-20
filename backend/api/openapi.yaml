@@ -1,0 +1,572 @@
+openapi: 3.0.3
+info:
+  title: Kelal Studio API
+  version: 0.1.0
+  description: >
+    Canonical HTTP contract for the Kelal Studio backend. This file is the
+    SOURCE OF TRUTH: it was seeded from the mobile-local contract
+    (mobile/api_contract/openapi.yaml, transcribed from PRD §11) which itself
+    states that when the real backend diverges, the backend wins. When this spec
+    and that one disagree, regenerate the mobile client from THIS file.
+
+    Implementation status is tracked per-operation with `x-implementation-status`
+    (`implemented` | `stub`). A `stub` operation is wired and reachable but
+    currently returns a `not_implemented` (501) error in the taxonomy shape, so
+    the mobile team can integrate against real error bodies today. See
+    docs/FEATURE_OWNERSHIP.md for who owns turning each stub real, and
+    docs/OPEN_QUESTIONS.md for the flagged, deliberately-unresolved items
+    referenced below (OQ-NN and the contract-vs-PRD divergences).
+
+servers:
+  - url: /v1
+    description: All routes are mounted under the /v1 group.
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token from /auth/login or /auth/refresh (short-lived).
+
+  responses:
+    Error:
+      description: Error, rendered as ErrorResponse.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error_code, message]
+      description: >
+        The one error envelope every failure renders to (backend apperror.Error).
+        `resets_at` is present only for `quota_exceeded`.
+      properties:
+        error_code:
+          type: string
+          description: >
+            Machine-readable code the client branches on. The first five are the
+            CONTRACT-CLOSED taxonomy from PRD §11 / the mobile contract — treat
+            these as stable. The remaining infrastructure codes accompany
+            standard HTTP statuses (401/403/404/409/429/500/501); whether the
+            client keys off them or treats error_code as an open string is a
+            flagged reconciliation item (docs/OPEN_QUESTIONS.md, error-code-enum).
+          enum:
+            # Contract-closed taxonomy (PRD §11):
+            - quota_exceeded
+            - provider_timeout
+            - moderation_refused
+            - malformed_output
+            - validation_error
+            # Infrastructure / transport codes (flagged — not in the closed set):
+            - unauthorized
+            - forbidden
+            - not_found
+            - conflict
+            - rate_limited
+            - internal
+            - not_implemented
+        message:
+          type: string
+          description: >
+            Plain-language, already localized to the user's input language where
+            applicable. Never a raw classifier code (PRD §6.4).
+        resets_at:
+          type: string
+          format: date-time
+          description: Present only for quota_exceeded — when the daily cap lifts.
+
+    AuthTokens:
+      type: object
+      required: [access_token, refresh_token]
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+
+    User:
+      type: object
+      required: [id, email, email_verified]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        email_verified: { type: boolean }
+
+    BrandKit:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        brand_name: { type: string }
+        logo_asset_id: { type: string, format: uuid, nullable: true }
+        primary_color_hex: { type: string }
+        secondary_color_hex: { type: string }
+        tone_of_voice: { type: string }
+        contact_info: { type: string }
+        updated_at: { type: string, format: date-time }
+
+    Asset:
+      type: object
+      description: >
+        An uploaded or generated file (PRD §6.8, §10.5). Backend-only surface —
+        NOT in the mobile contract yet; the mobile client learns asset ids from
+        generation responses. Upload hardening (validate-by-content, re-encode,
+        strip metadata, store outside web root) is owned by the Assets slice.
+      properties:
+        id: { type: string, format: uuid }
+        width: { type: integer }
+        height: { type: integer }
+        mime_type: { type: string }
+        created_at: { type: string, format: date-time }
+
+    GenerateTextRequest:
+      type: object
+      required: [input_text, input_lang, platform]
+      properties:
+        input_text: { type: string }
+        input_lang: { type: string, enum: [en, am, auto] }
+        platform: { type: string, enum: [instagram, tiktok, telegram] }
+        brand_kit_id: { type: string, format: uuid }
+
+    GenerateTextResponse:
+      type: object
+      properties:
+        caption_en: { type: string }
+        caption_am: { type: string }
+        call_to_action: { type: string }
+        hashtags:
+          type: array
+          items: { type: string }
+          minItems: 5
+          maxItems: 8
+
+    GenerateImageRequest:
+      type: object
+      required: [caption_en, aspect_ratio, brand_kit_id]
+      properties:
+        caption_en: { type: string }
+        aspect_ratio:
+          type: string
+          description: >
+            OQ-02 is open (2 vs 3 ratios). 1:1 and 4:5 are the two the PRD's P0
+            list agrees on; 9:16 is NOT enabled pending that decision. Flag,
+            don't silently add it (docs/OPEN_QUESTIONS.md, OQ-02).
+          enum: ["1:1", "4:5"]
+        brand_kit_id: { type: string, format: uuid }
+
+    GenerateImageResponse:
+      type: object
+      properties:
+        asset_id: { type: string, format: uuid }
+        image_url: { type: string, format: uri }
+        width: { type: integer }
+        height: { type: integer }
+
+    Job:
+      type: object
+      description: >
+        Async generation job (video, PRD §8.4, §10.3). DIVERGENCE (flagged, not
+        resolved): the field is exposed as `result_asset_id` to match the mobile
+        contract, but the PRD data model names the link `result_generation_id`
+        (a GenerationRecord id). The video feature maps between them; do not
+        silently rename either side (docs/OPEN_QUESTIONS.md, job-result-field).
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [queued, running, done, failed] }
+        result_asset_id: { type: string, format: uuid, nullable: true }
+
+    Quota:
+      type: object
+      properties:
+        text_calls_used: { type: integer }
+        text_calls_limit: { type: integer }
+        image_calls_used: { type: integer }
+        image_calls_limit: { type: integer }
+        resets_at: { type: string, format: date-time }
+
+paths:
+  # ── Auth & Accounts — IMPLEMENTED (reference feature, PRD §6.1) ──────────────
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      security: []
+      x-implementation-status: implemented
+      description: >
+        DIVERGENCE (flagged): returns AuthTokens per the mobile contract, but
+        PRD §11 specifies a verification-first flow ({user_id, verification_sent}).
+        V1 serves tokens; email_verified stays false on the User until a
+        verification flow is built (docs/OPEN_QUESTIONS.md, register-verification).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthTokens' }
+        default: { $ref: '#/components/responses/Error' }
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      security: []
+      x-implementation-status: implemented
+      description: >
+        On failure returns a GENERIC unauthorized error (never reveals whether
+        the email exists), with timing equalized against a dummy hash (PRD §6.1).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthTokens' }
+        default: { $ref: '#/components/responses/Error' }
+
+  /auth/refresh:
+    post:
+      operationId: refresh
+      tags: [auth]
+      security: []
+      x-implementation-status: implemented
+      description: >
+        Rotates the refresh token. Presenting an already-rotated (revoked) token
+        is treated as reuse/compromise: the whole token chain is revoked and the
+        client must re-authenticate (PRD §6.1).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthTokens' }
+        default: { $ref: '#/components/responses/Error' }
+
+  /auth/password-reset/request:
+    post:
+      operationId: requestPasswordReset
+      tags: [auth]
+      security: []
+      x-implementation-status: implemented
+      description: >
+        Always 200 regardless of whether the email exists (anti-enumeration,
+        PRD §6.1) — the client MUST NOT branch UI on this response implying
+        account existence. Delivery of the reset token is not implemented yet;
+        in non-production the token is logged server-side for testing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200':
+          description: Accepted (whether or not the account exists).
+
+  /auth/password-reset/confirm:
+    post:
+      operationId: confirmPasswordReset
+      tags: [auth]
+      security: []
+      x-implementation-status: implemented
+      description: >
+        Consumes a purpose-bound reset token and sets a new password, then
+        revokes all of the user's refresh tokens (forces re-login). FLAG: the
+        reset token is a stateless JWT and is not yet single-use
+        (docs/OPEN_QUESTIONS.md, reset-token-single-use).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, new_password]
+              properties:
+                token: { type: string }
+                new_password: { type: string, minLength: 8 }
+      responses:
+        '200': { description: OK }
+        default: { $ref: '#/components/responses/Error' }
+
+  /auth/account:
+    delete:
+      operationId: deleteAccount
+      tags: [auth]
+      x-implementation-status: implemented
+      description: Soft-deletes the authenticated account and revokes its tokens (PRD §6.1).
+      responses:
+        '200': { description: OK }
+        default: { $ref: '#/components/responses/Error' }
+
+  # ── Brand Kit — IMPLEMENTED (PRD §6.8) ──────────────────────────────────────
+  /brand-kits/{id}:
+    get:
+      operationId: getBrandKit
+      tags: [brand-kits]
+      x-implementation-status: implemented
+      description: >
+        Returns the authenticated caller's brand kit. A kit that does not exist
+        OR belongs to another user returns 404 — the two are indistinguishable,
+        so kit ids can't be enumerated (PRD §6.1/§6.8).
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BrandKit' }
+        default: { $ref: '#/components/responses/Error' }
+    put:
+      operationId: updateBrandKit
+      tags: [brand-kits]
+      x-implementation-status: implemented
+      description: >
+        Owner-scoped upsert of the caller's brand kit. FLAG (open question,
+        docs/OPEN_QUESTIONS.md → brandkit-creation): the contract exposes no
+        create endpoint, so V1 makes PUT idempotent — it updates the caller's
+        kit, or creates one at {id} owned by the caller if none exists. Writing
+        over a kit owned by another user returns 404. `id` and `updated_at` in
+        the request body are ignored (id comes from the path; updated_at is
+        server-set).
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BrandKit' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BrandKit' }
+        default: { $ref: '#/components/responses/Error' }
+
+  # ── Assets / upload hardening — STUB, backend-only (PRD §6.8, §7.8) ──────────
+  /assets:
+    post:
+      operationId: uploadAsset
+      tags: [assets]
+      x-implementation-status: stub
+      description: >
+        Multipart upload. HIGHEST-RISK untrusted-input surface: the real
+        implementation MUST validate by content (not extension), re-encode the
+        image, strip metadata, and store bytes outside any web root (PRD §6.8,
+        §7.8). Rate-limited per user.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Asset' }
+        default: { $ref: '#/components/responses/Error' }
+
+  # ── Generation — STUBS (via the Provider Abstraction Layer; PRD §6.2/§6.5) ───
+  /generate/text:
+    post:
+      operationId: generateText
+      tags: [generation]
+      x-implementation-status: stub
+      description: Rate-limited and quota-enforced BEFORE any provider call (PRD §6.14).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GenerateTextRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenerateTextResponse' }
+        default: { $ref: '#/components/responses/Error' }
+
+  /generate/image:
+    post:
+      operationId: generateImage
+      tags: [generation]
+      x-implementation-status: stub
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GenerateImageRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenerateImageResponse' }
+        default: { $ref: '#/components/responses/Error' }
+
+  /generate/video:
+    post:
+      operationId: generateVideo
+      tags: [generation]
+      x-implementation-status: stub
+      description: >
+        Async: enqueues a job and returns it with status `queued` (PRD §8.4,
+        §10.3). FLAG: the default queue is in-process — a separate worker shares
+        no jobs with the API yet (docs/OPEN_QUESTIONS.md, queue-driver).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [storyboard_text, brand_kit_id]
+              properties:
+                storyboard_text: { type: string }
+                brand_kit_id: { type: string, format: uuid }
+      responses:
+        '202':
+          description: Queued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        default: { $ref: '#/components/responses/Error' }
+
+  /jobs/{id}:
+    get:
+      operationId: getJob
+      tags: [generation]
+      x-implementation-status: stub
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        default: { $ref: '#/components/responses/Error' }
+
+  # ── Quota — STUB (read side; enforcement is the load-bearing half; PRD §6.14) ─
+  /quota/me:
+    get:
+      operationId: getMyQuota
+      tags: [quota]
+      x-implementation-status: stub
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Quota' }
+        default: { $ref: '#/components/responses/Error' }
+
+  # ── Reminders — STUB (PRD §6.12) ────────────────────────────────────────────
+  /reminders:
+    post:
+      operationId: createReminder
+      tags: [reminders]
+      x-implementation-status: stub
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [draft_local_id, scheduled_at_utc]
+              properties:
+                draft_local_id:
+                  type: string
+                  description: >
+                    OPAQUE client string. Drafts are device-local in V1 (OQ-05);
+                    the backend never dereferences this into a server row.
+                scheduled_at_utc:
+                  type: string
+                  format: date-time
+                  description: Always UTC; converted only at the presentation layer (PRD §6.12).
+      responses:
+        '201': { description: Created }
+        default: { $ref: '#/components/responses/Error' }
+
+  # ── Admin — STUBS, backend-only, audit-logged (PRD §6.13) ───────────────────
+  /admin/usage:
+    get:
+      operationId: adminUsage
+      tags: [admin]
+      x-implementation-status: stub
+      description: Requires the admin role. Backend-only; not in the mobile contract.
+      responses:
+        '200': { description: OK }
+        default: { $ref: '#/components/responses/Error' }
+
+  /admin/flags:
+    get:
+      operationId: adminlistFlags
+      tags: [admin]
+      x-implementation-status: stub
+      description: Requires the admin role. Moderation-flag review queue (PRD §6.4, §6.13).
+      responses:
+        '200': { description: OK }
+        default: { $ref: '#/components/responses/Error' }
+
+  /admin/flags/{id}/review:
+    post:
+      operationId: adminReviewFlag
+      tags: [admin]
+      x-implementation-status: stub
+      description: Requires the admin role. MUST write an AdminAuditLog row.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: OK }
+        default: { $ref: '#/components/responses/Error' }
+
+  /admin/users/{id}/limits:
+    put:
+      operationId: adminSetUserLimits
+      tags: [admin]
+      x-implementation-status: stub
+      description: Requires the admin role. MUST write an AdminAuditLog row.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: OK }
+        default: { $ref: '#/components/responses/Error' }
