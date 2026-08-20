@@ -1,0 +1,96 @@
+name: backend-ci
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+defaults:
+  run:
+    working-directory: backend
+
+# Note: `defaults.run.working-directory` only affects `run:` steps. Action
+# inputs below (go-version-file, cache-dependency-path, --lockfile,
+# working-directory) are resolved from the REPO ROOT, so they carry the
+# explicit `backend/` prefix.
+jobs:
+  lint:
+    name: Format, vet, lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: gofmt (check)
+        run: |
+          # gofmt -l lists files that aren't gofmt-clean; any output = fail.
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt found unformatted files:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: golangci-lint
+        # .golangci.yml is v2-schema, so this must be a v2-compatible action
+        # major (v8 requires golangci-lint >= v2.1.0). Pin the linter version so
+        # CI matches local `make lint` exactly (v6 = golangci-lint v1 and would
+        # reject the v2 config outright).
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.12.2
+          working-directory: backend
+
+  # Reusable workflow, not a step — same shape as mobile-ci.yml's osv-scan.
+  # google/osv-scanner-action ships as a workflow_call target. Scans
+  # backend/go.mod for known-vulnerable dependencies. upload-sarif is off
+  # (no Code Scanning configured yet); fail-on-vuln still fails the run on a
+  # real finding.
+  osv-scan:
+    name: Dependency vulnerability scan (osv-scanner)
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.5.0
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    with:
+      scan-args: |-
+        --lockfile=backend/go.mod
+      upload-sarif: false
+      fail-on-vuln: true
+
+  test:
+    name: Build + race tests, coverage
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: go build
+        run: go build ./...
+
+      - name: go test (race detector + coverage)
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: backend-coverage
+          path: backend/coverage.out

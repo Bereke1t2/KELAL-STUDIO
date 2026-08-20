@@ -1,0 +1,11 @@
+.git
+.github
+bin/
+storage/
+*.md
+docs/
+.env
+.env.*
+docker-compose.yml
+coverage.out
+coverage.html
