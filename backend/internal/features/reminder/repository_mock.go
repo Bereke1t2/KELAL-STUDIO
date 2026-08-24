@@ -15,6 +15,7 @@ type mockRepository struct {
 	reminders []models.Reminder
 }
 
+// NewMockRepository builds an empty in-memory reminder repository.
 func NewMockRepository() Repository {
 	return &mockRepository{}
 }
