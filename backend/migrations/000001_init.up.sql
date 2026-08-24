@@ -144,4 +144,20 @@ CREATE TABLE admin_audit_logs (
 );
 CREATE INDEX idx_admin_audit_logs_admin_user_id ON admin_audit_logs (admin_user_id);
 
+-- reminders — scheduled "post this later" (PRD §6.12). draft_local_id is
+-- opaque (OQ-05: drafts are device-local in V1).
+CREATE TABLE reminders (
+    id                uuid        PRIMARY KEY,
+    user_id           uuid        NOT NULL,
+    draft_local_id    text        NOT NULL,
+    scheduled_at_utc  timestamptz NOT NULL,
+    status            varchar(16) NOT NULL DEFAULT 'pending',
+    fired_at          timestamptz,
+    created_at        timestamptz,
+    updated_at        timestamptz
+);
+CREATE INDEX idx_reminders_user_id ON reminders (user_id);
+CREATE INDEX idx_reminders_scheduled_at_utc ON reminders (scheduled_at_utc);
+CREATE INDEX idx_reminders_status ON reminders (status);
+
 COMMIT;

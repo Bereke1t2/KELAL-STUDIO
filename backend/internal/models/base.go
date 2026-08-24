@@ -50,5 +50,6 @@ func All() []any {
 		&Job{},
 		&QuotaConsumption{},
 		&AdminAuditLog{},
+		&Reminder{},
 	}
 }

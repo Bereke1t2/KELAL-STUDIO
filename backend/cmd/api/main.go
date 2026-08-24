@@ -210,7 +210,19 @@ func run(migrateOnly bool) error {
 		jobQueue.Start(ctx, genMod.Service.ProcessVideoJob)
 	}()
 	quota.NewHandler(quotaSvc).RegisterRoutes(v1, mw)
-	reminder.New().RegisterRoutes(v1, mw)
+	reminderMod := reminder.New(reminder.Deps{DB: db, Config: cfg, Logger: log})
+	reminderMod.Handler.RegisterRoutes(v1, mw)
+
+	// Background scheduler: checks for due reminders every 60 seconds and
+	// fires them (PRD §6.12). In V1 this logs the notification; a real
+	// implementation would dispatch push notifications via FCM/SNS.
+	go func() {
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			reminderMod.Service.FireDueReminders(context.Background())
+		}
+	}()
 	admin.New().RegisterRoutes(v1, mw)
 
 	srv := &http.Server{
