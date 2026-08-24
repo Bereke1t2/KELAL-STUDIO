@@ -43,6 +43,7 @@ dependencies:
   path_provider: 2.1.6
   pretty_dio_logger: 1.4.0
   retrofit: 4.10.0
+  uuid: 4.6.0
 
 dev_dependencies:
   alchemist: 0.14.0
