@@ -5,5 +5,10 @@
   "emailLabel": "ኢሜይል",
   "passwordLabel": "የይለፍ ቃል",
   "signIn": "ግባ",
-  "invalidCredentials": "ኢሜይል ወይም የይለፍ ቃል ትክክል አይደለም።"
+  "invalidCredentials": "ኢሜይል ወይም የይለፍ ቃል ትክክል አይደለም።",
+  "navComposeLabel": "አዘጋጅ",
+  "navDraftsLabel": "ረቂቆች",
+  "navBrandLabel": "ብራንድ",
+  "navSettingsLabel": "ቅንብሮች",
+  "comingSoonMessage": "በቅርቡ ይመጣል"
 }

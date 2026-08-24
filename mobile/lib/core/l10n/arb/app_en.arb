@@ -11,5 +11,25 @@
   "emailLabel": "Email",
   "passwordLabel": "Password",
   "signIn": "Sign in",
-  "invalidCredentials": "Invalid email or password."
+  "invalidCredentials": "Invalid email or password.",
+  "navComposeLabel": "Compose",
+  "@navComposeLabel": {
+    "description": "Bottom nav tab label + AppBar title for the compose/home branch (route /compose)."
+  },
+  "navDraftsLabel": "Drafts",
+  "@navDraftsLabel": {
+    "description": "Bottom nav tab label + AppBar title for the drafts branch (route /drafts)."
+  },
+  "navBrandLabel": "Brand",
+  "@navBrandLabel": {
+    "description": "Bottom nav tab label + AppBar title for the brand-kit branch (route /brand)."
+  },
+  "navSettingsLabel": "Settings",
+  "@navSettingsLabel": {
+    "description": "Bottom nav tab label + AppBar title for the settings branch (route /settings)."
+  },
+  "comingSoonMessage": "Coming soon",
+  "@comingSoonMessage": {
+    "description": "Placeholder body text shown on each bottom-nav branch's page until its real feature UI is built."
+  }
 }
