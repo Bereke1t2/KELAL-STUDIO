@@ -28,9 +28,10 @@ type Config struct {
 	JWT      JWTConfig
 	RateLim  RateLimitConfig
 	Quota    QuotaConfig
-	Provider ProviderConfig
-	Queue    QueueConfig
-	Asset    AssetConfig
+	Moderation ModerationConfig
+	Provider   ProviderConfig
+	Queue      QueueConfig
+	Asset      AssetConfig
 }
 
 // DBConfig holds the PostgreSQL connection settings and pool tuning.
@@ -77,6 +78,12 @@ type QuotaConfig struct {
 	TextDaily             int
 	ImageDaily            int
 	GlobalDailyCeilingUSD float64
+}
+
+// ModerationConfig configures the content moderation service (PRD §6.4).
+type ModerationConfig struct {
+	Provider string // "stub" (fail-closed, refuses everything) or "openai"
+	APIKey   string // required when Provider == "openai"; reads OPENAI_API_KEY
 }
 
 // ProviderConfig configures the Provider Abstraction Layer: the failover order
@@ -147,6 +154,10 @@ func Load() (*Config, error) {
 			TextDaily:             getInt("QUOTA_TEXT_DAILY", 50),
 			ImageDaily:            getInt("QUOTA_IMAGE_DAILY", 20),
 			GlobalDailyCeilingUSD: getFloat("GLOBAL_DAILY_SPEND_CEILING_USD", 0),
+		},
+		Moderation: ModerationConfig{
+			Provider: getStr("MODERATION_PROVIDER", "stub"),
+			APIKey:   getStr("OPENAI_API_KEY", ""),
 		},
 		Provider: ProviderConfig{
 			TextOrder:   getCSV("TEXT_PROVIDER_ORDER", []string{"stub"}),

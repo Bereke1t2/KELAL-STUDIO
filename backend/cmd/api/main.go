@@ -126,9 +126,29 @@ func run(migrateOnly bool) error {
 	if err != nil {
 		return fmt.Errorf("building text provider chain: %w", err)
 	}
-	// Moderation: internal service, no HTTP routes. Fail-closed stub today;
-	// replace with a real classifier before beta (PRD §6.4).
-	modChecker := moderation.NewStubChecker()
+	// Moderation: internal service, no HTTP routes.
+	// - USE_MOCK_DATA=true  → permissive (all content allowed, for testing)
+	// - MODERATION_PROVIDER=openai → real OpenAI Moderation API
+	// - MODERATION_PROVIDER=stub   → fail-closed (refuses everything)
+	// - unset/empty            → permissive (safe default for dev)
+	var modChecker moderation.Checker
+	switch {
+	case cfg.UseMockData:
+		modChecker = moderation.NewPermissiveChecker()
+		log.Info("moderation: permissive (mock mode — all content allowed)")
+	case cfg.Moderation.Provider == "openai":
+		if cfg.Moderation.APIKey == "" {
+			return fmt.Errorf("MODERATION_PROVIDER=openai requires OPENAI_API_KEY to be set")
+		}
+		modChecker = moderation.NewOpenAIChecker(cfg.Moderation.APIKey)
+		log.Info("moderation: OpenAI Moderation API")
+	case cfg.Moderation.Provider == "stub":
+		modChecker = moderation.NewStubChecker()
+		log.Info("moderation: stub (all content refused)")
+	default:
+		modChecker = moderation.NewPermissiveChecker()
+		log.Info("moderation: permissive (no provider configured — all content allowed)")
+	}
 
 	// Quota: build the shared service used by both the quota endpoint and
 	// the generation feature's pre-call enforcement.
