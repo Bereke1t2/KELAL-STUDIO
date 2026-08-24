@@ -23,6 +23,7 @@ import (
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/auth"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/brandkit"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/generation"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/moderation"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/quota"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/reminder"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/apidocs"
@@ -125,13 +126,39 @@ func run(migrateOnly bool) error {
 	if err != nil {
 		return fmt.Errorf("building text provider chain: %w", err)
 	}
+	// Moderation: internal service, no HTTP routes. Fail-closed stub today;
+	// replace with a real classifier before beta (PRD §6.4).
+	modChecker := moderation.NewStubChecker()
+
+	// Quota: build the shared service used by both the quota endpoint and
+	// the generation feature's pre-call enforcement.
+	var quotaRepo quota.Repository
+	if cfg.UseMockData || db == nil {
+		quotaRepo = quota.NewMockRepository()
+	} else {
+		quotaRepo = quota.NewGormRepository(db)
+	}
+	quotaLimits := quota.QuotaLimits{
+		TextDaily:  cfg.Quota.TextDaily,
+		ImageDaily: cfg.Quota.ImageDaily,
+	}
+	if quotaLimits.TextDaily <= 0 {
+		quotaLimits.TextDaily = 50
+	}
+	if quotaLimits.ImageDaily <= 0 {
+		quotaLimits.ImageDaily = 20
+	}
+	quotaSvc := quota.NewService(quotaRepo, quotaLimits, log)
+
 	generation.New(generation.Deps{
-		DB:        db,
-		Config:    cfg,
-		Logger:    log,
-		TextChain: textChain,
+		DB:         db,
+		Config:     cfg,
+		Logger:     log,
+		TextChain:  textChain,
+		Moderation: modChecker,
+		Quota:      quotaSvc,
 	}).RegisterRoutes(v1, mw)
-	quota.New().RegisterRoutes(v1, mw)
+	quota.NewHandler(quotaSvc).RegisterRoutes(v1, mw)
 	reminder.New().RegisterRoutes(v1, mw)
 	admin.New().RegisterRoutes(v1, mw)
 

@@ -44,8 +44,12 @@ type Repository interface {
 	CreateGenerationRecord(ctx context.Context, r *models.GenerationRecord) error
 	// FindGenerationRecordByInputHash returns an existing record for cache
 	// deduplication, or ErrGenerationRecordNotFound if none exists.
-	FindGenerationRecordByInputHash(ctx context.Context, userID uuid.UUID, inputHash string) (*models.GenerationRecord, error)
+	FindGenerationRecordByInputHash(ctx context.Context, userID uuid.UUID, inputSnapshot string) (*models.GenerationRecord, error)
 	// CountTodayGenerations returns how many generations of the given type the
 	// user has performed since midnight UTC today.
 	CountTodayGenerations(ctx context.Context, userID uuid.UUID, genType models.GenerationType) (int64, error)
+	// CreateModerationFlag persists a moderation refusal for admin review
+	// (PRD §6.4, §6.13). Returns the generated flag ID so the caller can
+	// link it to a GenerationRecord if needed.
+	CreateModerationFlag(ctx context.Context, r *models.ModerationFlag) error
 }

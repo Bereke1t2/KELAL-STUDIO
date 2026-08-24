@@ -49,3 +49,7 @@ func (r *gormRepository) CountTodayGenerations(ctx context.Context, userID uuid.
 		Count(&count).Error
 	return count, err
 }
+
+func (r *gormRepository) CreateModerationFlag(ctx context.Context, rec *models.ModerationFlag) error {
+	return r.db.WithContext(ctx).Create(rec).Error
+}
