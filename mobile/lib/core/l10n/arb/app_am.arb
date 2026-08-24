@@ -33,5 +33,20 @@
   "deleteAccountConfirmBody": "ይህ መለያዎን እና ሁሉንም ውሂብ በቋሚነት ይሰርዛል። ይህ ሊቀለበስ አይችልም።",
   "cancelLabel": "ይቅር",
   "emailVerificationGateTitle": "ኢሜይልዎን ያረጋግጡ",
-  "emailVerificationGateMessage": "የማረጋገጫ አገናኝ ለማግኘት የገቢ መልእክት ሳጥንዎን ይመልከቱ። ኢሜይልዎ እስኪረጋገጥ ድረስ ይዘት መፍጠር ተቆልፏል።"
+  "emailVerificationGateMessage": "የማረጋገጫ አገናኝ ለማግኘት የገቢ መልእክት ሳጥንዎን ይመልከቱ። ኢሜይልዎ እስኪረጋገጥ ድረስ ይዘት መፍጠር ተቆልፏል።",
+  "brandKitBrandNameLabel": "የንግድ ስም",
+  "brandKitToneOfVoiceLabel": "የንግግር ዘይቤ",
+  "brandKitContactInfoLabel": "የመገኛ አድራሻ",
+  "brandKitPrimaryColorLabel": "ዋና ቀለም",
+  "brandKitSecondaryColorLabel": "ሁለተኛ ቀለም",
+  "brandKitSaveButton": "ለውጦችን አስቀምጥ",
+  "brandKitSaveSuccessMessage": "ብራንድ ኪት ተቀምጧል።",
+  "brandKitRetryButton": "እንደገና ሞክር",
+  "brandKitChangeLogoButton": "አርማ ቀይር",
+  "brandKitLogoCaptionHasLogo": "ተጭኗል",
+  "brandKitLogoCaptionNoLogo": "እስካሁን አርማ የለም",
+  "brandKitLogoCaptionUploading": "በመጫን ላይ…",
+  "brandKitLogoCaptionError": "መጫን አልተሳካም",
+  "brandKitInvalidHexError": "ትክክለኛ የ hex ቀለም ያስገቡ፣ ለምሳሌ #855312።",
+  "brandKitLogoTooLargeError": "ፋይሉ በጣም ትልቅ ወይም ሊነበብ የማይችል ነው። እባክዎ የተለየ ምስል ይምረጡ።"
 }

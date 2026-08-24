@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:kelal_studio/core/di/injection.dart';
+import 'package:kelal_studio/core/error/result.dart';
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/core/l10n/locale_cubit.dart';
 import 'package:kelal_studio/core/router/app_router.dart';
@@ -14,11 +15,23 @@ import 'package:kelal_studio/core/theme/theme_cubit.dart';
 import 'package:kelal_studio/features/auth/domain/repositories/auth_repository.dart';
 import 'package:kelal_studio/features/auth/domain/usecases/login_usecase.dart';
 import 'package:kelal_studio/features/auth/presentation/bloc/login_bloc.dart';
+import 'package:kelal_studio/features/brand_kit/domain/entities/brand_kit.dart';
+import 'package:kelal_studio/features/brand_kit/domain/usecases/get_brand_kit_usecase.dart';
+import 'package:kelal_studio/features/brand_kit/domain/usecases/update_brand_kit_usecase.dart';
+import 'package:kelal_studio/features/brand_kit/domain/usecases/upload_brand_logo_usecase.dart';
+import 'package:kelal_studio/features/brand_kit/presentation/bloc/brand_kit_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
 
 class MockLoginUseCase extends Mock implements LoginUseCase {}
+
+class MockGetBrandKitUseCase extends Mock implements GetBrandKitUseCase {}
+
+class MockUpdateBrandKitUseCase extends Mock implements UpdateBrandKitUseCase {}
+
+class MockUploadBrandLogoUseCase extends Mock
+    implements UploadBrandLogoUseCase {}
 
 /// Minimal in-memory [Storage] so the [HydratedCubit]s pulled in via
 /// `LoginPage` (`ThemeCubit`/`LocaleCubit`) can be constructed without
@@ -117,14 +130,38 @@ void main() {
         () => authRepository.watchEmailVerified(),
       ).thenAnswer((_) => Stream.value(true));
 
-      // EmailVerificationGate (mounted on the Compose branch) resolves
-      // dependencies via getIt directly, same as LoginPage does for
-      // LoginBloc. SettingsPage (mounted on the Settings branch) only
-      // reads ThemeCubit/LocaleCubit from context — both provided by
-      // wrap()'s MultiBlocProvider — so it needs no getIt registration.
+      // EmailVerificationGate (mounted on the Compose branch) and
+      // BrandKitPage (Brand branch) resolve dependencies via getIt
+      // directly, same as LoginPage does for LoginBloc. SettingsPage
+      // (Settings branch) only reads ThemeCubit/LocaleCubit from context —
+      // both provided by wrap()'s MultiBlocProvider — so it needs no getIt
+      // registration.
+      final getBrandKitUseCase = MockGetBrandKitUseCase();
+      when(getBrandKitUseCase.call).thenAnswer(
+        (_) async => Result.ok(
+          BrandKit(
+            id: 'brand-kit-1',
+            brandName: 'Demo Business',
+            logoAssetId: null,
+            primaryColorHex: '#855312',
+            secondaryColorHex: '#C6821F',
+            toneOfVoice: '',
+            contactInfo: '',
+            updatedAt: DateTime.utc(2026),
+          ),
+        ),
+      );
+
       getIt
         ..registerFactory<LoginBloc>(() => LoginBloc(MockLoginUseCase()))
-        ..registerLazySingleton<AuthRepository>(() => authRepository);
+        ..registerLazySingleton<AuthRepository>(() => authRepository)
+        ..registerFactory<BrandKitBloc>(
+          () => BrandKitBloc(
+            getBrandKitUseCase,
+            MockUpdateBrandKitUseCase(),
+            MockUploadBrandLogoUseCase(),
+          ),
+        );
     });
 
     tearDown(() async {

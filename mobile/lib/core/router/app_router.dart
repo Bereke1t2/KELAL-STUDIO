@@ -13,6 +13,7 @@ import 'package:kelal_studio/features/auth/presentation/pages/register_page.dart
 import 'package:kelal_studio/features/auth/presentation/pages/reset_password_confirm_page.dart';
 import 'package:kelal_studio/features/auth/presentation/pages/reset_password_request_page.dart';
 import 'package:kelal_studio/features/auth/presentation/widgets/email_verification_gate.dart';
+import 'package:kelal_studio/features/brand_kit/presentation/pages/brand_kit_page.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_confirm_page.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_consequence_page.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_deleted_page.dart';
@@ -156,9 +157,11 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: '/brand',
-                builder: (context, state) => ComingSoonPage(
-                  title: AppLocalizations.of(context).navBrandLabel,
-                ),
+                // Real Brand Kit UI (see BrandKitPage's own doc comment
+                // for why this exists in mobile at all — a deliberate,
+                // documented PRD deviation) — unlike Drafts/Settings,
+                // this branch is no longer a bare ComingSoonPage.
+                builder: (context, state) => const BrandKitPage(),
               ),
             ],
           ),

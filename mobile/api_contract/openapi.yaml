@@ -85,6 +85,20 @@ components:
         contact_info: { type: string }
         updated_at: { type: string, format: date-time }
 
+    UploadAssetResponse:
+      type: object
+      description: >
+        Added beyond the PRD §11 skeleton: the skeleton's endpoint list
+        names `POST /v1/assets` (multipart file upload for logo/media,
+        returns asset_id + storage_ref) but this contract never transcribed
+        it — added here so the mobile client has somewhere to upload a
+        Brand Kit logo. Flagged as an addition to hand a backend team, not
+        new API design (mirrors the `AuthTokens.email_verified` addition —
+        see that field's own comment for the precedent this follows).
+      properties:
+        asset_id: { type: string, format: uuid }
+        storage_ref: { type: string }
+
     GenerateTextRequest:
       type: object
       required: [input_text, input_lang, platform]
@@ -281,6 +295,38 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/BrandKit' }
+
+  /assets:
+    post:
+      operationId: uploadAsset
+      security: [{ bearerAuth: [] }]
+      description: >
+        Added beyond the PRD §11 skeleton — see `UploadAssetResponse`'s own
+        comment for why. Used for Brand Kit logo upload today; the PRD
+        skeleton describes this endpoint generically for "logo/media", so
+        it is not scoped to logos alone.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadAssetResponse' }
+        default:
+          description: Error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   /generate/text:
     post:

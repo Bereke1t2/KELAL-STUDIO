@@ -81,6 +81,21 @@ hex/px value in a widget — use `context.colors.*`, `AppTypography.*`,
 read `flutter-design-system` skill and pull the specific Figma node with
 `get_design_context` — don't approximate from memory of another component.
 
+## Brand Kit is built in mobile, not the web portal
+
+The PRD (§4, §6.8) assigns Brand Kit configuration (name, logo, colors,
+tone of voice, contact info) to a separate web admin/brand-kit portal —
+`web/` doesn't exist in this repo yet (see the root CLAUDE.md: don't build
+placeholder code for it). **Deliberate, acknowledged deviation**: Brand Kit
+is instead a full read/write screen in mobile (`features/brand_kit/**`,
+route `/brand`) — without it, nothing in this app could ever attach a
+brand identity to a generation request, making content generation
+unusable. See the doc comment on `BrandKitPage` for the same note in code.
+Also flagged there: `api_contract/openapi.yaml`'s `BrandKit` schema has no
+display URL for an uploaded logo (only `logo_asset_id`), so the mobile
+screen can only preview a logo picked in the current session, not one
+inherited from a prior save — a real contract gap, not a UI bug.
+
 ## Localization & dark mode
 
 - `AppLocalizations` (generated from `lib/core/l10n/arb/app_en.arb` /
