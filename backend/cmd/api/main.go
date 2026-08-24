@@ -28,14 +28,14 @@ import (
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/quota"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/reminder"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/apidocs"
-	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider/factory"
-	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/queue"
 	platformauth "github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/auth"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/config"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/database"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/httpx"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/httpx/middleware"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/logger"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider/factory"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/queue"
 )
 
 func main() {

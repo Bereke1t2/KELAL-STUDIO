@@ -38,23 +38,23 @@ type moderationRequest struct {
 type moderationResponse struct {
 	ID      string `json:"id"`
 	Results []struct {
-		Flagged        bool              `json:"flagged"`
-		Categories     map[string]bool   `json:"categories"`
+		Flagged        bool               `json:"flagged"`
+		Categories     map[string]bool    `json:"categories"`
 		CategoryScores map[string]float64 `json:"category_scores"`
 	} `json:"results"`
 }
 
 // humanReadable maps OpenAI category names to plain-language reasons.
 var humanReadable = map[string]string{
-	"sexual":            "Content contains sexual material",
-	"hate":              "Content contains hate speech",
-	"harassment":        "Content contains harassment",
-	"self-harm":         "Content promotes self-harm",
-	"violence":          "Content contains violence",
-	"sexual-minors":     "Content involves minors in sexual contexts",
-	"hate-threating":    "Content contains threatening hate speech",
+	"sexual":               "Content contains sexual material",
+	"hate":                 "Content contains hate speech",
+	"harassment":           "Content contains harassment",
+	"self-harm":            "Content promotes self-harm",
+	"violence":             "Content contains violence",
+	"sexual-minors":        "Content involves minors in sexual contexts",
+	"hate-threating":       "Content contains threatening hate speech",
 	"harassment-threating": "Content contains threatening harassment",
-	"violence-graphic":  "Content contains graphic violence",
+	"violence-graphic":     "Content contains graphic violence",
 }
 
 func (c *openaiChecker) CheckText(ctx context.Context, text, lang string) (Decision, error) {

@@ -39,8 +39,8 @@ type QuotaLimits struct {
 
 // UsageResponse is the wire shape for GET /quota/me (openapi.yaml).
 type UsageResponse struct {
-	TextUsed   int `json:"text_used"`
-	TextCap    int `json:"text_cap"`
-	ImageUsed  int `json:"image_used"`
-	ImageCap   int `json:"image_cap"`
+	TextUsed  int `json:"text_used"`
+	TextCap   int `json:"text_cap"`
+	ImageUsed int `json:"image_used"`
+	ImageCap  int `json:"image_cap"`
 }

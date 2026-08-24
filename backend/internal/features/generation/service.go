@@ -29,14 +29,14 @@ import (
 // the provider chain, the moderation checker, the quota enforcer, and the
 // hashtag bank — never on GORM or gin.
 type Service struct {
-	repo      Repository
-	text      *provider.TextChain
-	image     *provider.ImageChain
-	mod       moderation.Checker
-	quota     *quota.Service
-	bank      hashtag.Bank
-	queue     queue.Queue
-	log       *slog.Logger
+	repo  Repository
+	text  *provider.TextChain
+	image *provider.ImageChain
+	mod   moderation.Checker
+	quota *quota.Service
+	bank  hashtag.Bank
+	queue queue.Queue
+	log   *slog.Logger
 }
 
 // NewService wires the use cases.
@@ -268,13 +268,13 @@ func (s *Service) GenerateVideo(ctx context.Context, userID uuid.UUID, req gener
 	// ── Step 3: Create Job record ─────────────────────────────────────────
 	jobID := uuid.New()
 	job := &models.Job{
-		Base:         models.Base{ID: jobID},
-		UserID:       userID,
-		Status:       models.JobQueued,
-		MaxAttempts:  3,
-		CreatedAt:    time.Now().UTC(),
-		UpdatedAt:    time.Now().UTC(),
-		ExpiresAt:    time.Now().UTC().Add(24 * time.Hour),
+		Base:        models.Base{ID: jobID},
+		UserID:      userID,
+		Status:      models.JobQueued,
+		MaxAttempts: 3,
+		CreatedAt:   time.Now().UTC(),
+		UpdatedAt:   time.Now().UTC(),
+		ExpiresAt:   time.Now().UTC().Add(24 * time.Hour),
 	}
 	if err := s.repo.CreateJob(ctx, job); err != nil {
 		s.log.Error("failed to create job", "user_id", userID.String(), "error", err.Error())

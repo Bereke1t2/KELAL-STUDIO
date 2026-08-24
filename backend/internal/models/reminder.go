@@ -24,11 +24,11 @@ const (
 //     the mobile presentation layer.
 type Reminder struct {
 	Base
-	UserID          uuid.UUID      `gorm:"type:uuid;index;not null"`
-	DraftLocalID    string         `gorm:"not null"` // opaque client string
-	ScheduledAtUTC  time.Time      `gorm:"index;not null"`
-	Status          ReminderStatus `gorm:"type:varchar(16);not null;default:pending;index"`
-	FiredAt         *time.Time
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	UserID         uuid.UUID      `gorm:"type:uuid;index;not null"`
+	DraftLocalID   string         `gorm:"not null"` // opaque client string
+	ScheduledAtUTC time.Time      `gorm:"index;not null"`
+	Status         ReminderStatus `gorm:"type:varchar(16);not null;default:pending;index"`
+	FiredAt        *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }

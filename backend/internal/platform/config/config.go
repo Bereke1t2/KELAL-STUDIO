@@ -24,10 +24,10 @@ type Config struct {
 	// analogue of the mobile app's Env.useMockApi. When true, DB is never dialed.
 	UseMockData bool
 
-	DB       DBConfig
-	JWT      JWTConfig
-	RateLim  RateLimitConfig
-	Quota    QuotaConfig
+	DB         DBConfig
+	JWT        JWTConfig
+	RateLim    RateLimitConfig
+	Quota      QuotaConfig
 	Moderation ModerationConfig
 	Provider   ProviderConfig
 	Queue      QueueConfig

@@ -335,7 +335,7 @@ func MatchTopic(inputText string) string {
 
 	// Ordered by specificity — first match wins.
 	rules := []struct {
-		topic   string
+		topic    string
 		keywords []string
 	}{
 		{"coffee", []string{"coffee", "bunna", "espresso", "cappuccino", "latte", "brew", "roast"}},

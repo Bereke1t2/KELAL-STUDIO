@@ -13,11 +13,11 @@ import (
 // mockRepository is the in-memory Repository adapter used when UseMockData=true
 // and in unit tests. It is safe for concurrent use.
 type mockRepository struct {
-	mu               sync.RWMutex
-	records          []models.GenerationRecord
-	moderationFlags  []models.ModerationFlag
-	assets           []models.Asset
-	jobs             []models.Job
+	mu              sync.RWMutex
+	records         []models.GenerationRecord
+	moderationFlags []models.ModerationFlag
+	assets          []models.Asset
+	jobs            []models.Job
 }
 
 // NewMockRepository builds an empty in-memory generation repository.
@@ -57,7 +57,7 @@ func (m *mockRepository) FindGenerationRecordByInputHash(_ context.Context, user
 	if latest == nil {
 		return nil, ErrGenerationRecordNotFound
 	}
-_copy := *latest
+	_copy := *latest
 	return &_copy, nil
 }
 

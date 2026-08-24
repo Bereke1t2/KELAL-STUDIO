@@ -76,8 +76,8 @@ func (r *gormRepository) GetJob(ctx context.Context, id uuid.UUID) (*models.Job,
 
 func (r *gormRepository) UpdateJobStatus(ctx context.Context, id uuid.UUID, status models.JobStatus, attempts int, resultID *uuid.UUID) error {
 	updates := map[string]interface{}{
-		"status":   status,
-		"attempts": attempts,
+		"status":     status,
+		"attempts":   attempts,
 		"updated_at": time.Now().UTC(),
 	}
 	if resultID != nil {

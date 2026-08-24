@@ -84,7 +84,7 @@ type generateImageResponse struct {
 // because video always needs brand context (PRD §8.4).
 type generateVideoRequest struct {
 	StoryboardText string     `json:"storyboard_text" binding:"required"`
-	BrandKitID      *uuid.UUID `json:"brand_kit_id"`
+	BrandKitID     *uuid.UUID `json:"brand_kit_id"`
 }
 
 // videoJobPayload is the opaque JSON stored in queue.Job.Payload. The worker
@@ -109,11 +109,11 @@ type jobResponse struct {
 // The generation feature does NOT expose full brand kit CRUD — it only reads
 // brand context for the provider.
 type brandKitResponse struct {
-	ID              uuid.UUID  `json:"id"`
-	BrandName       string     `json:"brand_name"`
-	PrimaryColorHex string     `json:"primary_color_hex"`
-	ToneOfVoice     string     `json:"tone_of_voice"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID              uuid.UUID `json:"id"`
+	BrandName       string    `json:"brand_name"`
+	PrimaryColorHex string    `json:"primary_color_hex"`
+	ToneOfVoice     string    `json:"tone_of_voice"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 // brandKitToResponse maps a stored BrandKit model to a minimal projection.
