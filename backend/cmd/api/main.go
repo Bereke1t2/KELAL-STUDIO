@@ -26,6 +26,7 @@ import (
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/quota"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/reminder"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/apidocs"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider/factory"
 	platformauth "github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/auth"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/config"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/database"
@@ -114,14 +115,25 @@ func run(migrateOnly bool) error {
 	auth.New(auth.Deps{DB: db, JWT: jwtMgr, Config: cfg, Logger: log}).RegisterRoutes(v1, mw)
 	brandkit.New(brandkit.Deps{DB: db, Config: cfg, Logger: log}).RegisterRoutes(v1, mw)
 	asset.New().RegisterRoutes(v1, mw)
-	generation.New().RegisterRoutes(v1, mw)
+	// Build the provider chains from config. The generation feature receives
+	// the text chain; image/video are wired when those features are built.
+	textChain, err := factory.BuildTextChain(
+		cfg.Provider.TextOrder,
+		cfg.Provider.Timeout,
+		nil, // telemetry func — wire to persistence when GenerationRecord write is built
+	)
+	if err != nil {
+		return fmt.Errorf("building text provider chain: %w", err)
+	}
+	generation.New(generation.Deps{
+		DB:        db,
+		Config:    cfg,
+		Logger:    log,
+		TextChain: textChain,
+	}).RegisterRoutes(v1, mw)
 	quota.New().RegisterRoutes(v1, mw)
 	reminder.New().RegisterRoutes(v1, mw)
 	admin.New().RegisterRoutes(v1, mw)
-
-	// TODO(generation/video): build the provider chains (factory.BuildTextChain
-	// / BuildImageChain from cfg.Provider) and the queue here, then pass them
-	// into generation.New once that feature consumes them.
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.HTTPPort,
