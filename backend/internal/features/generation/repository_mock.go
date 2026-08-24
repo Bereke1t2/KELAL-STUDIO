@@ -16,6 +16,7 @@ type mockRepository struct {
 	mu               sync.RWMutex
 	records          []models.GenerationRecord
 	moderationFlags  []models.ModerationFlag
+	assets           []models.Asset
 }
 
 // NewMockRepository builds an empty in-memory generation repository.
@@ -82,5 +83,18 @@ func (m *mockRepository) CreateModerationFlag(_ context.Context, r *models.Moder
 		r.CreatedAt = time.Now()
 	}
 	m.moderationFlags = append(m.moderationFlags, *r)
+	return nil
+}
+
+func (m *mockRepository) CreateAsset(_ context.Context, r *models.Asset) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if r.ID == uuid.Nil {
+		r.ID = uuid.New()
+	}
+	if r.CreatedAt.IsZero() {
+		r.CreatedAt = time.Now()
+	}
+	m.assets = append(m.assets, *r)
 	return nil
 }

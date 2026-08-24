@@ -51,6 +51,32 @@ func textResultToResponse(r provider.TextResult) generateTextResponse {
 	}
 }
 
+// ── Image generation DTOs ────────────────────────────────────────────────
+
+// generateImageRequest is the body of POST /generate/image.
+type generateImageRequest struct {
+	CaptionEN   string     `json:"caption_en" binding:"required"`
+	AspectRatio string     `json:"aspect_ratio" binding:"required,oneof=1:1 4:5"` // OQ-02: 9:16 NOT accepted
+	BrandKitID  *uuid.UUID `json:"brand_kit_id"`
+}
+
+// toImageRequest maps the wire request into the provider-agnostic domain shape.
+func (r generateImageRequest) toImageRequest(brandName string) provider.ImageRequest {
+	return provider.ImageRequest{
+		CaptionEN:   r.CaptionEN,
+		AspectRatio: r.AspectRatio,
+		BrandName:   brandName,
+	}
+}
+
+// generateImageResponse is the contract's GenerateImageResponse schema.
+type generateImageResponse struct {
+	AssetID  uuid.UUID `json:"asset_id"`
+	ImageURL string    `json:"image_url"`
+	Width    int       `json:"width"`
+	Height   int       `json:"height"`
+}
+
 // brandKitResponse is a minimal projection of a BrandKit used for context.
 // The generation feature does NOT expose full brand kit CRUD — it only reads
 // brand context for the provider.

@@ -52,4 +52,7 @@ type Repository interface {
 	// (PRD §6.4, §6.13). Returns the generated flag ID so the caller can
 	// link it to a GenerationRecord if needed.
 	CreateModerationFlag(ctx context.Context, r *models.ModerationFlag) error
+	// CreateAsset persists a generated image/file as an Asset (PRD §6.8).
+	// The asset's StorageRef points at bytes saved outside any web root.
+	CreateAsset(ctx context.Context, r *models.Asset) error
 }

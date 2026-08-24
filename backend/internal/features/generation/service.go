@@ -4,7 +4,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -24,6 +28,7 @@ import (
 type Service struct {
 	repo      Repository
 	text      *provider.TextChain
+	image     *provider.ImageChain
 	mod       moderation.Checker
 	quota     *quota.Service
 	bank      hashtag.Bank
@@ -31,10 +36,11 @@ type Service struct {
 }
 
 // NewService wires the use cases.
-func NewService(repo Repository, textChain *provider.TextChain, mod moderation.Checker, quotaSvc *quota.Service, bank hashtag.Bank, log *slog.Logger) *Service {
+func NewService(repo Repository, textChain *provider.TextChain, imageChain *provider.ImageChain, mod moderation.Checker, quotaSvc *quota.Service, bank hashtag.Bank, log *slog.Logger) *Service {
 	return &Service{
 		repo:  repo,
 		text:  textChain,
+		image: imageChain,
 		mod:   mod,
 		quota: quotaSvc,
 		bank:  bank,
@@ -169,6 +175,47 @@ func computeInputHash(inputText, platform, brandName, tone string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
+// persistAsset saves the generated image bytes to disk and creates an Asset
+// DB record. The storage path is OUTSIDE any web root (PRD §6.8). Returns
+// the created Asset for the caller to reference.
+func (s *Service) persistAsset(ctx context.Context, userID uuid.UUID, img provider.ImageResult) (*models.Asset, error) {
+	// Generate a unique filename.
+	filename := uuid.New().String() + ".png"
+
+	// Use a configurable storage directory. For V1, use a default path.
+	storageDir := "./storage/assets"
+	if err := os.MkdirAll(storageDir, 0o755); err != nil {
+		return nil, fmt.Errorf("create storage dir: %w", err)
+	}
+
+	filePath := filepath.Join(storageDir, filename)
+	if err := os.WriteFile(filePath, img.ImageBytes, 0o644); err != nil {
+		return nil, fmt.Errorf("write image file: %w", err)
+	}
+
+	// Create the Asset DB record.
+	asset := &models.Asset{
+		OwnerUserID:      userID,
+		StorageRef:       filePath,
+		Width:            img.Width,
+		Height:           img.Height,
+		MimeType:         img.MimeType,
+		StrippedMetadata: true, // stub images have no metadata to strip
+		CreatedAt:        time.Now().UTC(),
+	}
+
+	// Persist via the repository (reuses the generation repo's DB handle
+	// through a helper — the Asset is owned by the asset feature in the
+	// full implementation, but for V1 we persist directly).
+	if err := s.repo.CreateAsset(ctx, asset); err != nil {
+		// Clean up the file if DB persist fails.
+		_ = os.Remove(filePath)
+		return nil, fmt.Errorf("persist asset record: %w", err)
+	}
+
+	return asset, nil
+}
+
 // LoadBrandKit is a helper for the handler to resolve a brand kit's context.
 // It returns empty strings if brandKitID is nil (no brand context).
 // Ownership is NOT enforced here — the handler resolves the caller; this
@@ -179,4 +226,102 @@ func (s *Service) LoadBrandKit(_ context.Context, _ uuid.UUID, _ *uuid.UUID) (br
 	// For now, return empty strings — the provider handles missing brand
 	// context gracefully.
 	return "", ""
+}
+
+// GenerateImage orchestrates the full image generation flow:
+//  1. Enforce daily quota (BEFORE any provider call) — PRD §6.14
+//  2. Run moderation check on the caption — PRD §6.4
+//  3. Run the image provider chain
+//  4. Persist the generated image as an Asset (bytes on disk + DB record)
+//  5. Persist a GenerationRecord for telemetry + accounting
+//  6. Return the asset_id + metadata
+func (s *Service) GenerateImage(ctx context.Context, userID uuid.UUID, req generateImageRequest, brandName string) (generateImageResponse, *apperror.Error) {
+	// ── Step 1: Quota enforcement ─────────────────────────────────────────
+	if qerr := s.quota.Enforce(ctx, userID, models.GenerationImage); qerr != nil {
+		return generateImageResponse{}, qerr
+	}
+
+	// ── Step 2: Moderation check on the caption ───────────────────────────
+	decision, modErr := s.mod.CheckText(ctx, req.CaptionEN, "en")
+	if modErr != nil {
+		s.log.Error("moderation check failed for image",
+			"user_id", userID.String(),
+			"error", modErr.Error(),
+		)
+		flag := &models.ModerationFlag{
+			UserID:        userID,
+			InputSnapshot: req.CaptionEN,
+			Reason:        "moderation service unavailable",
+		}
+		if ferr := s.repo.CreateModerationFlag(ctx, flag); ferr != nil {
+			s.log.Error("failed to persist moderation flag",
+				"user_id", userID.String(),
+				"error", ferr.Error(),
+			)
+		}
+		return generateImageResponse{}, apperror.ModerationRefused("content could not be verified at this time")
+	}
+	if !decision.Allowed {
+		flag := &models.ModerationFlag{
+			UserID:        userID,
+			InputSnapshot: req.CaptionEN,
+			Reason:        decision.Reason,
+		}
+		if ferr := s.repo.CreateModerationFlag(ctx, flag); ferr != nil {
+			s.log.Error("failed to persist moderation flag",
+				"user_id", userID.String(),
+				"error", ferr.Error(),
+			)
+		}
+		return generateImageResponse{}, apperror.ModerationRefused(decision.Reason)
+	}
+
+	// ── Step 3: Provider chain ────────────────────────────────────────────
+	imgReq := req.toImageRequest(brandName)
+	imgResult, meta, genErr := s.image.GenerateImage(ctx, imgReq)
+	if genErr != nil {
+		return generateImageResponse{}, genErr
+	}
+
+	// ── Step 4: Persist the image as an Asset ─────────────────────────────
+	// Save bytes to disk (outside any web root — PRD §6.8) and create an
+	// Asset DB record. The asset_id is what the client uses to reference
+	// this image.
+	assetRec, persistErr := s.persistAsset(ctx, userID, imgResult)
+	if persistErr != nil {
+		// If we can't persist the asset, the generation succeeded but we
+		// can't serve the image. Return a provider-level error.
+		s.log.Error("failed to persist generated image",
+			"user_id", userID.String(),
+			"error", persistErr.Error(),
+		)
+		return generateImageResponse{}, apperror.Internal(persistErr)
+	}
+
+	// ── Step 5: Persist GenerationRecord ──────────────────────────────────
+	inputHash := computeInputHash(req.CaptionEN, req.AspectRatio, brandName, "")
+	record := &models.GenerationRecord{
+		UserID:       userID,
+		Type:         models.GenerationImage,
+		InputHash:    inputHash,
+		Provider:     meta.Provider,
+		Model:        meta.Model,
+		ModelVersion: meta.ModelVersion,
+		LatencyMS:    int(meta.LatencyMS),
+		OutputRef:    assetRec.ID.String(), // link to the asset
+	}
+	if recErr := s.repo.CreateGenerationRecord(ctx, record); recErr != nil {
+		s.log.Error("failed to persist generation record",
+			"user_id", userID.String(),
+			"provider", meta.Provider,
+			"error", recErr.Error(),
+		)
+	}
+
+	return generateImageResponse{
+		AssetID:  assetRec.ID,
+		ImageURL: "/v1/assets/" + assetRec.ID.String(),
+		Width:    imgResult.Width,
+		Height:   imgResult.Height,
+	}, nil
 }

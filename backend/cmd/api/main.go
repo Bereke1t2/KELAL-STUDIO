@@ -117,8 +117,7 @@ func run(migrateOnly bool) error {
 	auth.New(auth.Deps{DB: db, JWT: jwtMgr, Config: cfg, Logger: log}).RegisterRoutes(v1, mw)
 	brandkit.New(brandkit.Deps{DB: db, Config: cfg, Logger: log}).RegisterRoutes(v1, mw)
 	asset.New().RegisterRoutes(v1, mw)
-	// Build the provider chains from config. The generation feature receives
-	// the text chain; image/video are wired when those features are built.
+	// Build the provider chains from config.
 	textChain, err := factory.BuildTextChain(
 		cfg.Provider.TextOrder,
 		cfg.Provider.Timeout,
@@ -126,6 +125,14 @@ func run(migrateOnly bool) error {
 	)
 	if err != nil {
 		return fmt.Errorf("building text provider chain: %w", err)
+	}
+	imageChain, err := factory.BuildImageChain(
+		cfg.Provider.ImageOrder,
+		cfg.Provider.Timeout,
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("building image provider chain: %w", err)
 	}
 	// Moderation: internal service, no HTTP routes.
 	// - USE_MOCK_DATA=true  → permissive (all content allowed, for testing)
@@ -181,6 +188,7 @@ func run(migrateOnly bool) error {
 		Config:     cfg,
 		Logger:     log,
 		TextChain:  textChain,
+		ImageChain: imageChain,
 		Moderation: modChecker,
 		Quota:      quotaSvc,
 		Hashtag:    hashBank,

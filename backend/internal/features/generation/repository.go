@@ -53,3 +53,7 @@ func (r *gormRepository) CountTodayGenerations(ctx context.Context, userID uuid.
 func (r *gormRepository) CreateModerationFlag(ctx context.Context, rec *models.ModerationFlag) error {
 	return r.db.WithContext(ctx).Create(rec).Error
 }
+
+func (r *gormRepository) CreateAsset(ctx context.Context, rec *models.Asset) error {
+	return r.db.WithContext(ctx).Create(rec).Error
+}

@@ -20,6 +20,7 @@ type Deps struct {
 	Config     *config.Config
 	Logger     *slog.Logger
 	TextChain  *provider.TextChain
+	ImageChain *provider.ImageChain
 	Moderation moderation.Checker
 	Quota      *quota.Service
 	Hashtag    hashtag.Bank
@@ -36,6 +37,6 @@ func New(d Deps) *Handler {
 		repo = NewGormRepository(d.DB)
 	}
 
-	svc := NewService(repo, d.TextChain, d.Moderation, d.Quota, d.Hashtag, d.Logger)
+	svc := NewService(repo, d.TextChain, d.ImageChain, d.Moderation, d.Quota, d.Hashtag, d.Logger)
 	return NewHandler(svc)
 }
