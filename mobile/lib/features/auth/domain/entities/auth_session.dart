@@ -5,10 +5,19 @@ import 'package:equatable/equatable.dart';
 /// rule). [data/models] DTOs map onto this; this is what use cases and
 /// presentation code actually depend on.
 class AuthSession extends Equatable {
-  const AuthSession({required this.isAuthenticated});
+  const AuthSession({
+    required this.isAuthenticated,
+    required this.emailVerified,
+  });
 
   final bool isAuthenticated;
 
+  /// Mirrors `AuthTokens.email_verified` (see
+  /// mobile/api_contract/openapi.yaml) — drives the compose-gate
+  /// (`EmailVerificationGate`, PRD §6.1: "Email verification gates content
+  /// generation"). Meaningless when [isAuthenticated] is false.
+  final bool emailVerified;
+
   @override
-  List<Object?> get props => [isAuthenticated];
+  List<Object?> get props => [isAuthenticated, emailVerified];
 }

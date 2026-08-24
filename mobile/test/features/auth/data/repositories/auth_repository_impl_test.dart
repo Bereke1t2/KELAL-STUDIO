@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kelal_studio/core/error/result.dart';
+import 'package:kelal_studio/core/network/fake_backend_support.dart';
 import 'package:kelal_studio/core/storage/secure_token_storage.dart';
 import 'package:kelal_studio/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:kelal_studio/features/auth/data/models/auth_tokens_dto.dart';
@@ -27,10 +29,12 @@ void main() {
       'a successful login() and false after logout()', () async {
     // No token stored yet -> seeded state is false.
     when(() => tokenStorage.readAccessToken()).thenAnswer((_) async => null);
+    when(() => tokenStorage.readEmailVerified()).thenAnswer((_) async => false);
     when(() => remote.login(email: email, password: password)).thenAnswer(
       (_) async => const AuthTokensDto(
         accessToken: 'access-token',
         refreshToken: 'refresh-token',
+        emailVerified: true,
       ),
     );
     when(
@@ -38,6 +42,9 @@ void main() {
         accessToken: 'access-token',
         refreshToken: 'refresh-token',
       ),
+    ).thenAnswer((_) async {});
+    when(
+      () => tokenStorage.saveEmailVerified(verified: any(named: 'verified')),
     ).thenAnswer((_) async {});
     when(() => tokenStorage.clear()).thenAnswer((_) async {});
 
@@ -68,6 +75,7 @@ void main() {
     when(
       () => tokenStorage.readAccessToken(),
     ).thenAnswer((_) async => 'existing-token');
+    when(() => tokenStorage.readEmailVerified()).thenAnswer((_) async => true);
 
     final states = <bool>[];
     final subscription = repository.watchIsAuthenticated().listen(states.add);
@@ -81,10 +89,12 @@ void main() {
       'trigger a second token-storage read, but still receives future '
       'emissions (broadcast stream, single seed)', () async {
     when(() => tokenStorage.readAccessToken()).thenAnswer((_) async => null);
+    when(() => tokenStorage.readEmailVerified()).thenAnswer((_) async => false);
     when(() => remote.login(email: email, password: password)).thenAnswer(
       (_) async => const AuthTokensDto(
         accessToken: 'access-token',
         refreshToken: 'refresh-token',
+        emailVerified: true,
       ),
     );
     when(
@@ -92,6 +102,9 @@ void main() {
         accessToken: 'access-token',
         refreshToken: 'refresh-token',
       ),
+    ).thenAnswer((_) async {});
+    when(
+      () => tokenStorage.saveEmailVerified(verified: any(named: 'verified')),
     ).thenAnswer((_) async {});
 
     final firstStates = <bool>[];
@@ -117,4 +130,97 @@ void main() {
     expect(secondStates, [true]);
     expect(firstStates, [false, true]);
   });
+
+  test('watchEmailVerified seeds from storage, then re-emits on register() '
+      "with the freshly-registered account's (unverified) status", () async {
+    when(() => tokenStorage.readEmailVerified()).thenAnswer((_) async => false);
+    when(() => remote.register(email: email, password: password)).thenAnswer(
+      (_) async => const AuthTokensDto(
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        emailVerified: false,
+      ),
+    );
+    when(
+      () => tokenStorage.saveTokens(
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    ).thenAnswer((_) async {});
+    when(
+      () => tokenStorage.saveEmailVerified(verified: any(named: 'verified')),
+    ).thenAnswer((_) async {});
+
+    final states = <bool>[];
+    final subscription = repository.watchEmailVerified().listen(states.add);
+    addTearDown(subscription.cancel);
+    await pumpEventQueue();
+    expect(states, [false]);
+
+    final result = await repository.register(email: email, password: password);
+    await pumpEventQueue();
+
+    expect(states, [false, false]);
+    expect(result.isOk, isTrue);
+    verify(() => tokenStorage.saveEmailVerified(verified: false)).called(1);
+  });
+
+  test('deleteAccount clears local session and emits logged-out only after '
+      'the remote call succeeds', () async {
+    when(() => remote.deleteAccount()).thenAnswer((_) async {});
+    when(() => tokenStorage.clear()).thenAnswer((_) async {});
+    when(() => tokenStorage.readAccessToken()).thenAnswer((_) async => 'token');
+    when(() => tokenStorage.readEmailVerified()).thenAnswer((_) async => true);
+
+    final authStates = <bool>[];
+    final authSub = repository.watchIsAuthenticated().listen(authStates.add);
+    addTearDown(authSub.cancel);
+    final verifiedStates = <bool>[];
+    final verifiedSub = repository.watchEmailVerified().listen(
+      verifiedStates.add,
+    );
+    addTearDown(verifiedSub.cancel);
+    await pumpEventQueue();
+
+    final result = await repository.deleteAccount();
+    await pumpEventQueue();
+
+    expect(result.isOk, isTrue);
+    expect(authStates, [true, false]);
+    expect(verifiedStates, [true, false]);
+    verify(() => tokenStorage.clear()).called(1);
+  });
+
+  test(
+    'deleteAccount leaves local session untouched when the remote call '
+    'fails — the user stays signed in, not logged out speculatively',
+    () async {
+      when(() => remote.deleteAccount()).thenThrow(
+        ApiException(
+          const ApiFailure(
+            type: ApiErrorType.network,
+            message: 'No connection. Check your network and try again.',
+          ),
+        ),
+      );
+      when(
+        () => tokenStorage.readAccessToken(),
+      ).thenAnswer((_) async => 'token');
+      when(
+        () => tokenStorage.readEmailVerified(),
+      ).thenAnswer((_) async => true);
+
+      final authStates = <bool>[];
+      final authSub = repository.watchIsAuthenticated().listen(authStates.add);
+      addTearDown(authSub.cancel);
+      await pumpEventQueue();
+
+      final result = await repository.deleteAccount();
+      await pumpEventQueue();
+
+      expect(result.isErr, isTrue);
+      expect(authStates, [true]); // no logged-out emission
+      verifyNever(() => tokenStorage.clear());
+    },
+  );
 }

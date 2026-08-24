@@ -109,8 +109,22 @@ void main() {
       when(
         () => authRepository.watchIsAuthenticated(),
       ).thenAnswer((_) => authController.stream);
+      // Verified by default so these navigation-focused tests don't
+      // incidentally also assert on EmailVerificationGate's banner — that
+      // behavior has its own dedicated test suite (see
+      // test/features/auth/presentation/widgets/email_verification_gate_test.dart).
+      when(
+        () => authRepository.watchEmailVerified(),
+      ).thenAnswer((_) => Stream.value(true));
 
-      getIt.registerFactory<LoginBloc>(() => LoginBloc(MockLoginUseCase()));
+      // EmailVerificationGate (mounted on the Compose branch) resolves
+      // dependencies via getIt directly, same as LoginPage does for
+      // LoginBloc. SettingsPage (mounted on the Settings branch) only
+      // reads ThemeCubit/LocaleCubit from context — both provided by
+      // wrap()'s MultiBlocProvider — so it needs no getIt registration.
+      getIt
+        ..registerFactory<LoginBloc>(() => LoginBloc(MockLoginUseCase()))
+        ..registerLazySingleton<AuthRepository>(() => authRepository);
     });
 
     tearDown(() async {

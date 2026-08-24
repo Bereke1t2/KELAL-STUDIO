@@ -1,4 +1,4 @@
-package com.kelalstudio.kelal_studio
+package com.kelalstudio.app
 
 import io.flutter.embedding.android.FlutterActivity
 

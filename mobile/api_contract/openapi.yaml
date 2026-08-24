@@ -49,10 +49,21 @@ components:
 
     AuthTokens:
       type: object
-      required: [access_token, refresh_token]
+      required: [access_token, refresh_token, email_verified]
       properties:
         access_token: { type: string }
         refresh_token: { type: string }
+        email_verified:
+          type: boolean
+          description: >
+            Added beyond the PRD §11 skeleton: register/login/refresh
+            otherwise give the mobile client no way to know verification
+            state (there is no `/users/me` or equivalent endpoint in this
+            contract to fetch `User.email_verified` separately after auth).
+            Mirrors `User.email_verified` so the client can gate content
+            generation (PRD §6.1) immediately from the auth response
+            instead of a second round trip. Flagged as an addition to hand
+            a backend team, not an existing PRD-documented field.
 
     User:
       type: object

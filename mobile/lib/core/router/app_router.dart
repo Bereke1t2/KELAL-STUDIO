@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:injectable/injectable.dart';
 
@@ -6,8 +6,13 @@ import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/core/router/app_shell.dart';
 import 'package:kelal_studio/core/router/go_router_refresh_stream.dart';
 import 'package:kelal_studio/core/router/placeholder_page.dart';
+import 'package:kelal_studio/core/theme/app_theme.dart';
 import 'package:kelal_studio/features/auth/domain/repositories/auth_repository.dart';
 import 'package:kelal_studio/features/auth/presentation/pages/login_page.dart';
+import 'package:kelal_studio/features/auth/presentation/pages/register_page.dart';
+import 'package:kelal_studio/features/auth/presentation/pages/reset_password_confirm_page.dart';
+import 'package:kelal_studio/features/auth/presentation/pages/reset_password_request_page.dart';
+import 'package:kelal_studio/features/auth/presentation/widgets/email_verification_gate.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_confirm_page.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_consequence_page.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_deleted_page.dart';
@@ -38,6 +43,9 @@ class AppRouter {
   late final GoRouterRefreshStream _refreshStream;
 
   static const loginLocation = '/login';
+  static const registerLocation = '/register';
+  static const resetPasswordRequestLocation = '/reset-password';
+  static const resetPasswordConfirmLocation = '/reset-password/confirm';
 
   /// Where an authenticated user lands after leaving `/login` — the
   /// Compose branch is this shell's designated home destination.
@@ -54,6 +62,18 @@ class AppRouter {
       GoRoute(
         path: loginLocation,
         builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: registerLocation,
+        builder: (context, state) => const RegisterPage(),
+      ),
+      GoRoute(
+        path: resetPasswordRequestLocation,
+        builder: (context, state) => const ResetPasswordRequestPage(),
+      ),
+      GoRoute(
+        path: resetPasswordConfirmLocation,
+        builder: (context, state) => const ResetPasswordConfirmPage(),
       ),
       // Pushed from `SettingsPage` (see the `/settings` shell branch below)
       // rather than tabs themselves — kept as top-level routes, same
@@ -101,8 +121,23 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: homeLocation,
-                builder: (context, state) => ComingSoonPage(
-                  title: AppLocalizations.of(context).navComposeLabel,
+                // Compose is "the screen a signed-in user lands on" (PRD
+                // §6.1) — gated behind email verification. Every other
+                // branch below stays a bare ComingSoonPage.
+                builder: (context, state) => Scaffold(
+                  appBar: AppBar(
+                    title: Text(AppLocalizations.of(context).navComposeLabel),
+                  ),
+                  body: EmailVerificationGate(
+                    child: Center(
+                      child: Text(
+                        AppLocalizations.of(context).comingSoonMessage,
+                        style: AppTypography.body.copyWith(
+                          color: context.colors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -165,8 +200,18 @@ String? authRedirect({
 }) {
   if (isAuthenticated == null) return null;
 
-  final goingToLogin = matchedLocation == AppRouter.loginLocation;
-  if (!isAuthenticated && !goingToLogin) return AppRouter.loginLocation;
-  if (isAuthenticated && goingToLogin) return AppRouter.homeLocation;
+  // Routes reachable by a signed-out user: /login plus the sign-up and
+  // password-reset flows added alongside it. All behave the same way for
+  // redirect purposes — an authenticated user is sent to `homeLocation`,
+  // an unauthenticated user is left alone.
+  const publicAuthLocations = {
+    AppRouter.loginLocation,
+    AppRouter.registerLocation,
+    AppRouter.resetPasswordRequestLocation,
+    AppRouter.resetPasswordConfirmLocation,
+  };
+  final isPublicAuthRoute = publicAuthLocations.contains(matchedLocation);
+  if (!isAuthenticated && !isPublicAuthRoute) return AppRouter.loginLocation;
+  if (isAuthenticated && isPublicAuthRoute) return AppRouter.homeLocation;
   return null;
 }

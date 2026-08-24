@@ -31,5 +31,39 @@
   "comingSoonMessage": "Coming soon",
   "@comingSoonMessage": {
     "description": "Placeholder body text shown on each bottom-nav branch's page until its real feature UI is built."
+  },
+  "createAccountTitle": "Create your account",
+  "createAccount": "Create account",
+  "@createAccount": {
+    "description": "Used both as RegisterPage's submit button label and as the footer link on LoginPage that navigates to /register."
+  },
+  "alreadyHaveAccountPrompt": "Already have an account?",
+  "dontHaveAccountPrompt": "Don't have an account?",
+  "forgotPasswordLink": "Forgot password?",
+  "resetPasswordRequestTitle": "Reset your password",
+  "resetPasswordRequestInstructions": "Enter your email and we'll send you instructions to reset your password.",
+  "resetPasswordRequestButton": "Send reset instructions",
+  "resetPasswordRequestSuccessTitle": "Check your email",
+  "resetPasswordRequestSuccessMessage": "If an account exists for that email, we've sent instructions to reset your password.",
+  "@resetPasswordRequestSuccessMessage": {
+    "description": "Shown identically regardless of whether the entered email belongs to a real account — PRD §6.1 anti-enumeration. Never reword this to imply account existence either way."
+  },
+  "resetPasswordConfirmTitle": "Set a new password",
+  "resetPasswordConfirmTokenLabel": "Reset code",
+  "@resetPasswordConfirmTokenLabel": {
+    "description": "Manual paste-in field for the reset token/code. This branch does not implement deep-link handling for a tap-through from the reset email, so the user must copy/paste the code themselves — see the auth-complete branch report for this flagged gap."
+  },
+  "newPasswordLabel": "New password",
+  "resetPasswordConfirmButton": "Reset password",
+  "resetPasswordConfirmSuccessMessage": "Your password has been reset. You can now sign in.",
+  "backToSignIn": "Back to sign in",
+  "deleteAccountButton": "Delete account",
+  "deleteAccountConfirmTitle": "Delete your account?",
+  "deleteAccountConfirmBody": "This permanently deletes your account and all of its data. This can't be undone.",
+  "cancelLabel": "Cancel",
+  "emailVerificationGateTitle": "Verify your email",
+  "emailVerificationGateMessage": "Check your inbox for a verification link. Content generation is locked until your email is verified.",
+  "@emailVerificationGateMessage": {
+    "description": "PRD §6.1: email verification gates content generation. This branch only builds the state plumbing + this banner, not a resend-email flow or deep-link handling for the verification link itself — flagged as a real gap for a future branch."
   }
 }
