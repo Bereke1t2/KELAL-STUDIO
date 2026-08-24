@@ -57,3 +57,31 @@ func (r *gormRepository) CreateModerationFlag(ctx context.Context, rec *models.M
 func (r *gormRepository) CreateAsset(ctx context.Context, rec *models.Asset) error {
 	return r.db.WithContext(ctx).Create(rec).Error
 }
+
+func (r *gormRepository) CreateJob(ctx context.Context, rec *models.Job) error {
+	return r.db.WithContext(ctx).Create(rec).Error
+}
+
+func (r *gormRepository) GetJob(ctx context.Context, id uuid.UUID) (*models.Job, error) {
+	var rec models.Job
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&rec).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrJobNotFound
+		}
+		return nil, err
+	}
+	return &rec, nil
+}
+
+func (r *gormRepository) UpdateJobStatus(ctx context.Context, id uuid.UUID, status models.JobStatus, attempts int, resultID *uuid.UUID) error {
+	updates := map[string]interface{}{
+		"status":   status,
+		"attempts": attempts,
+		"updated_at": time.Now().UTC(),
+	}
+	if resultID != nil {
+		updates["result_generation_record_id"] = *resultID
+	}
+	return r.db.WithContext(ctx).Model(&models.Job{}).Where("id = ?", id).Updates(updates).Error
+}

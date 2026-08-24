@@ -17,6 +17,7 @@ type mockRepository struct {
 	records          []models.GenerationRecord
 	moderationFlags  []models.ModerationFlag
 	assets           []models.Asset
+	jobs             []models.Job
 }
 
 // NewMockRepository builds an empty in-memory generation repository.
@@ -97,4 +98,46 @@ func (m *mockRepository) CreateAsset(_ context.Context, r *models.Asset) error {
 	}
 	m.assets = append(m.assets, *r)
 	return nil
+}
+
+func (m *mockRepository) CreateJob(_ context.Context, r *models.Job) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if r.ID == uuid.Nil {
+		r.ID = uuid.New()
+	}
+	if r.CreatedAt.IsZero() {
+		r.CreatedAt = time.Now()
+	}
+	m.jobs = append(m.jobs, *r)
+	return nil
+}
+
+func (m *mockRepository) GetJob(_ context.Context, id uuid.UUID) (*models.Job, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for i := range m.jobs {
+		if m.jobs[i].ID == id {
+			copy := m.jobs[i]
+			return &copy, nil
+		}
+	}
+	return nil, ErrJobNotFound
+}
+
+func (m *mockRepository) UpdateJobStatus(_ context.Context, id uuid.UUID, status models.JobStatus, attempts int, resultID *uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.jobs {
+		if m.jobs[i].ID == id {
+			m.jobs[i].Status = status
+			m.jobs[i].Attempts = attempts
+			m.jobs[i].UpdatedAt = time.Now()
+			if resultID != nil {
+				m.jobs[i].ResultGenerationRecordID = resultID
+			}
+			return nil
+		}
+	}
+	return ErrJobNotFound
 }

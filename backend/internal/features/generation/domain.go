@@ -55,4 +55,13 @@ type Repository interface {
 	// CreateAsset persists a generated image/file as an Asset (PRD §6.8).
 	// The asset's StorageRef points at bytes saved outside any web root.
 	CreateAsset(ctx context.Context, r *models.Asset) error
+	// CreateJob persists a new async job row (PRD §10.3).
+	CreateJob(ctx context.Context, r *models.Job) error
+	// GetJob returns a job by ID, or ErrJobNotFound if none exists.
+	GetJob(ctx context.Context, id uuid.UUID) (*models.Job, error)
+	// UpdateJobStatus updates the status, attempts, and result of a job.
+	UpdateJobStatus(ctx context.Context, id uuid.UUID, status models.JobStatus, attempts int, resultID *uuid.UUID) error
 }
+
+// ErrJobNotFound is returned when no job matches a query.
+var ErrJobNotFound = errors.New("generation: job not found")

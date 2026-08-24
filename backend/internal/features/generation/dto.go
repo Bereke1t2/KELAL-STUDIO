@@ -77,6 +77,34 @@ type generateImageResponse struct {
 	Height   int       `json:"height"`
 }
 
+// ── Video generation DTOs ────────────────────────────────────────────────
+
+// generateVideoRequest is the body of POST /generate/video.
+// storyboard_text is the narrative for the video; brand_kit_id is required
+// because video always needs brand context (PRD §8.4).
+type generateVideoRequest struct {
+	StoryboardText string     `json:"storyboard_text" binding:"required"`
+	BrandKitID      *uuid.UUID `json:"brand_kit_id"`
+}
+
+// videoJobPayload is the opaque JSON stored in queue.Job.Payload. The worker
+// decodes this to process the video generation.
+type videoJobPayload struct {
+	JobID          uuid.UUID `json:"job_id"`
+	UserID         uuid.UUID `json:"user_id"`
+	StoryboardText string    `json:"storyboard_text"`
+	BrandName      string    `json:"brand_name"`
+}
+
+// jobResponse is the contract's Job schema (openapi.yaml).
+// FLAG: result_asset_id maps to ResultGenerationRecordID in the PRD model;
+// for V1 the video feature maps between them (docs/OPEN_QUESTIONS.md).
+type jobResponse struct {
+	ID            uuid.UUID  `json:"id"`
+	Status        string     `json:"status"`
+	ResultAssetID *uuid.UUID `json:"result_asset_id,omitempty"`
+}
+
 // brandKitResponse is a minimal projection of a BrandKit used for context.
 // The generation feature does NOT expose full brand kit CRUD — it only reads
 // brand context for the provider.

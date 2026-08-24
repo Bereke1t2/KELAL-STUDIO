@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -18,6 +20,7 @@ import (
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/models"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/apperror"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/queue"
 )
 
 // Service holds the generation use cases. Each public method is ONE use case
@@ -32,11 +35,12 @@ type Service struct {
 	mod       moderation.Checker
 	quota     *quota.Service
 	bank      hashtag.Bank
+	queue     queue.Queue
 	log       *slog.Logger
 }
 
 // NewService wires the use cases.
-func NewService(repo Repository, textChain *provider.TextChain, imageChain *provider.ImageChain, mod moderation.Checker, quotaSvc *quota.Service, bank hashtag.Bank, log *slog.Logger) *Service {
+func NewService(repo Repository, textChain *provider.TextChain, imageChain *provider.ImageChain, mod moderation.Checker, quotaSvc *quota.Service, bank hashtag.Bank, q queue.Queue, log *slog.Logger) *Service {
 	return &Service{
 		repo:  repo,
 		text:  textChain,
@@ -44,6 +48,7 @@ func NewService(repo Repository, textChain *provider.TextChain, imageChain *prov
 		mod:   mod,
 		quota: quotaSvc,
 		bank:  bank,
+		queue: q,
 		log:   log,
 	}
 }
@@ -214,6 +219,180 @@ func (s *Service) persistAsset(ctx context.Context, userID uuid.UUID, img provid
 	}
 
 	return asset, nil
+}
+
+// GenerateVideo enqueues an async video generation job (PRD §8.4, §10.3).
+// Returns immediately with a Job in "queued" status (HTTP 202). The actual
+// processing happens in ProcessVideoJob, which is called by the queue consumer.
+func (s *Service) GenerateVideo(ctx context.Context, userID uuid.UUID, req generateVideoRequest, brandName string) (jobResponse, *apperror.Error) {
+	// ── Step 1: Quota enforcement ─────────────────────────────────────────
+	if qerr := s.quota.Enforce(ctx, userID, models.GenerationVideo); qerr != nil {
+		return jobResponse{}, qerr
+	}
+
+	// ── Step 2: Moderation check on the storyboard ────────────────────────
+	decision, modErr := s.mod.CheckText(ctx, req.StoryboardText, "en")
+	if modErr != nil {
+		s.log.Error("moderation check failed for video",
+			"user_id", userID.String(),
+			"error", modErr.Error(),
+		)
+		flag := &models.ModerationFlag{
+			UserID:        userID,
+			InputSnapshot: req.StoryboardText,
+			Reason:        "moderation service unavailable",
+		}
+		if ferr := s.repo.CreateModerationFlag(ctx, flag); ferr != nil {
+			s.log.Error("failed to persist moderation flag",
+				"user_id", userID.String(),
+				"error", ferr.Error(),
+			)
+		}
+		return jobResponse{}, apperror.ModerationRefused("content could not be verified at this time")
+	}
+	if !decision.Allowed {
+		flag := &models.ModerationFlag{
+			UserID:        userID,
+			InputSnapshot: req.StoryboardText,
+			Reason:        decision.Reason,
+		}
+		if ferr := s.repo.CreateModerationFlag(ctx, flag); ferr != nil {
+			s.log.Error("failed to persist moderation flag",
+				"user_id", userID.String(),
+				"error", ferr.Error(),
+			)
+		}
+		return jobResponse{}, apperror.ModerationRefused(decision.Reason)
+	}
+
+	// ── Step 3: Create Job record ─────────────────────────────────────────
+	jobID := uuid.New()
+	job := &models.Job{
+		Base:         models.Base{ID: jobID},
+		UserID:       userID,
+		Status:       models.JobQueued,
+		MaxAttempts:  3,
+		CreatedAt:    time.Now().UTC(),
+		UpdatedAt:    time.Now().UTC(),
+		ExpiresAt:    time.Now().UTC().Add(24 * time.Hour),
+	}
+	if err := s.repo.CreateJob(ctx, job); err != nil {
+		s.log.Error("failed to create job", "user_id", userID.String(), "error", err.Error())
+		return jobResponse{}, apperror.Internal(err)
+	}
+
+	// ── Step 4: Enqueue for async processing ──────────────────────────────
+	payload := videoJobPayload{
+		JobID:          jobID,
+		UserID:         userID,
+		StoryboardText: req.StoryboardText,
+		BrandName:      brandName,
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	qErr := s.queue.Enqueue(ctx, queue.Job{
+		ID:      jobID.String(),
+		Type:    "video",
+		Payload: payloadBytes,
+	})
+	if qErr != nil {
+		s.log.Error("failed to enqueue video job",
+			"job_id", jobID.String(),
+			"error", qErr.Error(),
+		)
+		// Update job to failed if enqueue fails.
+		_ = s.repo.UpdateJobStatus(ctx, jobID, models.JobFailed, 0, nil)
+		return jobResponse{}, apperror.Internal(qErr)
+	}
+
+	return jobResponse{
+		ID:     jobID,
+		Status: string(models.JobQueued),
+	}, nil
+}
+
+// ProcessVideoJob is called by the queue consumer to actually generate the
+// video. In V1 this is a stub that generates a placeholder image (since no
+// real video provider ships today — OQ-20). The flow mirrors image generation:
+// provider chain → persist asset → update job status.
+func (s *Service) ProcessVideoJob(ctx context.Context, job queue.Job) error {
+	// Decode the payload.
+	var payload videoJobPayload
+	if err := json.Unmarshal(job.Payload, &payload); err != nil {
+		s.log.Error("failed to decode video job payload", "job_id", job.ID, "error", err.Error())
+		return fmt.Errorf("decode payload: %w", err)
+	}
+
+	jobID := payload.JobID
+	s.log.Info("processing video job", "job_id", jobID.String(), "user_id", payload.UserID.String())
+
+	// Mark as running.
+	_ = s.repo.UpdateJobStatus(ctx, jobID, models.JobRunning, 1, nil)
+
+	// Run the image chain as a placeholder for video (no video provider exists yet).
+	imgReq := provider.ImageRequest{
+		CaptionEN:   payload.StoryboardText,
+		AspectRatio: "9:16", // vertical video format
+		BrandName:   payload.BrandName,
+	}
+	imgResult, meta, genErr := s.image.GenerateImage(ctx, imgReq)
+	if genErr != nil {
+		s.log.Error("video job: image provider failed",
+			"job_id", jobID.String(),
+			"error", genErr.Error(),
+		)
+		_ = s.repo.UpdateJobStatus(ctx, jobID, models.JobFailed, 1, nil)
+		return genErr
+	}
+
+	// Persist the generated frame as an Asset.
+	assetRec, persistErr := s.persistAsset(ctx, payload.UserID, imgResult)
+	if persistErr != nil {
+		s.log.Error("video job: failed to persist asset",
+			"job_id", jobID.String(),
+			"error", persistErr.Error(),
+		)
+		_ = s.repo.UpdateJobStatus(ctx, jobID, models.JobFailed, 1, nil)
+		return persistErr
+	}
+
+	// Create a GenerationRecord for telemetry.
+	record := &models.GenerationRecord{
+		UserID:       payload.UserID,
+		Type:         models.GenerationVideo,
+		Provider:     meta.Provider,
+		Model:        meta.Model,
+		ModelVersion: meta.ModelVersion,
+		LatencyMS:    int(meta.LatencyMS),
+		OutputRef:    assetRec.ID.String(),
+	}
+	_ = s.repo.CreateGenerationRecord(ctx, record)
+
+	// Mark job as done, linking to the generation record.
+	_ = s.repo.UpdateJobStatus(ctx, jobID, models.JobDone, 1, &record.ID)
+	s.log.Info("video job completed", "job_id", jobID.String(), "asset_id", assetRec.ID.String())
+
+	return nil
+}
+
+// GetJob returns the current status of an async job.
+func (s *Service) GetJob(ctx context.Context, jobID uuid.UUID) (jobResponse, *apperror.Error) {
+	job, err := s.repo.GetJob(ctx, jobID)
+	if err != nil {
+		if errors.Is(err, ErrJobNotFound) {
+			return jobResponse{}, apperror.NotFound("job not found")
+		}
+		return jobResponse{}, apperror.Internal(err)
+	}
+
+	resp := jobResponse{
+		ID:     job.ID,
+		Status: string(job.Status),
+	}
+	if job.ResultGenerationRecordID != nil {
+		resp.ResultAssetID = job.ResultGenerationRecordID
+	}
+	return resp, nil
 }
 
 // LoadBrandKit is a helper for the handler to resolve a brand kit's context.

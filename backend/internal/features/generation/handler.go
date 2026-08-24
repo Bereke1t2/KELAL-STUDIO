@@ -109,11 +109,50 @@ func (h *Handler) image(c *gin.Context) {
 	httpx.OK(c, result)
 }
 
+// video handles POST /generate/video. Async: enqueues a job and returns 202.
+// The actual processing happens in the queue consumer (ProcessVideoJob).
 func (h *Handler) video(c *gin.Context) {
-	// TODO(generation): enqueue via platform/queue and return 202 + Job.
-	httpx.Fail(c, apperror.NotImplemented("video generation"))
+	// ── Bind request ──────────────────────────────────────────────────────
+	var req generateVideoRequest
+	if aerr := validate.BindJSON(c, &req); aerr != nil {
+		httpx.Fail(c, aerr)
+		return
+	}
+
+	// ── Resolve caller ────────────────────────────────────────────────────
+	userID, err := uuid.Parse(middleware.UserID(c))
+	if err != nil {
+		httpx.Fail(c, apperror.Unauthorized("invalid session"))
+		return
+	}
+
+	// ── Load brand context (optional) ─────────────────────────────────────
+	brandName, _ := h.svc.LoadBrandKit(c.Request.Context(), userID, req.BrandKitID)
+
+	// ── Enqueue ───────────────────────────────────────────────────────────
+	result, aerr := h.svc.GenerateVideo(c.Request.Context(), userID, req, brandName)
+	if aerr != nil {
+		httpx.Fail(c, aerr)
+		return
+	}
+
+	// 202 Accepted — the client polls GET /jobs/{id} for completion.
+	httpx.Accepted(c, result)
 }
 
+// job handles GET /jobs/:id — returns the current status of an async job.
 func (h *Handler) job(c *gin.Context) {
-	httpx.Fail(c, apperror.NotImplemented("job status"))
+	jobID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		httpx.Fail(c, apperror.Validation("invalid job id"))
+		return
+	}
+
+	result, aerr := h.svc.GetJob(c.Request.Context(), jobID)
+	if aerr != nil {
+		httpx.Fail(c, aerr)
+		return
+	}
+
+	httpx.OK(c, result)
 }

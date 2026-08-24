@@ -10,6 +10,7 @@ import (
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/quota"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/config"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/queue"
 )
 
 // Deps are everything the generation feature needs from the composition root
@@ -24,12 +25,20 @@ type Deps struct {
 	Moderation moderation.Checker
 	Quota      *quota.Service
 	Hashtag    hashtag.Bank
+	Queue      queue.Queue
 }
 
-// New wires the feature and returns its Handler. It selects the in-memory or
+// Module holds the wired Handler and Service. The Service is exposed so
+// cmd/api can register ProcessVideoJob as the queue consumer handler.
+type Module struct {
+	Handler *Handler
+	Service *Service
+}
+
+// New wires the feature and returns its Module. It selects the in-memory or
 // Postgres adapter from configuration — the backend analogue of the mobile
 // app's per-feature @module gated on Env.useMockData.
-func New(d Deps) *Handler {
+func New(d Deps) Module {
 	var repo Repository
 	if d.Config.UseMockData || d.DB == nil {
 		repo = NewMockRepository()
@@ -37,6 +46,7 @@ func New(d Deps) *Handler {
 		repo = NewGormRepository(d.DB)
 	}
 
-	svc := NewService(repo, d.TextChain, d.ImageChain, d.Moderation, d.Quota, d.Hashtag, d.Logger)
-	return NewHandler(svc)
+	svc := NewService(repo, d.TextChain, d.ImageChain, d.Moderation, d.Quota, d.Hashtag, d.Queue, d.Logger)
+	h := NewHandler(svc)
+	return Module{Handler: h, Service: svc}
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/reminder"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/apidocs"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider/factory"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/queue"
 	platformauth "github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/auth"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/config"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/database"
@@ -183,7 +184,12 @@ func run(migrateOnly bool) error {
 	// with provider-generated hashtags.
 	hashBank := hashtag.NewBank()
 
-	generation.New(generation.Deps{
+	// Queue: in-process job queue for async video generation (PRD §10.3).
+	// With the in-process driver, the API process itself consumes jobs —
+	// the separate cmd/worker binary is the shape for a real broker.
+	jobQueue := queue.NewInProc(cfg.Queue.VideoMaxAttempts, log)
+
+	genMod := generation.New(generation.Deps{
 		DB:         db,
 		Config:     cfg,
 		Logger:     log,
@@ -192,7 +198,17 @@ func run(migrateOnly bool) error {
 		Moderation: modChecker,
 		Quota:      quotaSvc,
 		Hashtag:    hashBank,
-	}).RegisterRoutes(v1, mw)
+		Queue:      jobQueue,
+	})
+	genMod.Handler.RegisterRoutes(v1, mw)
+
+	// Start the in-process queue consumer for video jobs. This runs in a
+	// goroutine and processes jobs as they are enqueued by the API.
+	go func() {
+		ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+		defer stop()
+		jobQueue.Start(ctx, genMod.Service.ProcessVideoJob)
+	}()
 	quota.NewHandler(quotaSvc).RegisterRoutes(v1, mw)
 	reminder.New().RegisterRoutes(v1, mw)
 	admin.New().RegisterRoutes(v1, mw)
