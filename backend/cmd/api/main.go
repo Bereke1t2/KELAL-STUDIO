@@ -167,7 +167,7 @@ func run(migrateOnly bool) error {
 	} else {
 		quotaRepo = quota.NewGormRepository(db)
 	}
-	quotaLimits := quota.QuotaLimits{
+	quotaLimits := quota.Limits{
 		TextDaily:  cfg.Quota.TextDaily,
 		ImageDaily: cfg.Quota.ImageDaily,
 	}

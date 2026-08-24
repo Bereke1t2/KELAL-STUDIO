@@ -40,8 +40,8 @@ func (m *mockRepository) GetReminder(_ context.Context, id uuid.UUID) (*models.R
 	defer m.mu.RUnlock()
 	for i := range m.reminders {
 		if m.reminders[i].ID == id {
-			copy := m.reminders[i]
-			return &copy, nil
+			reminderCopy := m.reminders[i]
+			return &reminderCopy, nil
 		}
 	}
 	return nil, ErrReminderNotFound

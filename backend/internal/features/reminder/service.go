@@ -18,6 +18,7 @@ type Service struct {
 	log  *slog.Logger
 }
 
+// NewService wires the reminder use cases.
 func NewService(repo Repository, log *slog.Logger) *Service {
 	return &Service{repo: repo, log: log}
 }

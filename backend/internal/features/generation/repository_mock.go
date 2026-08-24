@@ -118,8 +118,8 @@ func (m *mockRepository) GetJob(_ context.Context, id uuid.UUID) (*models.Job, e
 	defer m.mu.RUnlock()
 	for i := range m.jobs {
 		if m.jobs[i].ID == id {
-			copy := m.jobs[i]
-			return &copy, nil
+			jobCopy := m.jobs[i]
+			return &jobCopy, nil
 		}
 	}
 	return nil, ErrJobNotFound

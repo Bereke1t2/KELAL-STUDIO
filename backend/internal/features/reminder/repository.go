@@ -15,6 +15,7 @@ type gormRepository struct {
 	db *gorm.DB
 }
 
+// NewGormRepository builds a Postgres-backed reminder repository.
 func NewGormRepository(db *gorm.DB) Repository {
 	return &gormRepository{db: db}
 }

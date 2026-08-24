@@ -18,6 +18,7 @@ type Handler struct {
 	svc *Service
 }
 
+// NewHandler wraps a service for HTTP delivery.
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }

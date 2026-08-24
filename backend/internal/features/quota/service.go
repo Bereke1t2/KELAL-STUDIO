@@ -16,12 +16,12 @@ import (
 // feature BEFORE any outbound provider call (PRD §6.14).
 type Service struct {
 	repo   Repository
-	limits QuotaLimits
+	limits Limits
 	log    *slog.Logger
 }
 
 // NewService wires the quota use cases.
-func NewService(repo Repository, limits QuotaLimits, log *slog.Logger) *Service {
+func NewService(repo Repository, limits Limits, log *slog.Logger) *Service {
 	return &Service{
 		repo:   repo,
 		limits: limits,
@@ -34,8 +34,8 @@ func NewService(repo Repository, limits QuotaLimits, log *slog.Logger) *Service 
 // with the reset time (midnight UTC). On success it returns nil — the caller
 // proceeds to the provider chain.
 func (s *Service) Enforce(ctx context.Context, userID uuid.UUID, genType models.GenerationType) *apperror.Error {
-	cap := s.capForType(genType)
-	if cap <= 0 {
+	dailyCap := s.capForType(genType)
+	if dailyCap <= 0 {
 		// No cap configured — allow everything.
 		return nil
 	}
@@ -68,14 +68,14 @@ func (s *Service) Enforce(ctx context.Context, userID uuid.UUID, genType models.
 		used = imageUsed
 	}
 
-	if used > cap {
+	if used > dailyCap {
 		// Type-assert the resetsAt to time.Time.
 		midnight, _ := resetsAtRaw.(time.Time)
 		if midnight.IsZero() {
 			midnight = time.Now().UTC().Truncate(24 * time.Hour).Add(24 * time.Hour)
 		}
 		return apperror.QuotaExceeded(
-			fmt.Sprintf("daily %s generation limit of %d reached", genType, cap),
+			fmt.Sprintf("daily %s generation limit of %d reached", genType, dailyCap),
 			midnight,
 		)
 	}

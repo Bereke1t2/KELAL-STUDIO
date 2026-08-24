@@ -39,7 +39,7 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup, mw middleware.Set) {
 //  4. Delegate to service (quota → cache → provider chain → persist)
 func (h *Handler) text(c *gin.Context) {
 	// ── Bind request ──────────────────────────────────────────────────────
-	var req generateTextRequest
+	var req GenerateTextRequest
 	if aerr := validate.BindJSON(c, &req); aerr != nil {
 		httpx.Fail(c, aerr)
 		return
@@ -72,7 +72,7 @@ func (h *Handler) text(c *gin.Context) {
 //  4. Delegate to service (quota → moderation → provider chain → persist asset → persist record)
 func (h *Handler) image(c *gin.Context) {
 	// ── Bind request ──────────────────────────────────────────────────────
-	var req generateImageRequest
+	var req GenerateImageRequest
 	if aerr := validate.BindJSON(c, &req); aerr != nil {
 		httpx.Fail(c, aerr)
 		return
@@ -113,7 +113,7 @@ func (h *Handler) image(c *gin.Context) {
 // The actual processing happens in the queue consumer (ProcessVideoJob).
 func (h *Handler) video(c *gin.Context) {
 	// ── Bind request ──────────────────────────────────────────────────────
-	var req generateVideoRequest
+	var req GenerateVideoRequest
 	if aerr := validate.BindJSON(c, &req); aerr != nil {
 		httpx.Fail(c, aerr)
 		return

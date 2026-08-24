@@ -61,12 +61,12 @@ func NewService(repo Repository, textChain *provider.TextChain, imageChain *prov
 //  5. Run the provider chain
 //  6. Persist a GenerationRecord for telemetry + accounting
 //  7. Return the result
-func (s *Service) GenerateText(ctx context.Context, userID uuid.UUID, req generateTextRequest, brandName, tone string) (generateTextResponse, *apperror.Error) {
+func (s *Service) GenerateText(ctx context.Context, userID uuid.UUID, req GenerateTextRequest, brandName, tone string) (GenerateTextResponse, *apperror.Error) {
 	// ── Step 1: Quota enforcement ─────────────────────────────────────────
 	// The quota service atomically increments and checks the daily cap.
 	// On exceed it returns apperror.QuotaExceeded with ResetsAt.
 	if qerr := s.quota.Enforce(ctx, userID, models.GenerationText); qerr != nil {
-		return generateTextResponse{}, qerr
+		return GenerateTextResponse{}, qerr
 	}
 
 	// ── Step 2: Moderation check ──────────────────────────────────────────
@@ -91,7 +91,7 @@ func (s *Service) GenerateText(ctx context.Context, userID uuid.UUID, req genera
 				"error", ferr.Error(),
 			)
 		}
-		return generateTextResponse{}, apperror.ModerationRefused("content could not be verified at this time")
+		return GenerateTextResponse{}, apperror.ModerationRefused("content could not be verified at this time")
 	}
 	if !decision.Allowed {
 		flag := &models.ModerationFlag{
@@ -105,7 +105,7 @@ func (s *Service) GenerateText(ctx context.Context, userID uuid.UUID, req genera
 				"error", ferr.Error(),
 			)
 		}
-		return generateTextResponse{}, apperror.ModerationRefused(decision.Reason)
+		return GenerateTextResponse{}, apperror.ModerationRefused(decision.Reason)
 	}
 
 	// ── Step 3: Input hash for caching ────────────────────────────────────
@@ -123,7 +123,7 @@ func (s *Service) GenerateText(ctx context.Context, userID uuid.UUID, req genera
 	textReq := req.toTextRequest(brandName, tone)
 	result, meta, genErr := s.text.GenerateText(ctx, textReq)
 	if genErr != nil {
-		return generateTextResponse{}, genErr
+		return GenerateTextResponse{}, genErr
 	}
 
 	// ── Step 5: Merge hashtags from bank ──────────────────────────────────
@@ -189,12 +189,12 @@ func (s *Service) persistAsset(ctx context.Context, userID uuid.UUID, img provid
 
 	// Use a configurable storage directory. For V1, use a default path.
 	storageDir := "./storage/assets"
-	if err := os.MkdirAll(storageDir, 0o755); err != nil {
+	if err := os.MkdirAll(storageDir, 0o750); err != nil {
 		return nil, fmt.Errorf("create storage dir: %w", err)
 	}
 
 	filePath := filepath.Join(storageDir, filename)
-	if err := os.WriteFile(filePath, img.ImageBytes, 0o644); err != nil {
+	if err := os.WriteFile(filePath, img.ImageBytes, 0o600); err != nil {
 		return nil, fmt.Errorf("write image file: %w", err)
 	}
 
@@ -224,10 +224,10 @@ func (s *Service) persistAsset(ctx context.Context, userID uuid.UUID, img provid
 // GenerateVideo enqueues an async video generation job (PRD §8.4, §10.3).
 // Returns immediately with a Job in "queued" status (HTTP 202). The actual
 // processing happens in ProcessVideoJob, which is called by the queue consumer.
-func (s *Service) GenerateVideo(ctx context.Context, userID uuid.UUID, req generateVideoRequest, brandName string) (jobResponse, *apperror.Error) {
+func (s *Service) GenerateVideo(ctx context.Context, userID uuid.UUID, req GenerateVideoRequest, brandName string) (JobResponse, *apperror.Error) {
 	// ── Step 1: Quota enforcement ─────────────────────────────────────────
 	if qerr := s.quota.Enforce(ctx, userID, models.GenerationVideo); qerr != nil {
-		return jobResponse{}, qerr
+		return JobResponse{}, qerr
 	}
 
 	// ── Step 2: Moderation check on the storyboard ────────────────────────
@@ -248,7 +248,7 @@ func (s *Service) GenerateVideo(ctx context.Context, userID uuid.UUID, req gener
 				"error", ferr.Error(),
 			)
 		}
-		return jobResponse{}, apperror.ModerationRefused("content could not be verified at this time")
+		return JobResponse{}, apperror.ModerationRefused("content could not be verified at this time")
 	}
 	if !decision.Allowed {
 		flag := &models.ModerationFlag{
@@ -262,7 +262,7 @@ func (s *Service) GenerateVideo(ctx context.Context, userID uuid.UUID, req gener
 				"error", ferr.Error(),
 			)
 		}
-		return jobResponse{}, apperror.ModerationRefused(decision.Reason)
+		return JobResponse{}, apperror.ModerationRefused(decision.Reason)
 	}
 
 	// ── Step 3: Create Job record ─────────────────────────────────────────
@@ -278,11 +278,11 @@ func (s *Service) GenerateVideo(ctx context.Context, userID uuid.UUID, req gener
 	}
 	if err := s.repo.CreateJob(ctx, job); err != nil {
 		s.log.Error("failed to create job", "user_id", userID.String(), "error", err.Error())
-		return jobResponse{}, apperror.Internal(err)
+		return JobResponse{}, apperror.Internal(err)
 	}
 
 	// ── Step 4: Enqueue for async processing ──────────────────────────────
-	payload := videoJobPayload{
+	payload := VideoJobPayload{
 		JobID:          jobID,
 		UserID:         userID,
 		StoryboardText: req.StoryboardText,
@@ -302,10 +302,10 @@ func (s *Service) GenerateVideo(ctx context.Context, userID uuid.UUID, req gener
 		)
 		// Update job to failed if enqueue fails.
 		_ = s.repo.UpdateJobStatus(ctx, jobID, models.JobFailed, 0, nil)
-		return jobResponse{}, apperror.Internal(qErr)
+		return JobResponse{}, apperror.Internal(qErr)
 	}
 
-	return jobResponse{
+	return JobResponse{
 		ID:     jobID,
 		Status: string(models.JobQueued),
 	}, nil
@@ -317,7 +317,7 @@ func (s *Service) GenerateVideo(ctx context.Context, userID uuid.UUID, req gener
 // provider chain → persist asset → update job status.
 func (s *Service) ProcessVideoJob(ctx context.Context, job queue.Job) error {
 	// Decode the payload.
-	var payload videoJobPayload
+	var payload VideoJobPayload
 	if err := json.Unmarshal(job.Payload, &payload); err != nil {
 		s.log.Error("failed to decode video job payload", "job_id", job.ID, "error", err.Error())
 		return fmt.Errorf("decode payload: %w", err)
@@ -376,16 +376,16 @@ func (s *Service) ProcessVideoJob(ctx context.Context, job queue.Job) error {
 }
 
 // GetJob returns the current status of an async job.
-func (s *Service) GetJob(ctx context.Context, jobID uuid.UUID) (jobResponse, *apperror.Error) {
+func (s *Service) GetJob(ctx context.Context, jobID uuid.UUID) (JobResponse, *apperror.Error) {
 	job, err := s.repo.GetJob(ctx, jobID)
 	if err != nil {
 		if errors.Is(err, ErrJobNotFound) {
-			return jobResponse{}, apperror.NotFound("job not found")
+			return JobResponse{}, apperror.NotFound("job not found")
 		}
-		return jobResponse{}, apperror.Internal(err)
+		return JobResponse{}, apperror.Internal(err)
 	}
 
-	resp := jobResponse{
+	resp := JobResponse{
 		ID:     job.ID,
 		Status: string(job.Status),
 	}
@@ -414,10 +414,10 @@ func (s *Service) LoadBrandKit(_ context.Context, _ uuid.UUID, _ *uuid.UUID) (br
 //  4. Persist the generated image as an Asset (bytes on disk + DB record)
 //  5. Persist a GenerationRecord for telemetry + accounting
 //  6. Return the asset_id + metadata
-func (s *Service) GenerateImage(ctx context.Context, userID uuid.UUID, req generateImageRequest, brandName string) (generateImageResponse, *apperror.Error) {
+func (s *Service) GenerateImage(ctx context.Context, userID uuid.UUID, req GenerateImageRequest, brandName string) (GenerateImageResponse, *apperror.Error) {
 	// ── Step 1: Quota enforcement ─────────────────────────────────────────
 	if qerr := s.quota.Enforce(ctx, userID, models.GenerationImage); qerr != nil {
-		return generateImageResponse{}, qerr
+		return GenerateImageResponse{}, qerr
 	}
 
 	// ── Step 2: Moderation check on the caption ───────────────────────────
@@ -438,7 +438,7 @@ func (s *Service) GenerateImage(ctx context.Context, userID uuid.UUID, req gener
 				"error", ferr.Error(),
 			)
 		}
-		return generateImageResponse{}, apperror.ModerationRefused("content could not be verified at this time")
+		return GenerateImageResponse{}, apperror.ModerationRefused("content could not be verified at this time")
 	}
 	if !decision.Allowed {
 		flag := &models.ModerationFlag{
@@ -452,14 +452,14 @@ func (s *Service) GenerateImage(ctx context.Context, userID uuid.UUID, req gener
 				"error", ferr.Error(),
 			)
 		}
-		return generateImageResponse{}, apperror.ModerationRefused(decision.Reason)
+		return GenerateImageResponse{}, apperror.ModerationRefused(decision.Reason)
 	}
 
 	// ── Step 3: Provider chain ────────────────────────────────────────────
 	imgReq := req.toImageRequest(brandName)
 	imgResult, meta, genErr := s.image.GenerateImage(ctx, imgReq)
 	if genErr != nil {
-		return generateImageResponse{}, genErr
+		return GenerateImageResponse{}, genErr
 	}
 
 	// ── Step 4: Persist the image as an Asset ─────────────────────────────
@@ -474,7 +474,7 @@ func (s *Service) GenerateImage(ctx context.Context, userID uuid.UUID, req gener
 			"user_id", userID.String(),
 			"error", persistErr.Error(),
 		)
-		return generateImageResponse{}, apperror.Internal(persistErr)
+		return GenerateImageResponse{}, apperror.Internal(persistErr)
 	}
 
 	// ── Step 5: Persist GenerationRecord ──────────────────────────────────
@@ -497,7 +497,7 @@ func (s *Service) GenerateImage(ctx context.Context, userID uuid.UUID, req gener
 		)
 	}
 
-	return generateImageResponse{
+	return GenerateImageResponse{
 		AssetID:  assetRec.ID,
 		ImageURL: "/v1/assets/" + assetRec.ID.String(),
 		Width:    imgResult.Width,

@@ -57,7 +57,7 @@ var humanReadable = map[string]string{
 	"violence-graphic":     "Content contains graphic violence",
 }
 
-func (c *openaiChecker) CheckText(ctx context.Context, text, lang string) (Decision, error) {
+func (c *openaiChecker) CheckText(ctx context.Context, text, _ string) (Decision, error) {
 	body, err := json.Marshal(moderationRequest{Input: text})
 	if err != nil {
 		return Decision{Allowed: false, Reason: "internal error"}, fmt.Errorf("marshal moderation request: %w", err)
@@ -75,7 +75,9 @@ func (c *openaiChecker) CheckText(ctx context.Context, text, lang string) (Decis
 		// Fail closed: if the API is unreachable, refuse the content.
 		return Decision{Allowed: false, Reason: "content moderation service is temporarily unavailable"}, fmt.Errorf("moderation API request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {

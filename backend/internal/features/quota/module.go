@@ -25,7 +25,7 @@ func New(d Deps) *Handler {
 		repo = NewGormRepository(d.DB)
 	}
 
-	limits := QuotaLimits{
+	limits := Limits{
 		TextDaily:  d.Config.Quota.TextDaily,
 		ImageDaily: d.Config.Quota.ImageDaily,
 	}

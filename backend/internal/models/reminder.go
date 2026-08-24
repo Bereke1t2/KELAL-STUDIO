@@ -9,6 +9,7 @@ import (
 // ReminderStatus is the lifecycle of a scheduled reminder.
 type ReminderStatus string
 
+// Reminder status constants.
 const (
 	ReminderPending  ReminderStatus = "pending"
 	ReminderFired    ReminderStatus = "fired"

@@ -31,8 +31,8 @@ type Repository interface {
 	GetTodayUsage(ctx context.Context, userID uuid.UUID) (textUsed, imageUsed int, err error)
 }
 
-// QuotaLimits holds the per-user daily caps read from config.
-type QuotaLimits struct {
+// Limits holds the per-user daily caps read from config.
+type Limits struct {
 	TextDaily  int
 	ImageDaily int
 }
