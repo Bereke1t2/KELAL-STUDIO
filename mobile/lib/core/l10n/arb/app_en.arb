@@ -83,5 +83,47 @@
   "brandKitLogoTooLargeError": "That file is too large or unreadable. Please choose a different image.",
   "@brandKitLogoTooLargeError": {
     "description": "Shown as a fallback if a logo pick fails before even reaching the upload/hardening pipeline (e.g. image_picker itself throws) — the hardening pipeline's own rejection messages (see LogoUploadHardener) are shown verbatim via ApiFailure/LogoValidationFailure.message instead when the rejection happens there."
+  },
+  "quotaBadgeTextRemaining": "{remaining} of {limit} text calls remaining today",
+  "@quotaBadgeTextRemaining": {
+    "description": "QuotaBadge's text-generation row. {remaining} is textCallsLimit - textCallsUsed, {limit} is textCallsLimit — both are placeholder numbers today (PRD §2.3 leaves the actual quota targets an Open question; see FakeQuotaRemoteDataSource's doc comment), not authoritative product limits.",
+    "placeholders": {
+      "remaining": { "type": "int" },
+      "limit": { "type": "int" }
+    }
+  },
+  "quotaBadgeImageRemaining": "{remaining} of {limit} image calls remaining today",
+  "@quotaBadgeImageRemaining": {
+    "description": "QuotaBadge's image-generation row. Same {remaining}/{limit} semantics as quotaBadgeTextRemaining, for imageCallsLimit/imageCallsUsed.",
+    "placeholders": {
+      "remaining": { "type": "int" },
+      "limit": { "type": "int" }
+    }
+  },
+  "quotaBadgeResetsAt": "Resets at {time}",
+  "@quotaBadgeResetsAt": {
+    "description": "QuotaBadge's footer line. {time} is Quota.resetsAt converted to local time and formatted by the caller (DateFormat.jm()) before being passed in — QuotaBadge itself never formats dates (see its own doc comment on staying localization/domain-free).",
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "quotaExceededDialogTitle": "Quota reached",
+  "@quotaExceededDialogTitle": {
+    "description": "showQuotaExceededDialog's AppDialog heading. Not called from anywhere yet — see that function's doc comment for why it's wired ahead of the generation flow that will use it."
+  },
+  "quotaExceededDialogBodyWithReset": "You've used today's generation quota. It resets at {time}.",
+  "@quotaExceededDialogBodyWithReset": {
+    "description": "showQuotaExceededDialog's body when ApiFailure.resetsAt is present (the normal case for a quotaExceeded failure). {time} is resetsAt converted to local time and formatted with DateFormat.jm().",
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "quotaExceededDialogBodyUnknownReset": "You've used today's generation quota. It will reset soon.",
+  "@quotaExceededDialogBodyUnknownReset": {
+    "description": "Fallback body for showQuotaExceededDialog when ApiFailure.resetsAt is null — ApiFailure declares it nullable even though the quotaExceeded case should always populate it, so this covers that edge defensively rather than force-unwrapping."
+  },
+  "quotaExceededDialogAction": "Got it",
+  "@quotaExceededDialogAction": {
+    "description": "showQuotaExceededDialog's single dismiss action label."
   }
 }

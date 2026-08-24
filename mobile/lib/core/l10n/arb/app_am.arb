@@ -48,5 +48,12 @@
   "brandKitLogoCaptionUploading": "በመጫን ላይ…",
   "brandKitLogoCaptionError": "መጫን አልተሳካም",
   "brandKitInvalidHexError": "ትክክለኛ የ hex ቀለም ያስገቡ፣ ለምሳሌ #855312።",
-  "brandKitLogoTooLargeError": "ፋይሉ በጣም ትልቅ ወይም ሊነበብ የማይችል ነው። እባክዎ የተለየ ምስል ይምረጡ።"
+  "brandKitLogoTooLargeError": "ፋይሉ በጣም ትልቅ ወይም ሊነበብ የማይችል ነው። እባክዎ የተለየ ምስል ይምረጡ።",
+  "quotaBadgeTextRemaining": "ከ{limit} የጽሑፍ ጥሪዎች ዛሬ {remaining} ቀርተዋል",
+  "quotaBadgeImageRemaining": "ከ{limit} የምስል ጥሪዎች ዛሬ {remaining} ቀርተዋል",
+  "quotaBadgeResetsAt": "በ{time} ዳግም ይጀምራል",
+  "quotaExceededDialogTitle": "ኮታ ደርሷል",
+  "quotaExceededDialogBodyWithReset": "የዛሬውን የማመንጫ ኮታ ተጠቅመዋል። በ{time} ዳግም ይጀምራል።",
+  "quotaExceededDialogBodyUnknownReset": "የዛሬውን የማመንጫ ኮታ ተጠቅመዋል። በቅርቡ ዳግም ይጀምራል።",
+  "quotaExceededDialogAction": "ገባኝ"
 }

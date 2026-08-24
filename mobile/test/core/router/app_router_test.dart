@@ -20,6 +20,9 @@ import 'package:kelal_studio/features/brand_kit/domain/usecases/get_brand_kit_us
 import 'package:kelal_studio/features/brand_kit/domain/usecases/update_brand_kit_usecase.dart';
 import 'package:kelal_studio/features/brand_kit/domain/usecases/upload_brand_logo_usecase.dart';
 import 'package:kelal_studio/features/brand_kit/presentation/bloc/brand_kit_bloc.dart';
+import 'package:kelal_studio/features/quota/domain/entities/quota.dart';
+import 'package:kelal_studio/features/quota/domain/usecases/get_quota_usecase.dart';
+import 'package:kelal_studio/features/quota/presentation/bloc/quota_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
@@ -32,6 +35,8 @@ class MockUpdateBrandKitUseCase extends Mock implements UpdateBrandKitUseCase {}
 
 class MockUploadBrandLogoUseCase extends Mock
     implements UploadBrandLogoUseCase {}
+
+class MockGetQuotaUseCase extends Mock implements GetQuotaUseCase {}
 
 /// Minimal in-memory [Storage] so the [HydratedCubit]s pulled in via
 /// `LoginPage` (`ThemeCubit`/`LocaleCubit`) can be constructed without
@@ -152,6 +157,22 @@ void main() {
         ),
       );
 
+      // QuotaStatusBadge (also mounted on the Compose branch, alongside
+      // EmailVerificationGate — see app_router.dart) resolves QuotaBloc via
+      // getIt the same way.
+      final getQuotaUseCase = MockGetQuotaUseCase();
+      when(getQuotaUseCase.call).thenAnswer(
+        (_) async => Result.ok(
+          Quota(
+            textCallsUsed: 3,
+            textCallsLimit: 10,
+            imageCallsUsed: 1,
+            imageCallsLimit: 5,
+            resetsAt: DateTime.utc(2026, 1, 1, 18),
+          ),
+        ),
+      );
+
       getIt
         ..registerFactory<LoginBloc>(() => LoginBloc(MockLoginUseCase()))
         ..registerLazySingleton<AuthRepository>(() => authRepository)
@@ -161,7 +182,8 @@ void main() {
             MockUpdateBrandKitUseCase(),
             MockUploadBrandLogoUseCase(),
           ),
-        );
+        )
+        ..registerFactory<QuotaBloc>(() => QuotaBloc(getQuotaUseCase));
     });
 
     tearDown(() async {

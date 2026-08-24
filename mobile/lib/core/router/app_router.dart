@@ -14,6 +14,7 @@ import 'package:kelal_studio/features/auth/presentation/pages/reset_password_con
 import 'package:kelal_studio/features/auth/presentation/pages/reset_password_request_page.dart';
 import 'package:kelal_studio/features/auth/presentation/widgets/email_verification_gate.dart';
 import 'package:kelal_studio/features/brand_kit/presentation/pages/brand_kit_page.dart';
+import 'package:kelal_studio/features/quota/presentation/widgets/quota_status_badge.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_confirm_page.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_consequence_page.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_deleted_page.dart';
@@ -125,19 +126,46 @@ class AppRouter {
                 // Compose is "the screen a signed-in user lands on" (PRD
                 // §6.1) — gated behind email verification. Every other
                 // branch below stays a bare ComingSoonPage.
+                //
+                // QuotaStatusBadge sits above EmailVerificationGate,
+                // not inside it — remaining quota (PRD §6.14: visible
+                // *before* a generation attempt) isn't conditional on
+                // verification status the way the generation UI itself
+                // is, so it stays visible regardless of which state the
+                // gate below it is showing. The real Compose screen is a
+                // later branch (feat/idea-composer-generation, see
+                // mobile/CLAUDE.md); this wires a working quota surface
+                // onto whatever renders here today so that branch
+                // inherits it rather than building it from scratch.
                 builder: (context, state) => Scaffold(
                   appBar: AppBar(
                     title: Text(AppLocalizations.of(context).navComposeLabel),
                   ),
-                  body: EmailVerificationGate(
-                    child: Center(
-                      child: Text(
-                        AppLocalizations.of(context).comingSoonMessage,
-                        style: AppTypography.body.copyWith(
-                          color: context.colors.textSecondary,
+                  body: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          AppSpacing.lg,
+                          AppSpacing.lg,
+                          AppSpacing.lg,
+                          0,
+                        ),
+                        child: QuotaStatusBadge(),
+                      ),
+                      Expanded(
+                        child: EmailVerificationGate(
+                          child: Center(
+                            child: Text(
+                              AppLocalizations.of(context).comingSoonMessage,
+                              style: AppTypography.body.copyWith(
+                                color: context.colors.textSecondary,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ),
