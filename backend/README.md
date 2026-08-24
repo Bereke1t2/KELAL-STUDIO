@@ -6,7 +6,8 @@ team can split into feature slices and work in parallel from day one.
 
 - **Stack:** Go 1.25 · Gin · GORM · PostgreSQL · JWT · slog
 - **Spec:** [`api/openapi.yaml`](api/openapi.yaml) is the source of truth for the
-  HTTP contract. The PRD is `../docs/Kelal_Studio_PRD.pdf`.
+  HTTP contract — browse it as interactive Swagger UI at `/docs` when running
+  outside production. The PRD is `../docs/Kelal_Studio_PRD.pdf`.
 - **Read next:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (layering + rules),
   [`docs/FEATURE_OWNERSHIP.md`](docs/FEATURE_OWNERSHIP.md) (who owns what),
   [`docs/OPEN_QUESTIONS.md`](docs/OPEN_QUESTIONS.md) (flagged, do-not-resolve
@@ -65,6 +66,13 @@ curl -s localhost:8080/v1/quota/me -H 'authorization: Bearer <access_token>'
 # → {"error_code":"not_implemented","message":"... is not implemented yet."}
 ```
 
+### Browse the API docs
+
+Outside production the server renders the OpenAPI contract as interactive
+Swagger UI — open <http://localhost:8080/docs> (raw spec at `/openapi.yaml`).
+"Try it out" calls the running server directly; both routes are gated on
+`APP_ENV` and are never served when `APP_ENV=production`.
+
 ## Everyday commands
 
 `make help` lists them all. The ones you'll use:
@@ -104,7 +112,7 @@ backend/
 ├── docs/                     # ARCHITECTURE · FEATURE_OWNERSHIP · OPEN_QUESTIONS
 └── internal/
     ├── platform/             # the "common things": config, database, httpx(+middleware),
-    │                         #   apperror, auth, provider, queue, logger, validate
+    │                         #   apidocs, apperror, auth, provider, queue, logger, validate
     ├── models/               # every GORM entity (one shared schema)
     └── features/
         ├── auth/             # ★ reference feature — fully implemented + tested

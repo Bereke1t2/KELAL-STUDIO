@@ -17,6 +17,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/api"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/admin"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/asset"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/auth"
@@ -24,6 +25,7 @@ import (
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/generation"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/quota"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/reminder"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/apidocs"
 	platformauth "github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/auth"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/config"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/database"
@@ -90,6 +92,14 @@ func run(migrateOnly bool) error {
 		middleware.CORS(),
 		middleware.IPRateLimit(cfg.RateLim.PerIPPerMinute),
 	)
+
+	// API docs: the raw contract + an interactive Swagger UI, mounted on the
+	// engine root (like /healthz) — non-production only, since they document the
+	// surface rather than being part of it (see internal/platform/apidocs).
+	if !cfg.IsProduction() {
+		apidocs.Mount(engine, api.Spec)
+	}
+
 	mw := middleware.Set{
 		AuthRequired:  middleware.Auth(jwtMgr),
 		AdminOnly:     middleware.AdminOnly(),

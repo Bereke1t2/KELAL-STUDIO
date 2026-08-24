@@ -85,6 +85,7 @@ first so feature teams can build in parallel:
 | `database` | GORM connection + pool tuning (`Connect`) and `AutoMigrate` (dev/V1 schema). |
 | `httpx` | JSON response writers (`OK`/`Created`/`Accepted`/`Fail`) + `NewRouter`. Imports only `apperror` + `gin` — **never** middleware or features (no cycle). |
 | `httpx/middleware` | `RequestID`, `Logger`, `Recover`, `CORS`, `IPRateLimit`, `Auth`, `AdminOnly`, `UserRateLimit`, and the `Set` features receive. |
+| `apidocs` | Serves the embedded `api/openapi.yaml` and an interactive Swagger UI at `/docs` (non-production only). Mounted from `cmd/api`, not `httpx`, so `httpx` keeps its apperror+gin-only imports. |
 | `apperror` | The typed error taxonomy (`Error{Code, Message, HTTPStatus, ResetsAt}`) + constructors. |
 | `auth` | JWT sign/verify (access + refresh + purpose-bound reset) and bcrypt password hashing. Imported as `platformauth` in `cmd/api` to avoid colliding with the `auth` feature. |
 | `provider` | The Provider Abstraction Layer: `TextProvider`/`ImageProvider` interfaces, the ordered failover `chain`, provider→`apperror` mapping, a `factory` that builds chains from config, and deterministic `stub` providers (OQ-20). |
