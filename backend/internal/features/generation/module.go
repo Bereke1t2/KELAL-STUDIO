@@ -5,6 +5,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/hashtag"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/moderation"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/quota"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/config"
@@ -21,6 +22,7 @@ type Deps struct {
 	TextChain  *provider.TextChain
 	Moderation moderation.Checker
 	Quota      *quota.Service
+	Hashtag    hashtag.Bank
 }
 
 // New wires the feature and returns its Handler. It selects the in-memory or
@@ -34,6 +36,6 @@ func New(d Deps) *Handler {
 		repo = NewGormRepository(d.DB)
 	}
 
-	svc := NewService(repo, d.TextChain, d.Moderation, d.Quota, d.Logger)
+	svc := NewService(repo, d.TextChain, d.Moderation, d.Quota, d.Hashtag, d.Logger)
 	return NewHandler(svc)
 }

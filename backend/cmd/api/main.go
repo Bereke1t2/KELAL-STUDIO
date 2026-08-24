@@ -23,6 +23,7 @@ import (
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/auth"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/brandkit"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/generation"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/hashtag"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/moderation"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/quota"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/reminder"
@@ -170,6 +171,11 @@ func run(migrateOnly bool) error {
 	}
 	quotaSvc := quota.NewService(quotaRepo, quotaLimits, log)
 
+	// Hashtag bank: curated, platform-aware hashtag source (PRD §6.3).
+	// Internal service — no HTTP routes; generation merges its output
+	// with provider-generated hashtags.
+	hashBank := hashtag.NewBank()
+
 	generation.New(generation.Deps{
 		DB:         db,
 		Config:     cfg,
@@ -177,6 +183,7 @@ func run(migrateOnly bool) error {
 		TextChain:  textChain,
 		Moderation: modChecker,
 		Quota:      quotaSvc,
+		Hashtag:    hashBank,
 	}).RegisterRoutes(v1, mw)
 	quota.NewHandler(quotaSvc).RegisterRoutes(v1, mw)
 	reminder.New().RegisterRoutes(v1, mw)

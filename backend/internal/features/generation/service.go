@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/hashtag"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/moderation"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/quota"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/models"
@@ -18,23 +19,25 @@ import (
 // Service holds the generation use cases. Each public method is ONE use case
 // and returns (result, *apperror.Error) — failures are values the delivery
 // layer renders, never panics. The service depends only on the Repository port,
-// the provider chain, the moderation checker, and the quota enforcer —
-// never on GORM or gin.
+// the provider chain, the moderation checker, the quota enforcer, and the
+// hashtag bank — never on GORM or gin.
 type Service struct {
 	repo      Repository
 	text      *provider.TextChain
 	mod       moderation.Checker
 	quota     *quota.Service
+	bank      hashtag.Bank
 	log       *slog.Logger
 }
 
 // NewService wires the use cases.
-func NewService(repo Repository, textChain *provider.TextChain, mod moderation.Checker, quotaSvc *quota.Service, log *slog.Logger) *Service {
+func NewService(repo Repository, textChain *provider.TextChain, mod moderation.Checker, quotaSvc *quota.Service, bank hashtag.Bank, log *slog.Logger) *Service {
 	return &Service{
 		repo:  repo,
 		text:  textChain,
 		mod:   mod,
 		quota: quotaSvc,
+		bank:  bank,
 		log:   log,
 	}
 }
@@ -112,7 +115,24 @@ func (s *Service) GenerateText(ctx context.Context, userID uuid.UUID, req genera
 		return generateTextResponse{}, genErr
 	}
 
-	// ── Step 5: Persist GenerationRecord ──────────────────────────────────
+	// ── Step 5: Merge hashtags from bank ──────────────────────────────────
+	// The provider generates context-specific hashtags; the bank supplies
+	// curated, platform-aware, brand-safe hashtags. Merge, deduplicate,
+	// and trim to 5–8 per contract (openapi.yaml GenerateTextResponse).
+	topic := hashtag.MatchTopic(req.InputText)
+	bankTags, bankErr := s.bank.Suggest(ctx, req.Platform, topic, 8)
+	if bankErr != nil {
+		// Bank failure is non-fatal — log and use provider hashtags only.
+		s.log.Error("hashtag bank failed",
+			"platform", req.Platform,
+			"topic", topic,
+			"error", bankErr.Error(),
+		)
+	}
+	merged := hashtag.MergeHashtags(result.Hashtags, bankTags, 8)
+	result.Hashtags = merged
+
+	// ── Step 6: Persist GenerationRecord ──────────────────────────────────
 	record := &models.GenerationRecord{
 		UserID:       userID,
 		Type:         models.GenerationText,
