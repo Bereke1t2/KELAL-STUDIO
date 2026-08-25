@@ -20,20 +20,23 @@ type Handler struct {
 // NewHandler wraps a service for HTTP delivery.
 func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
 
-// register handles POST /auth/register. Returns AuthTokens (see the
-// contract-vs-PRD FLAG on Service.Register).
+// register handles POST /auth/register. Per PRD §11 it returns
+// {user_id, verification_sent} with 201 Created — NOT a session. (This diverges
+// from the originally-generated mobile client, which expected AuthTokens; mobile
+// must regenerate against the updated contract. See docs/OPEN_QUESTIONS.md,
+// register-verification.)
 func (h *Handler) register(c *gin.Context) {
 	var req registerRequest
 	if aerr := validate.BindJSON(c, &req); aerr != nil {
 		httpx.Fail(c, aerr)
 		return
 	}
-	tokens, aerr := h.svc.Register(c.Request.Context(), req.Email, req.Password)
+	res, aerr := h.svc.Register(c.Request.Context(), req.Email, req.Password)
 	if aerr != nil {
 		httpx.Fail(c, aerr)
 		return
 	}
-	httpx.OK(c, tokensToResponse(tokens))
+	httpx.Created(c, registerResultToResponse(res))
 }
 
 // login handles POST /auth/login.
@@ -92,6 +95,36 @@ func (h *Handler) confirmPasswordReset(c *gin.Context) {
 		httpx.Fail(c, aerr)
 		return
 	}
+	httpx.OK(c, gin.H{"status": "ok"})
+}
+
+// verifyEmail handles POST /auth/verify-email. The token in the body identifies
+// and authorizes the account, so no bearer is required. A bad/expired token is a
+// 401; success is a plain 200.
+func (h *Handler) verifyEmail(c *gin.Context) {
+	var req verifyEmailRequest
+	if aerr := validate.BindJSON(c, &req); aerr != nil {
+		httpx.Fail(c, aerr)
+		return
+	}
+	if aerr := h.svc.VerifyEmail(c.Request.Context(), req.Token); aerr != nil {
+		httpx.Fail(c, aerr)
+		return
+	}
+	httpx.OK(c, gin.H{"verified": true})
+}
+
+// resendVerification handles POST /auth/verify-email/resend. Like the
+// password-reset request it ALWAYS returns 200 for a well-formed body
+// (anti-enumeration); the service decides whether to actually send.
+func (h *Handler) resendVerification(c *gin.Context) {
+	var req resendVerificationRequest
+	if aerr := validate.BindJSON(c, &req); aerr != nil {
+		httpx.Fail(c, aerr)
+		return
+	}
+	// Service always returns nil here; ignoring it is intentional.
+	_ = h.svc.ResendVerification(c.Request.Context(), req.Email)
 	httpx.OK(c, gin.H{"status": "ok"})
 }
 
