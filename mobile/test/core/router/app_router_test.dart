@@ -20,8 +20,11 @@ import 'package:kelal_studio/features/brand_kit/domain/usecases/get_brand_kit_us
 import 'package:kelal_studio/features/brand_kit/domain/usecases/update_brand_kit_usecase.dart';
 import 'package:kelal_studio/features/brand_kit/domain/usecases/upload_brand_logo_usecase.dart';
 import 'package:kelal_studio/features/brand_kit/presentation/bloc/brand_kit_bloc.dart';
+import 'package:kelal_studio/features/generation/domain/usecases/decode_generated_image_usecase.dart';
+import 'package:kelal_studio/features/generation/domain/usecases/generate_image_usecase.dart';
 import 'package:kelal_studio/features/generation/domain/usecases/generate_text_usecase.dart';
 import 'package:kelal_studio/features/generation/presentation/bloc/generation_bloc.dart';
+import 'package:kelal_studio/features/generation/presentation/bloc/image_generation_bloc.dart';
 import 'package:kelal_studio/features/quota/domain/entities/quota.dart';
 import 'package:kelal_studio/features/quota/domain/usecases/get_quota_usecase.dart';
 import 'package:kelal_studio/features/quota/presentation/bloc/quota_bloc.dart';
@@ -41,6 +44,11 @@ class MockUploadBrandLogoUseCase extends Mock
 class MockGetQuotaUseCase extends Mock implements GetQuotaUseCase {}
 
 class MockGenerateTextUseCase extends Mock implements GenerateTextUseCase {}
+
+class MockGenerateImageUseCase extends Mock implements GenerateImageUseCase {}
+
+class MockDecodeGeneratedImageUseCase extends Mock
+    implements DecodeGeneratedImageUseCase {}
 
 /// Minimal in-memory [Storage] so the [HydratedCubit]s pulled in via
 /// `LoginPage` (`ThemeCubit`/`LocaleCubit`) can be constructed without
@@ -218,6 +226,19 @@ void main() {
             MockGenerateTextUseCase(),
             composerGetBrandKitUseCase,
           ),
+        )
+        // ComposerPage also resolves ImageGenerationBloc via getIt
+        // (feat/render-engine-canvas-editor) — same reasoning as
+        // GenerationBloc above: needed purely so ComposerPage's
+        // MultiBlocProvider doesn't throw a "not registered" error on
+        // build, these navigation tests never trigger an actual image
+        // generation call.
+        ..registerFactory<ImageGenerationBloc>(
+          () => ImageGenerationBloc(
+            MockGenerateImageUseCase(),
+            composerGetBrandKitUseCase,
+            MockDecodeGeneratedImageUseCase(),
+          ),
         );
     });
 
@@ -305,6 +326,24 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Sign in'), findsOneWidget);
+    });
+
+    testWidgets('landing on /canvas-editor without a CanvasScene extra (e.g. '
+        'go_router state restored after process death, which drops extra) '
+        'redirects to Compose instead of crashing on the unguarded cast', (
+      tester,
+    ) async {
+      final router = AppRouter(authRepository);
+      await tester.pumpWidget(wrap(router));
+
+      authController.add(true);
+      await tester.pumpAndSettle();
+
+      router.config.go('/canvas-editor');
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.widgetWithText(AppBar, 'Compose'), findsOneWidget);
     });
   });
 }

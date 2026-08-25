@@ -6,6 +6,7 @@ import 'package:kelal_studio/features/generation/data/datasources/fake_generatio
     show FakeGenerationRemoteDataSource;
 import 'package:kelal_studio/features/generation/data/datasources/generation_api.dart';
 import 'package:kelal_studio/features/generation/data/datasources/generation_remote_data_source.dart';
+import 'package:kelal_studio/features/generation/data/models/generate_image_response_dto.dart';
 import 'package:kelal_studio/features/generation/data/models/generate_text_response_dto.dart';
 
 /// Wraps the generated [GenerationApi], translating every [DioException]
@@ -40,6 +41,23 @@ class RealGenerationRemoteDataSource implements GenerationRemoteDataSource {
         'input_lang': inputLang,
         'platform': platform,
         if (brandKitId != null) 'brand_kit_id': brandKitId,
+      });
+    } catch (error) {
+      throw ApiException(_mapper.map(error));
+    }
+  }
+
+  @override
+  Future<GenerateImageResponseDto> generateImage({
+    required String captionEn,
+    required String aspectRatio,
+    required String brandKitId,
+  }) async {
+    try {
+      return await _api.generateImage({
+        'caption_en': captionEn,
+        'aspect_ratio': aspectRatio,
+        'brand_kit_id': brandKitId,
       });
     } catch (error) {
       throw ApiException(_mapper.map(error));

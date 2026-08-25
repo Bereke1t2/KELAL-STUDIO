@@ -163,6 +163,10 @@
   "@generationErrorMalformedOutput": {
     "description": "App-interface-localized copy for ApiErrorType.malformedOutput on a /generate/text failure."
   },
+  "generationErrorImageValidationError": "We couldn't create a graphic from that. Try generating a new caption first.",
+  "@generationErrorImageValidationError": {
+    "description": "ImageGenerationFailure(type: validationError) copy — distinct from generationErrorValidationError because the idea text has already passed validation by the time /generate/image can fail this way (it's the caption/brand-kit combination being submitted for image generation, not the idea field on screen), so pointing the user back at 'your idea' would be the wrong fix."
+  },
   "generationErrorValidationError": "Please check your idea and try again.",
   "@generationErrorValidationError": {
     "description": "App-interface-localized copy for ApiErrorType.validationError on a /generate/text failure."
@@ -200,5 +204,45 @@
   "generationFallbackNotice": "We used a saved template because generation was taking too long. Try again for a fresh result.",
   "@generationFallbackNotice": {
     "description": "Shown on GenerationResultView when GenerationResult.isFallback is true — PRD §6.2's fallback-template path, deliberately disclosed rather than presented as indistinguishable from a fresh generation."
+  },
+  "composerCreateGraphicButton": "Create graphic",
+  "@composerCreateGraphicButton": {
+    "description": "Below GenerationResultView on a successful text generation — turns the English caption into a POST /generate/image request, then pushes CanvasEditorPage on success."
+  },
+  "composerImageGenerationBrandKitRequired": "Set up your Brand Kit before creating a graphic.",
+  "@composerImageGenerationBrandKitRequired": {
+    "description": "Shown when ImageGenerationBloc reaches ImageGenerationBrandKitRequired — brand_kit_id is required on GenerateImageRequest and none could be resolved."
+  },
+  "canvasEditorTitle": "Edit your post",
+  "@canvasEditorTitle": {
+    "description": "AppBar title on CanvasEditorPage."
+  },
+  "canvasEditorAddTextButton": "Add text",
+  "@canvasEditorAddTextButton": {
+    "description": "Adds a new TextLayer to the scene, disabled once the PRD §6.9 1-2 layer cap is reached."
+  },
+  "canvasEditorRemoveTextButton": "Remove text",
+  "@canvasEditorRemoveTextButton": {
+    "description": "Removes the currently selected TextLayer, disabled when no layer is selected."
+  },
+  "canvasEditorContinueComingSoon": "Export isn't wired up yet — that's the next branch in the stack.",
+  "@canvasEditorContinueComingSoon": {
+    "description": "SnackBar shown when tapping Continue before features/export exists (feat/export-share, later branch) — deliberately not a silent no-op or a route to nowhere."
+  },
+  "canvasEditorContinueButton": "Continue",
+  "@canvasEditorContinueButton": {
+    "description": "Primary CTA at the bottom of CanvasEditorPage — currently a placeholder, see canvasEditorContinueComingSoon."
+  },
+  "canvasEditorEditSheetHeading": "Edit text",
+  "@canvasEditorEditSheetHeading": {
+    "description": "Heading of the bottom sheet opened by tapping a TextLayer."
+  },
+  "canvasEditorEditSheetFieldLabel": "Text",
+  "@canvasEditorEditSheetFieldLabel": {
+    "description": "AppTextField label inside the tap-to-edit bottom sheet."
+  },
+  "canvasEditorEditSheetSaveButton": "Save",
+  "@canvasEditorEditSheetSaveButton": {
+    "description": "Commits the edited text back onto the selected TextLayer."
   }
 }

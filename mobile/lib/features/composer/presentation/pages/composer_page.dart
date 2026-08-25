@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:kelal_studio/core/di/injection.dart';
 import 'package:kelal_studio/core/error/result.dart';
@@ -7,14 +8,20 @@ import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
 import 'package:kelal_studio/core/widgets/app_text_field.dart';
 import 'package:kelal_studio/core/widgets/error_banner.dart';
+import 'package:kelal_studio/core/widgets/error_snack_bar.dart';
 import 'package:kelal_studio/core/widgets/primary_button.dart';
 import 'package:kelal_studio/core/widgets/quota_exceeded_dialog.dart';
 import 'package:kelal_studio/core/widgets/segmented_control.dart';
+import 'package:kelal_studio/features/generation/domain/entities/aspect_ratio.dart';
 import 'package:kelal_studio/features/generation/domain/entities/content_platform.dart';
+import 'package:kelal_studio/features/generation/domain/entities/generation_result.dart';
 import 'package:kelal_studio/features/generation/domain/entities/input_language.dart';
 import 'package:kelal_studio/features/generation/presentation/bloc/generation_bloc.dart';
 import 'package:kelal_studio/features/generation/presentation/bloc/generation_event.dart';
 import 'package:kelal_studio/features/generation/presentation/bloc/generation_state.dart';
+import 'package:kelal_studio/features/generation/presentation/bloc/image_generation_bloc.dart';
+import 'package:kelal_studio/features/generation/presentation/bloc/image_generation_event.dart';
+import 'package:kelal_studio/features/generation/presentation/bloc/image_generation_state.dart';
 import 'package:kelal_studio/features/generation/presentation/widgets/generation_result_view.dart';
 
 /// The Idea Composer — PRD §6.2. Intended as `EmailVerificationGate`'s
@@ -35,13 +42,23 @@ import 'package:kelal_studio/features/generation/presentation/widgets/generation
 /// result (`GenerationBloc`-driven) live together. If a later branch adds
 /// a reason to view/re-run a generation independently of composing a new
 /// idea, that would be the point to split this into two routed screens.
+///
+/// Also owns `ImageGenerationBloc` (feat/render-engine-canvas-editor) for
+/// the same reason: turning a successful text result into a graphic is a
+/// composer-initiated action ("Create graphic" under `GenerationResultView`),
+/// not a screen of its own — the real destination for that flow is
+/// `CanvasEditorPage`, pushed at `/canvas-editor` once
+/// `ImageGenerationSuccess` lands.
 class ComposerPage extends StatelessWidget {
   const ComposerPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => getIt<GenerationBloc>(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => getIt<GenerationBloc>()),
+        BlocProvider(create: (_) => getIt<ImageGenerationBloc>()),
+      ],
       child: const _ComposerView(),
     );
   }
@@ -138,19 +155,69 @@ class _ComposerViewState extends State<_ComposerView> {
     };
   }
 
+  /// Same mapping as [_errorMessage] except `validationError`, which needs
+  /// distinct copy here: by the time `/generate/image` can return that
+  /// error, the idea text has already passed [GenerationBloc]'s own
+  /// validation — `_errorMessage`'s "check your idea" copy would point at
+  /// a field that isn't even the problem (see
+  /// `generationErrorImageValidationError`'s ARB description).
+  String _imageErrorMessage(AppLocalizations l10n, ApiFailure failure) {
+    return failure.type == ApiErrorType.validationError
+        ? l10n.generationErrorImageValidationError
+        : _errorMessage(l10n, failure);
+  }
+
+  void _createGraphic(BuildContext context, GenerationResult result) {
+    context.read<ImageGenerationBloc>().add(
+      ImageGenerationRequested(
+        captionEn: result.captionEn,
+        // Defaults to 1:1 — CanvasEditorPage owns the real ratio selector
+        // (AppSegmentedControl, `CanvasEditorAspectRatioChanged`) once
+        // inside the editor; this is only the seed ratio for the initial
+        // `/generate/image` call, not a user-facing choice made here.
+        aspectRatio: GenerationAspectRatio.oneToOne,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = context.colors;
 
-    return BlocListener<GenerationBloc, GenerationState>(
-      listenWhen: (previous, current) =>
-          current is GenerationFailure &&
-          current.failure.type == ApiErrorType.quotaExceeded,
-      listener: (context, state) => showQuotaExceededDialog(
-        context,
-        (state as GenerationFailure).failure,
-      ),
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<GenerationBloc, GenerationState>(
+          listenWhen: (previous, current) =>
+              current is GenerationFailure &&
+              current.failure.type == ApiErrorType.quotaExceeded,
+          listener: (context, state) => showQuotaExceededDialog(
+            context,
+            (state as GenerationFailure).failure,
+          ),
+        ),
+        BlocListener<ImageGenerationBloc, ImageGenerationState>(
+          listener: (context, state) {
+            switch (state) {
+              case ImageGenerationSuccess(:final scene):
+                context.push('/canvas-editor', extra: scene);
+              case ImageGenerationBrandKitRequired():
+                showErrorSnackBar(
+                  context,
+                  l10n.composerImageGenerationBrandKitRequired,
+                );
+              case ImageGenerationFailure(:final failure)
+                  when failure.type == ApiErrorType.quotaExceeded:
+                showQuotaExceededDialog(context, failure);
+              case ImageGenerationFailure(:final failure):
+                showErrorSnackBar(context, _imageErrorMessage(l10n, failure));
+              case ImageGenerationInitial():
+              case ImageGenerationInProgress():
+                break;
+            }
+          },
+        ),
+      ],
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.xxl),
         child: Column(
@@ -215,8 +282,26 @@ class _ComposerViewState extends State<_ComposerView> {
                 return switch (state) {
                   GenerationInitial() ||
                   GenerationInProgress() => const SizedBox.shrink(),
-                  GenerationSuccess(:final result) => GenerationResultView(
-                    result: result,
+                  GenerationSuccess(:final result) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      GenerationResultView(result: result),
+                      const SizedBox(height: AppSpacing.xl),
+                      BlocBuilder<ImageGenerationBloc, ImageGenerationState>(
+                        builder: (context, imageState) {
+                          final isGenerating =
+                              imageState is ImageGenerationInProgress;
+                          return PrimaryButton(
+                            key: const Key('composer_create_graphic_button'),
+                            label: l10n.composerCreateGraphicButton,
+                            isLoading: isGenerating,
+                            onPressed: isGenerating
+                                ? null
+                                : () => _createGraphic(context, result),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                   // quotaExceeded is surfaced via the dialog above, not an
                   // inline banner — showing both would be redundant.

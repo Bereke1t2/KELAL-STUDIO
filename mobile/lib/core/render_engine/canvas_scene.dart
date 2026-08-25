@@ -42,16 +42,55 @@ class TextLayer {
   }
 }
 
+/// An optional brand-kit logo composited onto a [CanvasScene] — mirrors
+/// [TextLayer]'s normalized-coordinate convention exactly, so both layer
+/// types are positioned/sized the same resolution-independent way
+/// regardless of whether the scene is painted at live-editor proxy size or
+/// full export resolution.
+@immutable
+class LogoLayer {
+  const LogoLayer({
+    required this.image,
+    required this.normalizedOffset,
+    required this.normalizedWidth,
+  });
+
+  /// Decoded once, cached, and reused across every repaint — same
+  /// decode-once discipline as [CanvasScene.backgroundImage]
+  /// (mobile/.claude/skills/flutter-performance).
+  final ui.Image image;
+
+  /// Top-left corner, normalized 0..1 of the scene's `canvasSize`.
+  final Offset normalizedOffset;
+
+  /// Logo width as a fraction of the scene's `canvasSize.width`. Height is
+  /// derived from [image]'s own aspect ratio at paint time
+  /// (`RenderEngine._paintLogo`) rather than stored here separately — a
+  /// second, independently-settable normalized height could distort the
+  /// logo's aspect ratio, which a brand's actual logo mark should never be.
+  final double normalizedWidth;
+
+  LogoLayer copyWith({Offset? normalizedOffset, double? normalizedWidth}) {
+    return LogoLayer(
+      image: image,
+      normalizedOffset: normalizedOffset ?? this.normalizedOffset,
+      normalizedWidth: normalizedWidth ?? this.normalizedWidth,
+    );
+  }
+}
+
 /// The full authoritative state of one canvas composition: a background
-/// image plus 0-2 text layers. This is the single model both the live
-/// editor (`features/canvas_editor`) and the final export
-/// (`features/export`) paint from — see `render_engine.dart`.
+/// image, an optional brand-kit logo overlay, plus 0-2 text layers. This is
+/// the single model both the live editor (`features/canvas_editor`) and
+/// the final export (`features/export`) paint from — see
+/// `render_engine.dart`.
 @immutable
 class CanvasScene {
   const CanvasScene({
     required this.backgroundImage,
     required this.canvasSize,
     this.textLayers = const [],
+    this.logo,
   });
 
   /// Decoded once, cached, and reused across every repaint — never
@@ -67,11 +106,27 @@ class CanvasScene {
 
   final List<TextLayer> textLayers;
 
-  CanvasScene copyWith({List<TextLayer>? textLayers}) {
+  /// Genuinely optional — most scenes have no logo (e.g. no brand kit
+  /// configured, or the user hasn't attached one to this generation yet).
+  /// `null` means "paint no logo," not "paint a default/placeholder one."
+  final LogoLayer? logo;
+
+  /// Note: passing `logo: null` here is indistinguishable from "don't
+  /// change the logo" — this mirrors [textLayers]' existing `??` pattern
+  /// and is fine for this branch's scope (nothing yet needs to *remove* an
+  /// already-set logo mid-edit); a future branch that needs an explicit
+  /// "clear the logo" affordance will need a sentinel-value copyWith
+  /// instead of this simple one.
+  CanvasScene copyWith({
+    List<TextLayer>? textLayers,
+    LogoLayer? logo,
+    Size? canvasSize,
+  }) {
     return CanvasScene(
       backgroundImage: backgroundImage,
-      canvasSize: canvasSize,
+      canvasSize: canvasSize ?? this.canvasSize,
       textLayers: textLayers ?? this.textLayers,
+      logo: logo ?? this.logo,
     );
   }
 }

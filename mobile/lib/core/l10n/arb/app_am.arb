@@ -69,6 +69,7 @@
   "composerEmptyIdeaError": "ይዘት ለማመንጨት ሀሳብ ያስገቡ።",
   "generationErrorProviderTimeout": "ማመንጨት ከተለመደው በላይ እየወሰደ ነው። እባክዎ እንደገና ይሞክሩ።",
   "generationErrorMalformedOutput": "ያንን ማመንጨት አልቻልንም። እባክዎ እንደገና ይሞክሩ።",
+  "generationErrorImageValidationError": "ከዚያ ግራፊክ መፍጠር አልቻልንም። መጀመሪያ አዲስ መግለጫ ጽሑፍ ለማመንጨት ይሞክሩ።",
   "generationErrorValidationError": "እባክዎ ሀሳብዎን ያረጋግጡና እንደገና ይሞክሩ።",
   "generationErrorNetwork": "ግንኙነት የለም። አውታረ መረብዎን ያረጋግጡና እንደገና ይሞክሩ።",
   "generationErrorUnauthorized": "ክፍለ ጊዜዎ አልቋል። እባክዎ እንደገና ይግቡ።",
@@ -79,5 +80,15 @@
   "generationHashtagsLabel": "ሃሽታጎች",
   "generationCopiedMessage": "{label} ወደ ቅንጥብ ሰሌዳ ተቀድቷል።",
   "generationCopyTooltip": "{label} ቅዳ",
-  "generationFallbackNotice": "ማመንጨት በጣም ስለወሰደ የተቀመጠ አብነት ተጠቅመናል። ትኩስ ውጤት ለማግኘት እንደገና ይሞክሩ።"
+  "generationFallbackNotice": "ማመንጨት በጣም ስለወሰደ የተቀመጠ አብነት ተጠቅመናል። ትኩስ ውጤት ለማግኘት እንደገና ይሞክሩ።",
+  "composerCreateGraphicButton": "ግራፊክ ፍጠር",
+  "composerImageGenerationBrandKitRequired": "ግራፊክ ከመፍጠርዎ በፊት የብራንድ ኪትዎን ያዘጋጁ።",
+  "canvasEditorTitle": "ልጥፍዎን ያርትዑ",
+  "canvasEditorAddTextButton": "ጽሑፍ ጨምር",
+  "canvasEditorRemoveTextButton": "ጽሑፍ አስወግድ",
+  "canvasEditorContinueComingSoon": "ወደ ውጪ መላክ ገና አልተገናኘም — ያ በቅደም ተከተል ውስጥ ቀጣዩ ቅርንጫፍ ነው።",
+  "canvasEditorContinueButton": "ቀጥል",
+  "canvasEditorEditSheetHeading": "ጽሑፍ አርትዕ",
+  "canvasEditorEditSheetFieldLabel": "ጽሑፍ",
+  "canvasEditorEditSheetSaveButton": "አስቀምጥ"
 }

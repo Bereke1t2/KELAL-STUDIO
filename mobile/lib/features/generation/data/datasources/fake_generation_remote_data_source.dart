@@ -1,6 +1,7 @@
 import 'package:kelal_studio/core/error/result.dart';
 import 'package:kelal_studio/core/network/fake_backend_support.dart';
 import 'package:kelal_studio/features/generation/data/datasources/generation_remote_data_source.dart';
+import 'package:kelal_studio/features/generation/data/models/generate_image_response_dto.dart';
 import 'package:kelal_studio/features/generation/data/models/generate_text_response_dto.dart';
 
 /// Professional fake: realistic latency (via [FakeBackendSupport.latency])
@@ -99,6 +100,100 @@ class FakeGenerationRemoteDataSource implements GenerationRemoteDataSource {
     }
 
     return _successResponse(inputText: inputText, platform: platform);
+  }
+
+  @override
+  Future<GenerateImageResponseDto> generateImage({
+    required String captionEn,
+    required String aspectRatio,
+    required String brandKitId,
+  }) async {
+    await FakeBackendSupport.latency();
+
+    // Same typed-error taxonomy as generateText, at individually lower
+    // rates — image generation is a heavier, more expensive operation
+    // than text (PRD §6.14 tracks `image_calls_*` as a separate quota
+    // dimension from `text_calls_*`), so a manual run shouldn't hit these
+    // as often as the cheaper text path, but each should still be
+    // reachable without a debugger — same judgment-call reasoning as
+    // generateText's own rates above.
+    FakeBackendSupport.maybeFail(
+      ApiFailure(
+        type: ApiErrorType.quotaExceeded,
+        message: "You've used today's image generation quota. It resets soon.",
+        resetsAt: DateTime.now().toUtc().add(const Duration(hours: 6)),
+      ),
+      rate: 0.04,
+    );
+    FakeBackendSupport.maybeFail(
+      const ApiFailure(
+        type: ApiErrorType.moderationRefused,
+        message:
+            "This idea can't be turned into a graphic as written. Please "
+            'adjust it and try again.',
+        moderationReason:
+            "This idea can't be turned into a graphic as written. Please "
+            'adjust it and try again.',
+      ),
+      rate: 0.03,
+    );
+    FakeBackendSupport.maybeFail(
+      const ApiFailure(
+        type: ApiErrorType.malformedOutput,
+        message: "We couldn't generate that image. Please try again.",
+      ),
+      rate: 0.02,
+    );
+    FakeBackendSupport.maybeFail(
+      const ApiFailure(
+        type: ApiErrorType.validationError,
+        message: 'Please check your input and try again.',
+      ),
+      rate: 0.02,
+    );
+    FakeBackendSupport.maybeFail(
+      const ApiFailure(
+        type: ApiErrorType.network,
+        message: 'No connection. Check your network and try again.',
+      ),
+      rate: 0.03,
+    );
+    FakeBackendSupport.maybeFail(
+      const ApiFailure(
+        type: ApiErrorType.providerTimeout,
+        message: 'Generation is taking longer than usual. Please try again.',
+      ),
+      rate: 0.03,
+    );
+    // No fallback-template path here, unlike generateText — PRD §6.2's
+    // fallback substitution is specifically a *text* caption behavior
+    // ("return a pre-cached template response"); nothing in the PRD
+    // describes an equivalent cached-image fallback, so this endpoint's
+    // only two outcomes are a typed failure above or a real (fake)
+    // success below.
+
+    final width = aspectRatio == '4:5' ? 1080 : 1080;
+    final height = aspectRatio == '4:5' ? 1350 : 1080;
+
+    return GenerateImageResponseDto(
+      assetId: 'fake-image-asset-${DateTime.now().microsecondsSinceEpoch}',
+      // **Best-effort placeholder only — a real, publicly reachable image
+      // URL, not a synthetic one.** `NetworkImageDecoder`
+      // (`data/services/network_image_decoder.dart`) fetches whatever URL
+      // this is over the real network to decode it into a `ui.Image` for
+      // the canvas editor's background — mock mode fakes the *generation
+      // API call itself*, not the image bytes behind the returned URL,
+      // since there's no local asset that could stand in for "a freshly
+      // AI-generated graphic." This means manually running the app in mock
+      // mode (`Env.useMockApi`) still needs real internet access to see a
+      // background image; automated tests must mock
+      // `NetworkImageDecoder`/`GenerationRepository` rather than relying on
+      // this URL resolving, since CI has no guaranteed network access —
+      // see this branch's test suite for exactly that seam.
+      imageUrl: 'https://picsum.photos/seed/kelal-studio/$width/$height',
+      width: width,
+      height: height,
+    );
   }
 
   GenerateTextResponseDto _successResponse({

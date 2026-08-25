@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
+import 'package:kelal_studio/core/render_engine/canvas_scene.dart';
 import 'package:kelal_studio/core/router/app_shell.dart';
 import 'package:kelal_studio/core/router/go_router_refresh_stream.dart';
 import 'package:kelal_studio/core/router/placeholder_page.dart';
@@ -14,6 +15,7 @@ import 'package:kelal_studio/features/auth/presentation/pages/reset_password_con
 import 'package:kelal_studio/features/auth/presentation/pages/reset_password_request_page.dart';
 import 'package:kelal_studio/features/auth/presentation/widgets/email_verification_gate.dart';
 import 'package:kelal_studio/features/brand_kit/presentation/pages/brand_kit_page.dart';
+import 'package:kelal_studio/features/canvas_editor/presentation/pages/canvas_editor_page.dart';
 import 'package:kelal_studio/features/composer/presentation/pages/composer_page.dart';
 import 'package:kelal_studio/features/quota/presentation/widgets/quota_status_badge.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_confirm_page.dart';
@@ -50,6 +52,16 @@ class AppRouter {
   static const resetPasswordRequestLocation = '/reset-password';
   static const resetPasswordConfirmLocation = '/reset-password/confirm';
 
+  /// Pushed on top of the shell from `ComposerPage` once
+  /// `ImageGenerationSuccess` lands — not a `StatefulShellBranch` tab
+  /// (nothing in the bottom nav points here directly), same top-level
+  /// pattern as `registerLocation`/`resetPasswordRequestLocation`. Reached
+  /// via `context.push(canvasEditorLocation, extra: scene)`: a `CanvasScene`
+  /// holds a decoded `ui.Image`, which can't round-trip through a URL query
+  /// param, so `GoRouterState.extra` (in-memory only) is the only viable
+  /// way to hand it off — see `builder:` below.
+  static const canvasEditorLocation = '/canvas-editor';
+
   /// Where an authenticated user lands after leaving `/login` — the
   /// Compose branch is this shell's designated home destination.
   static const homeLocation = '/compose';
@@ -77,6 +89,20 @@ class AppRouter {
       GoRoute(
         path: resetPasswordConfirmLocation,
         builder: (context, state) => const ResetPasswordConfirmPage(),
+      ),
+      GoRoute(
+        path: canvasEditorLocation,
+        // `extra` is in-memory only — go_router drops it whenever
+        // navigation state is restored after process death (a routine
+        // Android low-memory scenario, not a hypothetical), so a resumed
+        // session landing here mid-restoration would otherwise hit a
+        // null-check crash on the cast below. Bounce back to Compose
+        // instead of crashing; a scene worth editing is only ever one
+        // "Create graphic" tap away.
+        redirect: (context, state) =>
+            state.extra is CanvasScene ? null : homeLocation,
+        builder: (context, state) =>
+            CanvasEditorPage(initialScene: state.extra! as CanvasScene),
       ),
       // Pushed from `SettingsPage` (see the `/settings` shell branch below)
       // rather than tabs themselves — kept as top-level routes, same

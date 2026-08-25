@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart' hide Headers;
+import 'package:kelal_studio/features/generation/data/models/generate_image_response_dto.dart';
 import 'package:kelal_studio/features/generation/data/models/generate_text_response_dto.dart';
 import 'package:retrofit/retrofit.dart';
 
@@ -15,6 +16,11 @@ abstract class GenerationApi {
 
   @POST('/generate/text')
   Future<GenerateTextResponseDto> generateText(
+    @Body() Map<String, dynamic> body,
+  );
+
+  @POST('/generate/image')
+  Future<GenerateImageResponseDto> generateImage(
     @Body() Map<String, dynamic> body,
   );
 }

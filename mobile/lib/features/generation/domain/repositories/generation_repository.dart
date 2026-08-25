@@ -1,5 +1,7 @@
 import 'package:kelal_studio/core/error/result.dart';
+import 'package:kelal_studio/features/generation/domain/entities/aspect_ratio.dart';
 import 'package:kelal_studio/features/generation/domain/entities/content_platform.dart';
+import 'package:kelal_studio/features/generation/domain/entities/generation_image_result.dart';
 import 'package:kelal_studio/features/generation/domain/entities/generation_result.dart';
 import 'package:kelal_studio/features/generation/domain/entities/input_language.dart';
 
@@ -23,5 +25,20 @@ abstract class GenerationRepository {
     required InputLanguage inputLanguage,
     required ContentPlatform platform,
     String? brandKitId,
+  });
+
+  /// `POST /generate/image`.
+  ///
+  /// Unlike [generateText], [brandKitId] is **required** here —
+  /// `GenerateImageRequest` lists `brand_kit_id` in its `required:` array
+  /// (mobile/api_contract/openapi.yaml), not optional the way it is on
+  /// `GenerateTextRequest`. Callers must resolve a real brand kit id
+  /// before calling this — see `ImageGenerationBloc`'s doc comment for
+  /// where that's enforced as a real blocking error rather than silently
+  /// omitted the way [generateText] can afford to.
+  Future<Result<Failure, GenerationImageResult>> generateImage({
+    required String captionEn,
+    required GenerationAspectRatio aspectRatio,
+    required String brandKitId,
   });
 }

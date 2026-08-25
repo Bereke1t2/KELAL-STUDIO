@@ -7,6 +7,7 @@ import 'package:kelal_studio/features/generation/data/datasources/fake_generatio
 import 'package:kelal_studio/features/generation/data/datasources/generation_api.dart'
     show GenerationApi;
 
+import 'package:kelal_studio/features/generation/data/models/generate_image_response_dto.dart';
 import 'package:kelal_studio/features/generation/data/models/generate_text_response_dto.dart';
 
 /// Implemented by both the [GenerationApi]-backed real data source and
@@ -33,5 +34,16 @@ abstract class GenerationRemoteDataSource {
     required String inputLang,
     required String platform,
     String? brandKitId,
+  });
+
+  /// `POST /generate/image`. [aspectRatio] is the wire-ready string
+  /// (`"1:1"`/`"4:5"`, from `GenerationAspectRatio.wireValue`) — same "map once, in
+  /// the repository" convention as `generateText`'s `inputLang`/`platform`.
+  /// [brandKitId] is required here, unlike `generateText`'s optional one —
+  /// see `GenerationRepository.generateImage`'s doc comment.
+  Future<GenerateImageResponseDto> generateImage({
+    required String captionEn,
+    required String aspectRatio,
+    required String brandKitId,
   });
 }
