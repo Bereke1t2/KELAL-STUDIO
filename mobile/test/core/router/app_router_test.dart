@@ -20,6 +20,8 @@ import 'package:kelal_studio/features/brand_kit/domain/usecases/get_brand_kit_us
 import 'package:kelal_studio/features/brand_kit/domain/usecases/update_brand_kit_usecase.dart';
 import 'package:kelal_studio/features/brand_kit/domain/usecases/upload_brand_logo_usecase.dart';
 import 'package:kelal_studio/features/brand_kit/presentation/bloc/brand_kit_bloc.dart';
+import 'package:kelal_studio/features/generation/domain/usecases/generate_text_usecase.dart';
+import 'package:kelal_studio/features/generation/presentation/bloc/generation_bloc.dart';
 import 'package:kelal_studio/features/quota/domain/entities/quota.dart';
 import 'package:kelal_studio/features/quota/domain/usecases/get_quota_usecase.dart';
 import 'package:kelal_studio/features/quota/presentation/bloc/quota_bloc.dart';
@@ -37,6 +39,8 @@ class MockUploadBrandLogoUseCase extends Mock
     implements UploadBrandLogoUseCase {}
 
 class MockGetQuotaUseCase extends Mock implements GetQuotaUseCase {}
+
+class MockGenerateTextUseCase extends Mock implements GenerateTextUseCase {}
 
 /// Minimal in-memory [Storage] so the [HydratedCubit]s pulled in via
 /// `LoginPage` (`ThemeCubit`/`LocaleCubit`) can be constructed without
@@ -157,6 +161,31 @@ void main() {
         ),
       );
 
+      // ComposerPage (also mounted on the Compose branch, inside
+      // EmailVerificationGate) resolves GenerationBloc via getIt the same
+      // way — it needs its own GetBrandKitUseCase mock instance (composer
+      // and brand-kit each get their own BrandKitBloc/GenerationBloc, per
+      // getIt's `registerFactory` semantics), stubbed identically to the
+      // one above purely so ComposerPage's own brand-kit-id resolution
+      // step (see GenerationBloc's doc comment) doesn't hang on an
+      // unstubbed mock; these navigation-focused tests never actually
+      // trigger a generation call.
+      final composerGetBrandKitUseCase = MockGetBrandKitUseCase();
+      when(composerGetBrandKitUseCase.call).thenAnswer(
+        (_) async => Result.ok(
+          BrandKit(
+            id: 'brand-kit-1',
+            brandName: 'Demo Business',
+            logoAssetId: null,
+            primaryColorHex: '#855312',
+            secondaryColorHex: '#C6821F',
+            toneOfVoice: '',
+            contactInfo: '',
+            updatedAt: DateTime.utc(2026),
+          ),
+        ),
+      );
+
       // QuotaStatusBadge (also mounted on the Compose branch, alongside
       // EmailVerificationGate — see app_router.dart) resolves QuotaBloc via
       // getIt the same way.
@@ -183,7 +212,13 @@ void main() {
             MockUploadBrandLogoUseCase(),
           ),
         )
-        ..registerFactory<QuotaBloc>(() => QuotaBloc(getQuotaUseCase));
+        ..registerFactory<QuotaBloc>(() => QuotaBloc(getQuotaUseCase))
+        ..registerFactory<GenerationBloc>(
+          () => GenerationBloc(
+            MockGenerateTextUseCase(),
+            composerGetBrandKitUseCase,
+          ),
+        );
     });
 
     tearDown(() async {
@@ -234,7 +269,13 @@ void main() {
 
         expect(find.text('Sign in'), findsNothing);
         expect(find.widgetWithText(AppBar, 'Compose'), findsOneWidget);
-        expect(find.text('Coming soon'), findsOneWidget);
+        // "Coming soon" was ComposerPage's placeholder predecessor on this
+        // route (see app_router.dart) — the real composer form is here
+        // now, "Drafts"/"Settings" below are still bare ComingSoonPages.
+        expect(
+          find.byKey(const Key('composer_generate_button')),
+          findsOneWidget,
+        );
 
         await tester.tap(find.text('Drafts'));
         await tester.pumpAndSettle();

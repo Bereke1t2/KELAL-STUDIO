@@ -14,6 +14,7 @@ import 'package:kelal_studio/features/auth/presentation/pages/reset_password_con
 import 'package:kelal_studio/features/auth/presentation/pages/reset_password_request_page.dart';
 import 'package:kelal_studio/features/auth/presentation/widgets/email_verification_gate.dart';
 import 'package:kelal_studio/features/brand_kit/presentation/pages/brand_kit_page.dart';
+import 'package:kelal_studio/features/composer/presentation/pages/composer_page.dart';
 import 'package:kelal_studio/features/quota/presentation/widgets/quota_status_badge.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_confirm_page.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_consequence_page.dart';
@@ -132,19 +133,20 @@ class AppRouter {
                 // *before* a generation attempt) isn't conditional on
                 // verification status the way the generation UI itself
                 // is, so it stays visible regardless of which state the
-                // gate below it is showing. The real Compose screen is a
-                // later branch (feat/idea-composer-generation, see
-                // mobile/CLAUDE.md); this wires a working quota surface
-                // onto whatever renders here today so that branch
-                // inherits it rather than building it from scratch.
+                // gate below it is showing.
+                //
+                // ComposerPage (feat/idea-composer-generation) replaces
+                // the placeholder "Coming soon" text that used to fill
+                // EmailVerificationGate's child slot — both wrappers
+                // above it are unchanged from the quota branch.
                 builder: (context, state) => Scaffold(
                   appBar: AppBar(
                     title: Text(AppLocalizations.of(context).navComposeLabel),
                   ),
-                  body: Column(
+                  body: const Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.fromLTRB(
                           AppSpacing.lg,
                           AppSpacing.lg,
@@ -154,16 +156,7 @@ class AppRouter {
                         child: QuotaStatusBadge(),
                       ),
                       Expanded(
-                        child: EmailVerificationGate(
-                          child: Center(
-                            child: Text(
-                              AppLocalizations.of(context).comingSoonMessage,
-                              style: AppTypography.body.copyWith(
-                                color: context.colors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ),
+                        child: EmailVerificationGate(child: ComposerPage()),
                       ),
                     ],
                   ),

@@ -125,5 +125,80 @@
   "quotaExceededDialogAction": "Got it",
   "@quotaExceededDialogAction": {
     "description": "showQuotaExceededDialog's single dismiss action label."
+  },
+  "composerIdeaLabel": "What's the idea?",
+  "@composerIdeaLabel": {
+    "description": "Floating label on the Idea Composer's multi-line free-text input (ComposerPage)."
+  },
+  "composerLanguageSectionLabel": "Language",
+  "@composerLanguageSectionLabel": {
+    "description": "Small section label above the composer's EN/AM/Auto AppSegmentedControl."
+  },
+  "composerLanguageEnOption": "EN",
+  "composerLanguageAmOption": "AM",
+  "composerLanguageAutoOption": "Auto",
+  "@composerLanguageAutoOption": {
+    "description": "Third option of the composer's language toggle — defers language detection to the backend (PRD §6.2) rather than the client guessing."
+  },
+  "composerPlatformSectionLabel": "Platform",
+  "@composerPlatformSectionLabel": {
+    "description": "Small section label above the composer's Instagram/TikTok/Telegram AppSegmentedControl."
+  },
+  "composerPlatformInstagramOption": "Instagram",
+  "composerPlatformTiktokOption": "TikTok",
+  "composerPlatformTelegramOption": "Telegram",
+  "composerGenerateButton": "Generate",
+  "@composerGenerateButton": {
+    "description": "ComposerPage's PrimaryButton label — submits GenerationRequested."
+  },
+  "composerEmptyIdeaError": "Enter an idea to generate content for.",
+  "@composerEmptyIdeaError": {
+    "description": "Local validation error shown under the idea field when Generate is tapped with empty/whitespace-only text — never reaches GenerationBloc."
+  },
+  "generationErrorProviderTimeout": "Generation is taking longer than usual. Please try again.",
+  "@generationErrorProviderTimeout": {
+    "description": "App-interface-localized copy for ApiErrorType.providerTimeout on a /generate/text failure (the rarer case where even the PRD §6.2 fallback template wasn't available) — see ComposerPage._errorMessage."
+  },
+  "generationErrorMalformedOutput": "We couldn't generate that. Please try again.",
+  "@generationErrorMalformedOutput": {
+    "description": "App-interface-localized copy for ApiErrorType.malformedOutput on a /generate/text failure."
+  },
+  "generationErrorValidationError": "Please check your idea and try again.",
+  "@generationErrorValidationError": {
+    "description": "App-interface-localized copy for ApiErrorType.validationError on a /generate/text failure."
+  },
+  "generationErrorNetwork": "No connection. Check your network and try again.",
+  "@generationErrorNetwork": {
+    "description": "App-interface-localized copy for ApiErrorType.network on a /generate/text failure."
+  },
+  "generationErrorUnauthorized": "Your session expired. Please sign in again.",
+  "@generationErrorUnauthorized": {
+    "description": "App-interface-localized copy for ApiErrorType.unauthorized on a /generate/text failure."
+  },
+  "generationErrorUnknown": "Something went wrong. Please try again.",
+  "@generationErrorUnknown": {
+    "description": "App-interface-localized fallback copy for ApiErrorType.unknown on a /generate/text failure."
+  },
+  "generationCaptionEnLabel": "English caption",
+  "generationCaptionAmLabel": "Amharic caption",
+  "generationCallToActionLabel": "Call to action",
+  "generationHashtagsLabel": "Hashtags",
+  "generationCopiedMessage": "{label} copied to clipboard.",
+  "@generationCopiedMessage": {
+    "description": "Snack bar shown after tapping a GenerationResultView field's copy button.",
+    "placeholders": {
+      "label": { "type": "String" }
+    }
+  },
+  "generationCopyTooltip": "Copy {label}",
+  "@generationCopyTooltip": {
+    "description": "Semantic tooltip on a GenerationResultView field's copy IconButton (PRD §7.4: every interactive element needs a label).",
+    "placeholders": {
+      "label": { "type": "String" }
+    }
+  },
+  "generationFallbackNotice": "We used a saved template because generation was taking too long. Try again for a fresh result.",
+  "@generationFallbackNotice": {
+    "description": "Shown on GenerationResultView when GenerationResult.isFallback is true — PRD §6.2's fallback-template path, deliberately disclosed rather than presented as indistinguishable from a fresh generation."
   }
 }
