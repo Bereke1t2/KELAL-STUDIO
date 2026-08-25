@@ -41,10 +41,12 @@ func newTestHandler() (*gin.Engine, *platformauth.Manager) {
 	return engine, mgr
 }
 
-// tokenFor mints a valid access token for a user id.
+// tokenFor mints a valid access token for a user id. Brand-kit routes aren't
+// gated on email verification (only generation is), so the verified flag is
+// immaterial here — pass true for a representative fully-onboarded user.
 func tokenFor(t *testing.T, mgr *platformauth.Manager, userID uuid.UUID) string {
 	t.Helper()
-	tok, err := mgr.GenerateAccess(userID.String(), platformauth.RoleUser)
+	tok, err := mgr.GenerateAccess(userID.String(), platformauth.RoleUser, true)
 	if err != nil {
 		t.Fatalf("GenerateAccess: %v", err)
 	}
