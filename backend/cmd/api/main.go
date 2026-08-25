@@ -29,6 +29,7 @@ import (
 	platformauth "github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/auth"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/config"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/database"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/email"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/httpx"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/httpx/middleware"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/logger"
@@ -82,6 +83,21 @@ func run(migrateOnly bool) error {
 		cfg.JWT.AccessSecret, cfg.JWT.RefreshSecret, cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL,
 	)
 
+	// Outbound email: a real SMTP sender in production, the dev LogSender by
+	// default. New fails fast on a misconfigured provider (config.validate has
+	// already refused the log sender under APP_ENV=production).
+	mailer, err := email.New(email.Options{
+		Provider:     cfg.Email.Provider,
+		From:         cfg.Email.From,
+		SMTPHost:     cfg.Email.SMTPHost,
+		SMTPPort:     cfg.Email.SMTPPort,
+		SMTPUsername: cfg.Email.SMTPUsername,
+		SMTPPassword: cfg.Email.SMTPPassword,
+	}, log)
+	if err != nil {
+		return err
+	}
+
 	// Global middleware (applied once, in order) + the per-route middleware set
 	// features apply selectively.
 	engine, v1 := httpx.NewRouter(
@@ -104,6 +120,7 @@ func run(migrateOnly bool) error {
 		AuthRequired:  middleware.Auth(jwtMgr),
 		AdminOnly:     middleware.AdminOnly(),
 		UserRateLimit: middleware.UserRateLimit(cfg.RateLim.PerUserPerMinute),
+		EmailVerified: middleware.EmailVerifiedRequired(),
 	}
 
 	// ── Feature composition — the one place features are wired ──────────────
@@ -111,7 +128,7 @@ func run(migrateOnly bool) error {
 	// (see internal/features/*). Each takes the same (v1, mw) so wiring is
 	// uniform. moderation and hashtag are internal (no routes) — they'll be
 	// dependencies of generation, not mounted here.
-	auth.New(auth.Deps{DB: db, JWT: jwtMgr, Config: cfg, Logger: log}).RegisterRoutes(v1, mw)
+	auth.New(auth.Deps{DB: db, JWT: jwtMgr, Config: cfg, Logger: log, Mailer: mailer}).RegisterRoutes(v1, mw)
 	brandkit.New(brandkit.Deps{DB: db, Config: cfg, Logger: log}).RegisterRoutes(v1, mw)
 	asset.New().RegisterRoutes(v1, mw)
 	generation.New().RegisterRoutes(v1, mw)

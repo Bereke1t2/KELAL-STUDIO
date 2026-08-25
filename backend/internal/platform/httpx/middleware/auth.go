@@ -17,8 +17,9 @@ import (
 // Context keys for values this middleware sets. Unexported so nothing pokes at
 // them directly — use the accessor functions below.
 const (
-	ctxUserID = "auth.uid"
-	ctxRole   = "auth.role"
+	ctxUserID        = "auth.uid"
+	ctxRole          = "auth.role"
+	ctxEmailVerified = "auth.email_verified"
 )
 
 // Auth validates the Bearer access token and stashes the user id + role on the
@@ -39,6 +40,7 @@ func Auth(m *auth.Manager) gin.HandlerFunc {
 		}
 		c.Set(ctxUserID, claims.UserID)
 		c.Set(ctxRole, claims.Role)
+		c.Set(ctxEmailVerified, claims.EmailVerified)
 		c.Next()
 	}
 }
@@ -62,4 +64,16 @@ func Role(c *gin.Context) string {
 		}
 	}
 	return ""
+}
+
+// EmailVerified reports whether the authenticated access token was minted for a
+// verified email. Returns false when the request wasn't authenticated or the
+// claim is absent (fail-closed).
+func EmailVerified(c *gin.Context) bool {
+	if v, ok := c.Get(ctxEmailVerified); ok {
+		if b, ok := v.(bool); ok {
+			return b
+		}
+	}
+	return false
 }

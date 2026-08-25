@@ -32,7 +32,7 @@ you change one, you affect everyone — review accordingly.
 
 | Slice | Package | Status | Endpoints | PRD | Owner |
 |---|---|---|---|---|---|
-| **Auth & Accounts** (reference) | `features/auth` | ✅ done | `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/password-reset/{request,confirm}`, `DELETE /auth/account` | §6.1 | — |
+| **Auth & Accounts** (reference) | `features/auth` | ✅ done | `/auth/register`, `/auth/verify-email{,/resend}`, `/auth/login`, `/auth/refresh`, `/auth/password-reset/{request,confirm}`, `DELETE /auth/account` | §6.1 | — |
 | **Brand Kit** | `features/brandkit` | ✅ done | `GET/PUT /brand-kits/{id}` | §6.8 | — |
 | **Assets / upload hardening** | `features/asset` | 🟡 stub | `POST /assets` | §6.8, §7.8 | _unclaimed_ |
 | **Text Generation** | `features/generation` + `features/hashtag` | 🟡 stub | `POST /generate/text` | §6.2, §6.3 | _unclaimed_ |
