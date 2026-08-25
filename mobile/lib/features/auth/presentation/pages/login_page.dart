@@ -6,6 +6,8 @@ import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/core/l10n/locale_cubit.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
 import 'package:kelal_studio/core/theme/theme_cubit.dart';
+import 'package:kelal_studio/core/widgets/error_snack_bar.dart';
+import 'package:kelal_studio/core/widgets/primary_button.dart';
 import 'package:kelal_studio/features/auth/presentation/bloc/login_bloc.dart';
 import 'package:kelal_studio/features/auth/presentation/bloc/login_event.dart';
 import 'package:kelal_studio/features/auth/presentation/bloc/login_state.dart';
@@ -56,17 +58,7 @@ class _LoginViewState extends State<_LoginView> {
               final message = state.errorType == ApiErrorType.validationError
                   ? l10n.invalidCredentials
                   : state.message;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  backgroundColor: colors.errorBg,
-                  content: Text(
-                    message,
-                    style: AppTypography.bodySmall.copyWith(
-                      color: colors.errorText,
-                    ),
-                  ),
-                ),
-              );
+              showErrorSnackBar(context, message);
             }
           },
           builder: (context, state) {
@@ -107,16 +99,11 @@ class _LoginViewState extends State<_LoginView> {
                     decoration: InputDecoration(labelText: l10n.passwordLabel),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
-                  ElevatedButton(
+                  PrimaryButton(
                     key: const Key('login_submit_button'),
-                    onPressed: isSubmitting ? null : _submit,
-                    child: isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(l10n.signIn),
+                    label: l10n.signIn,
+                    isLoading: isSubmitting,
+                    onPressed: _submit,
                   ),
                 ],
               ),

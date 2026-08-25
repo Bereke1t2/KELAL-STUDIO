@@ -40,6 +40,7 @@ class AppColors {
     required this.primaryHover,
     required this.primaryPressed,
     required this.primaryDisabledBg,
+    required this.interactiveDestructiveDefault,
     required this.successBg,
     required this.successBorder,
     required this.successText,
@@ -78,6 +79,14 @@ class AppColors {
   final Color primaryPressed;
   final Color primaryDisabledBg;
 
+  /// "Destructive (fill)" / Default state, node `9:442` (Color Foundations,
+  /// `Color — Interactive States`). Pulled as a raw swatch, not a bound
+  /// Figma variable — no `color/*` name to mirror, so this uses the same
+  /// `interactive*` naming Figma's own Tailwind export used for buttons
+  /// (e.g. `--color-interactive-primary-default`). Used by
+  /// `AppBottomSheet`'s destructive action (e.g. "Delete Draft").
+  final Color interactiveDestructiveDefault;
+
   final Color successBg;
   final Color successBorder;
   final Color successText;
@@ -115,6 +124,7 @@ class AppColors {
     primaryHover: Color(0xFF633E12),
     primaryPressed: Color(0xFF402A10),
     primaryDisabledBg: Color(0xFFE7E7E7),
+    interactiveDestructiveDefault: Color(0xFF8A1D1D),
     successBg: Color(0xFFEAF7EE),
     successBorder: Color(0xFF5CB279),
     successText: Color(0xFF1C4C2C),
@@ -152,6 +162,11 @@ class AppColors {
     primaryHover: Color(0xFFDA9B29),
     primaryPressed: Color(0xFFEAB44E),
     primaryDisabledBg: Color(0xFF262626),
+    // derived — not pulled 1:1 (see class doc); reuses errorBorder's dark
+    // value since both sit in the same red family at a similar "accent on
+    // dark surface" ramp position. Verify against a real Figma dark-mode
+    // pull before shipping a destructive action seen in dark mode.
+    interactiveDestructiveDefault: Color(0xFFC24A4A),
     // derived from the same green/orange/red/blue primitive ramps the light
     // triads come from — see class doc
     successBg: Color(0xFF143820),
