@@ -95,6 +95,8 @@ func run(migrateOnly bool) error {
 		if err != nil {
 			return err
 		}
+	}
+
 	// Outbound email: a real SMTP sender in production, the dev LogSender by
 	// default. New fails fast on a misconfigured provider (config.validate has
 	// already refused the log sender under APP_ENV=production).
