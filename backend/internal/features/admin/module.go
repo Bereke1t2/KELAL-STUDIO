@@ -1,20 +1,34 @@
-// Package admin owns the admin portal API (PRD §6.13): aggregate usage, the
-// moderation flag queue, flag review, and per-user limit overrides. It is a
-// STUB. These endpoints are backend-spec (the admin surface is a future web
-// portal), not part of the mobile contract.
-//
-// Non-negotiable when built (PRD §6.13):
-//   - Every route is gated by BOTH authentication and the admin role
-//     (mw.AuthRequired + mw.AdminOnly).
-//   - Every state-changing admin action writes a models.AdminAuditLog row
-//     (who, what, when, target) — admin actions are never silent.
-//
-// TODO(admin): implement by copying the auth feature's layout.
+// Package admin — see domain.go for the package overview. This file is the wiring
+// seam.
 package admin
 
-// Handler is the admin delivery adapter (stub).
-type Handler struct{}
+import (
+	"log/slog"
 
-// New builds the stub handler. TODO(admin): take a Deps struct (DB, Logger) and
-// an audit-log writer every mutation must call.
-func New() *Handler { return &Handler{} }
+	"gorm.io/gorm"
+
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/config"
+)
+
+// Deps are everything the admin feature needs from the composition root
+// (cmd/api). Passing them in — rather than reaching for globals — is what lets
+// tests construct the feature with a mock repo. Auth and the admin-role gate are
+// applied by the shared middleware.Set at route registration, so no JWT manager
+// is needed here.
+type Deps struct {
+	DB     *gorm.DB // may be nil when Config.UseMockData is true
+	Config *config.Config
+	Logger *slog.Logger
+}
+
+// New wires the feature and returns its Handler. It selects the in-memory or
+// Postgres adapter from configuration — exactly like brandkit.New / auth.New.
+func New(d Deps) *Handler {
+	var repo Repository
+	if d.Config.UseMockData || d.DB == nil {
+		repo = NewMockRepository()
+	} else {
+		repo = NewGormRepository(d.DB)
+	}
+	return NewHandler(NewService(repo, d.Logger))
+}

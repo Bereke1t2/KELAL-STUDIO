@@ -138,17 +138,18 @@ func run(migrateOnly bool) error {
 	}
 
 	// ── Feature composition — the one place features are wired ──────────────
-	// Auth is fully implemented; the rest are stubs returning not_implemented
-	// (see internal/features/*). Each takes the same (v1, mw) so wiring is
-	// uniform. moderation and hashtag are internal (no routes) — they'll be
-	// dependencies of generation, not mounted here.
+	// auth, brandkit, asset, and admin are implemented; generation, quota, and
+	// reminder are still stubs returning not_implemented (see
+	// internal/features/*). Each takes the same (v1, mw) so wiring is uniform.
+	// moderation and hashtag are internal (no routes) — they'll be dependencies
+	// of generation, not mounted here.
 	auth.New(auth.Deps{DB: db, JWT: jwtMgr, Config: cfg, Logger: log, Mailer: mailer}).RegisterRoutes(v1, mw)
 	brandkit.New(brandkit.Deps{DB: db, Config: cfg, Logger: log}).RegisterRoutes(v1, mw)
 	asset.New(asset.Deps{DB: db, Config: cfg, Logger: log, Store: assetStore}).RegisterRoutes(v1, mw)
 	generation.New().RegisterRoutes(v1, mw)
 	quota.New().RegisterRoutes(v1, mw)
 	reminder.New().RegisterRoutes(v1, mw)
-	admin.New().RegisterRoutes(v1, mw)
+	admin.New(admin.Deps{DB: db, Config: cfg, Logger: log}).RegisterRoutes(v1, mw)
 
 	// TODO(generation/video): build the provider chains (factory.BuildTextChain
 	// / BuildImageChain from cfg.Provider) and the queue here, then pass them

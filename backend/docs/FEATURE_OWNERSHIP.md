@@ -41,7 +41,7 @@ you change one, you affect everyone — review accordingly.
 | **Moderation** | `features/moderation` | 🔒 internal | none (pre-generation gate) | §6.4 | _unclaimed_ |
 | **Quota & Abuse Control** | `features/quota` | 🟡 stub | `GET /quota/me` + **pre-call enforcement** | §6.14, §12 | _unclaimed_ |
 | **Reminders** | `features/reminder` | 🟡 stub | `POST /reminders` | §6.12 | _unclaimed_ |
-| **Admin Portal** | `features/admin` | 🟡 stub | `/admin/usage`, `/admin/flags`, `/admin/flags/{id}/review`, `/admin/users/{id}/limits` | §6.13 | _unclaimed_ |
+| **Admin Portal** | `features/admin` | ✅ done | `/admin/usage`, `/admin/flags`, `/admin/flags/{id}/review`, `/admin/users/{id}/limits` | §6.13 | — |
 
 > **`generation` is shared by three slices** (text/image/video). This is the one
 > package where coordination matters: split it by file (e.g. one owner per
@@ -89,8 +89,21 @@ Read these before starting — they're the non-obvious parts and the traps.
 - **Reminders** — `scheduled_at_utc` is always UTC; `draft_local_id` is an
   **opaque** client string (drafts are device-local in V1, OQ-05) — never
   dereference it into a server row.
-- **Admin** — every mutating endpoint MUST write an `AdminAuditLog` row. Gated by
-  `mw.AuthRequired` **and** `mw.AdminOnly`.
+- **Admin** (done) — backend-only (not in the mobile contract); every route is
+  gated by `mw.AuthRequired` **and** `mw.AdminOnly`. The load-bearing invariant
+  is made **structural**: the two mutating port methods (`ReviewFlag`,
+  `SetUserLimits`) take the `AdminAuditLog` row as a required argument and persist
+  it in the **same transaction** as the change, so an admin write can't land
+  without its audit trail. Admin is a cross-cutting **reader** — usage counts and
+  the flag queue aggregate rows other features own (`users`,
+  `generation_records`, `moderation_flags`) — reached only via the shared
+  `models` package and its own port, never by importing another feature. In mock
+  mode those aggregates reflect only seeded data (per-feature mocks are isolated);
+  against Postgres they aggregate live. Re-reviewing an already-reviewed flag is a
+  **409** (single reviewer, not overwritten). Per-user limits are stored as
+  nullable `users.daily_{text,image}_quota` overrides (nil = global default, 0 =
+  block all) — flagged as `admin-user-limits` in `OPEN_QUESTIONS.md`, not silently
+  resolved.
 
 ## Definition of done for a slice
 
