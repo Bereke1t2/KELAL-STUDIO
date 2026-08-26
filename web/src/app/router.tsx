@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 
+import { FlagsPage } from '../features/admin/FlagsPage';
 import { UsagePage } from '../features/admin/UsagePage';
 import { BrandKitPage } from '../features/brandKit/BrandKitPage';
 import { AppShell } from './AppShell';
@@ -27,7 +28,7 @@ export function AppRouter() {
             <Route path="/" element={<Navigate to="/brand-kit" replace />} />
             <Route path="/brand-kit" element={<BrandKitPage />} />
             <Route path="/admin/usage" element={<UsagePage />} />
-            <Route path="/admin/flags" element={<Placeholder title="Flags" />} />
+            <Route path="/admin/flags" element={<FlagsPage />} />
             <Route path="/admin/users" element={<Placeholder title="Users" />} />
             {/* A bad URL is a normal way to arrive; send it somewhere real
                 rather than rendering nothing. */}
