@@ -5,7 +5,7 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: 3.12.2
+  sdk: ">=3.12.2 <4.0.0"
 
 # Every dependency below is pinned to an EXACT version (no `^`, no `any`) —
 # deliberate project rule, not an oversight. Reproducible builds matter
@@ -38,7 +38,7 @@ dependencies:
   go_router: 14.8.1
   hydrated_bloc: 10.1.1
   injectable: 2.7.1+4
-  intl: 0.20.2
+  intl: ^0.20.3
   json_annotation: 4.12.0
   path_provider: 2.1.6
   pretty_dio_logger: 1.4.0
