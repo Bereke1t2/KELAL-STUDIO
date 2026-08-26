@@ -9,6 +9,7 @@
  * This is the foundation branch: routing, auth, and the real screens land in
  * the branches stacked on top of this one.
  */
+import { AppRouter } from './app/router';
 import { AuthProvider } from './auth/AuthContext';
 import { ThemeProvider } from './theme/ThemeContext';
 
@@ -16,10 +17,7 @@ export function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <main className="min-h-dvh bg-canvas text-ink">
-          <h1>Kelal Studio</h1>
-          <p className="text-ink-secondary">Management portal</p>
-        </main>
+        <AppRouter />
       </AuthProvider>
     </ThemeProvider>
   );
