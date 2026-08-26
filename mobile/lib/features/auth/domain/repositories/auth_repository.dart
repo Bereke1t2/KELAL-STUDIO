@@ -12,5 +12,6 @@ abstract class AuthRepository {
     required String password,
   });
 
+  Future<Result<Failure, void>> deleteAccount();
   Future<void> logout();
 }
