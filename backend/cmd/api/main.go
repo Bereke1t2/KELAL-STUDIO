@@ -33,6 +33,7 @@ import (
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/httpx"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/httpx/middleware"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/logger"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/storage"
 )
 
 func main() {
@@ -83,6 +84,17 @@ func run(migrateOnly bool) error {
 		cfg.JWT.AccessSecret, cfg.JWT.RefreshSecret, cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL,
 	)
 
+	// Blob store for uploaded assets. In mock mode it lives in memory (like the
+	// in-memory repos); otherwise it's a filesystem store rooted OUTSIDE any web
+	// root (config.validate enforces an absolute path in production).
+	var assetStore storage.Store
+	if cfg.UseMockData {
+		assetStore = storage.NewMemory()
+	} else {
+		assetStore, err = storage.NewFS(cfg.Asset.StorageDir)
+		if err != nil {
+			return err
+		}
 	// Outbound email: a real SMTP sender in production, the dev LogSender by
 	// default. New fails fast on a misconfigured provider (config.validate has
 	// already refused the log sender under APP_ENV=production).
@@ -130,7 +142,7 @@ func run(migrateOnly bool) error {
 	// dependencies of generation, not mounted here.
 	auth.New(auth.Deps{DB: db, JWT: jwtMgr, Config: cfg, Logger: log, Mailer: mailer}).RegisterRoutes(v1, mw)
 	brandkit.New(brandkit.Deps{DB: db, Config: cfg, Logger: log}).RegisterRoutes(v1, mw)
-	asset.New().RegisterRoutes(v1, mw)
+	asset.New(asset.Deps{DB: db, Config: cfg, Logger: log, Store: assetStore}).RegisterRoutes(v1, mw)
 	generation.New().RegisterRoutes(v1, mw)
 	quota.New().RegisterRoutes(v1, mw)
 	reminder.New().RegisterRoutes(v1, mw)

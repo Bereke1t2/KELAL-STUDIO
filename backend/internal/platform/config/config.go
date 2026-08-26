@@ -7,6 +7,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -236,6 +237,29 @@ func (c *Config) validate() error {
 	}
 	if c.JWT.AccessSecret == "" || c.JWT.RefreshSecret == "" {
 		return fmt.Errorf("config: JWT_ACCESS_SECRET and JWT_REFRESH_SECRET are required")
+	}
+	if err := c.validateAsset(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateAsset guards the upload-hardening limits. Every uploaded byte is
+// attacker-influenced, so a misconfigured limit is a security hole, not a
+// nuisance — fail fast at boot rather than at first upload (PRD §6.8/§7.8).
+func (c *Config) validateAsset() error {
+	// In production the blob store must sit at an ABSOLUTE path. The relative
+	// dev default (./storage/assets) resolves against the process CWD and could
+	// land under a directory that's being served — uploaded bytes must live
+	// outside any web root.
+	if c.IsProduction() && !filepath.IsAbs(c.Asset.StorageDir) {
+		return fmt.Errorf("config: ASSET_STORAGE_DIR must be an absolute path when APP_ENV=production (got %q)", c.Asset.StorageDir)
+	}
+	if c.Asset.MaxBytes <= 0 {
+		return fmt.Errorf("config: ASSET_MAX_BYTES must be positive")
+	}
+	if c.Asset.MinDimension <= 0 || c.Asset.MaxDimension < c.Asset.MinDimension {
+		return fmt.Errorf("config: ASSET_MIN_DIMENSION must be positive and ASSET_MAX_DIMENSION must be >= ASSET_MIN_DIMENSION")
 	}
 	return nil
 }
