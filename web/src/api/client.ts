@@ -34,7 +34,7 @@ async function toApiError(res: Response): Promise<ApiError> {
  */
 let refreshInFlight: Promise<void> | null = null;
 
-async function refresh(): Promise<void> {
+export async function refresh(): Promise<void> {
   // Capture locally: the IIFE's `finally` clears the module-level slot, so
   // reading it back after the await would race with a fast rejection.
   const inFlight = (refreshInFlight ??= (async () => {
