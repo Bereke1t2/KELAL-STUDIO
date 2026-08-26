@@ -11,6 +11,7 @@ import (
 
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/apperror"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/auth"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/config"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/httpx/middleware"
 )
 
@@ -28,7 +29,12 @@ func TestGenerateTextRequiresVerifiedEmail(t *testing.T) {
 		EmailVerified: middleware.EmailVerifiedRequired(),
 	}
 	engine := gin.New()
-	New().RegisterRoutes(engine.Group("/v1"), mw)
+	// Only the middleware gate is under test here, so a minimal module suffices:
+	// an empty request body fails binding (400) before the service — and its nil
+	// provider/quota deps — is ever reached. Config must be non-nil (New reads
+	// UseMockData) and a nil DB selects the in-memory repository.
+	mod := New(Deps{Config: &config.Config{}})
+	mod.Handler.RegisterRoutes(engine.Group("/v1"), mw)
 
 	const uid = "11111111-1111-1111-1111-111111111111"
 	call := func(bearer string) *httptest.ResponseRecorder {
@@ -60,13 +66,15 @@ func TestGenerateTextRequiresVerifiedEmail(t *testing.T) {
 		t.Fatalf("unverified: want error_code=%q, got %q", apperror.CodeEmailNotVerified, body.ErrorCode)
 	}
 
-	// Verified token passes the gate; the stub handler then returns 501.
+	// Verified token passes the gate and reaches the handler; the empty body then
+	// fails request validation (400 validation_error) — proving the gate let it
+	// through instead of short-circuiting with 403 email_not_verified.
 	verified, err := mgr.GenerateAccess(uid, auth.RoleUser, true)
 	if err != nil {
 		t.Fatalf("mint verified token: %v", err)
 	}
-	if rec := call(verified); rec.Code != http.StatusNotImplemented {
-		t.Fatalf("verified: want 501 (past the gate), got %d (%s)", rec.Code, rec.Body.String())
+	if rec := call(verified); rec.Code != http.StatusBadRequest {
+		t.Fatalf("verified: want 400 (past the gate, empty body fails validation), got %d (%s)", rec.Code, rec.Body.String())
 	}
 
 	// No token at all → 401 from Auth; the gate is never reached.

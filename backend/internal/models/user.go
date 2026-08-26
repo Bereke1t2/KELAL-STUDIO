@@ -41,7 +41,16 @@ type User struct {
 	// locked).
 	FailedLoginAttempts int `gorm:"not null;default:0"`
 	LockedUntil         *time.Time
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
-	DeletedAt           gorm.DeletedAt `gorm:"index"`
+	// DailyTextQuota / DailyImageQuota are per-user overrides of the global daily
+	// generation caps (config.QuotaConfig.TextDaily / ImageDaily), set by an admin
+	// via PUT /admin/users/{id}/limits (PRD §6.13). nil means "no override — use
+	// the global default"; 0 is a real value (block all generation of that kind).
+	// The quota enforcer (PRD §6.14) reads these when it's built. Kept nullable so
+	// "unset" is distinct from "capped at zero". See docs/OPEN_QUESTIONS.md →
+	// admin-user-limits.
+	DailyTextQuota  *int
+	DailyImageQuota *int
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	DeletedAt       gorm.DeletedAt `gorm:"index"`
 }

@@ -27,6 +27,8 @@ type Config struct {
 
 	DB         DBConfig
 	JWT        JWTConfig
+	Auth       AuthConfig
+	Email      EmailConfig
 	RateLim    RateLimitConfig
 	Quota      QuotaConfig
 	Moderation ModerationConfig
@@ -36,16 +38,6 @@ type Config struct {
 	// PublicBaseURL is the front-door origin embedded in verification / reset
 	// links (the app/web surface that captures the token). No trailing slash.
 	PublicBaseURL string
-
-	DB       DBConfig
-	JWT      JWTConfig
-	Auth     AuthConfig
-	Email    EmailConfig
-	RateLim  RateLimitConfig
-	Quota    QuotaConfig
-	Provider ProviderConfig
-	Queue    QueueConfig
-	Asset    AssetConfig
 }
 
 // DBConfig holds the PostgreSQL connection settings and pool tuning.

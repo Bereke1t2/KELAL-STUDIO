@@ -99,6 +99,8 @@ func run(migrateOnly bool) error {
 		if err != nil {
 			return err
 		}
+	}
+
 	// Outbound email: a real SMTP sender in production, the dev LogSender by
 	// default. New fails fast on a misconfigured provider (config.validate has
 	// already refused the log sender under APP_ENV=production).
@@ -139,39 +141,11 @@ func run(migrateOnly bool) error {
 		EmailVerified: middleware.EmailVerifiedRequired(),
 	}
 
-	// Blob store for uploaded assets. In mock mode it lives in memory (like the
-	// in-memory repos); otherwise it's a filesystem store rooted OUTSIDE any web
-	// root (config.validate enforces an absolute path in production).
-	var assetStore storage.Store
-	if cfg.UseMockData {
-		assetStore = storage.NewMemory()
-	} else {
-		assetStore, err = storage.NewFS(cfg.Asset.StorageDir)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Outbound email: a real SMTP sender in production, the dev LogSender by
-	// default. New fails fast on a misconfigured provider (config.validate has
-	// already refused the log sender under APP_ENV=production).
-	mailer, err := email.New(email.Options{
-		Provider:     cfg.Email.Provider,
-		From:         cfg.Email.From,
-		SMTPHost:     cfg.Email.SMTPHost,
-		SMTPPort:     cfg.Email.SMTPPort,
-		SMTPUsername: cfg.Email.SMTPUsername,
-		SMTPPassword: cfg.Email.SMTPPassword,
-	}, log)
-	if err != nil {
-		return err
-	}
-
 	// ── Feature composition — the one place features are wired ──────────────
-	// Auth is fully implemented; the rest are stubs returning not_implemented
-	// (see internal/features/*). Each takes the same (v1, mw) so wiring is
-	// uniform. moderation and hashtag are internal (no routes) — they'll be
-	// dependencies of generation, not mounted here.
+	// Every feature is implemented: auth, brandkit, asset, generation, quota,
+	// reminder, and admin all register routes below. moderation and hashtag are
+	// internal (no routes) — they are dependencies of generation, not mounted
+	// here.
 	auth.New(auth.Deps{DB: db, JWT: jwtMgr, Config: cfg, Logger: log, Mailer: mailer}).RegisterRoutes(v1, mw)
 	brandkit.New(brandkit.Deps{DB: db, Config: cfg, Logger: log}).RegisterRoutes(v1, mw)
 	asset.New(asset.Deps{DB: db, Config: cfg, Logger: log, Store: assetStore}).RegisterRoutes(v1, mw)
@@ -245,10 +219,6 @@ func run(migrateOnly bool) error {
 	// With the in-process driver, the API process itself consumes jobs —
 	// the separate cmd/worker binary is the shape for a real broker.
 	jobQueue := queue.NewInProc(cfg.Queue.VideoMaxAttempts, log)
-	generation.New().RegisterRoutes(v1, mw)
-	quota.New().RegisterRoutes(v1, mw)
-	reminder.New().RegisterRoutes(v1, mw)
-	admin.New().RegisterRoutes(v1, mw)
 
 	genMod := generation.New(generation.Deps{
 		DB:         db,
@@ -284,7 +254,8 @@ func run(migrateOnly bool) error {
 			reminderMod.Service.FireDueReminders(context.Background())
 		}
 	}()
-	admin.New().RegisterRoutes(v1, mw)
+
+	admin.New(admin.Deps{DB: db, Config: cfg, Logger: log}).RegisterRoutes(v1, mw)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.HTTPPort,
