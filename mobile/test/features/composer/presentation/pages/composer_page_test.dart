@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -7,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import 'package:kelal_studio/core/di/injection.dart';
 import 'package:kelal_studio/core/error/result.dart';
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
-import 'package:kelal_studio/core/render_engine/canvas_scene.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
 import 'package:kelal_studio/features/brand_kit/domain/entities/brand_kit.dart';
 import 'package:kelal_studio/features/brand_kit/domain/usecases/get_brand_kit_usecase.dart';
@@ -547,9 +547,14 @@ void main() {
       },
     );
 
-    testWidgets('a successful image generation navigates to /canvas-editor', (
+    testWidgets('a successful image generation navigates to /canvas-editor, '
+        "carrying both of the original GenerationResult's caption strings "
+        "alongside the scene (see CanvasEditorPageArgs' doc comment — "
+        'ImageGenerationSuccess itself only carries the scene, so the '
+        "captions come from _createGraphic's own snapshot instead)", (
       tester,
     ) async {
+      CanvasEditorPageArgs? pushedArgs;
       final router = GoRouter(
         initialLocation: '/',
         routes: [
@@ -559,8 +564,10 @@ void main() {
           ),
           GoRoute(
             path: '/canvas-editor',
-            builder: (context, state) =>
-                CanvasEditorPage(initialScene: state.extra! as CanvasScene),
+            builder: (context, state) {
+              pushedArgs = state.extra! as CanvasEditorPageArgs;
+              return CanvasEditorPage(args: pushedArgs!);
+            },
           ),
         ],
       );
@@ -626,7 +633,161 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CanvasEditorPage), findsOneWidget);
+      expect(pushedArgs, isNotNull);
+      expect(pushedArgs!.captionEn, result.captionEn);
+      expect(pushedArgs!.captionAm, result.captionAm);
     });
+
+    testWidgets(
+      're-generating the idea text while a Create-graphic request for the '
+      'PREVIOUS result is still in flight does not corrupt the captions '
+      'that later reach /canvas-editor — they stay pinned to whichever '
+      'result "Create graphic" was actually tapped for, not whatever '
+      "GenerationBloc's state happens to be once the image request finally "
+      'resolves',
+      (tester) async {
+        const resultB = GenerationResult(
+          captionEn: 'Second idea caption (EN)',
+          captionAm: 'ሁለተኛ ሀሳብ መግለጫ',
+          callToAction: 'Learn more',
+          hashtags: ['#second'],
+          isFallback: false,
+        );
+
+        CanvasEditorPageArgs? pushedArgs;
+        final router = GoRouter(
+          initialLocation: '/',
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, state) => const Scaffold(body: ComposerPage()),
+            ),
+            GoRoute(
+              path: '/canvas-editor',
+              builder: (context, state) {
+                pushedArgs = state.extra! as CanvasEditorPageArgs;
+                return CanvasEditorPage(args: pushedArgs!);
+              },
+            ),
+          ],
+        );
+
+        await tester.pumpWidget(
+          MaterialApp.router(
+            theme: AppTheme.light(),
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [Locale('en'), Locale('am')],
+            routerConfig: router,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Generate idea A's text result.
+        when(
+          () => generateTextUseCase(
+            inputText: 'Idea A',
+            inputLanguage: InputLanguage.auto,
+            platform: ContentPlatform.instagram,
+            brandKitId: 'brand-kit-1',
+          ),
+        ).thenAnswer((_) async => const Result.ok(result));
+        await tester.enterText(
+          find.byKey(const Key('composer_idea_field')),
+          'Idea A',
+        );
+        await tester.tap(find.byKey(const Key('composer_generate_button')));
+        await tester.pumpAndSettle();
+
+        // Tap "Create graphic" for idea A, but hold the image-generation
+        // response open via an uncompleted Completer — this is the window
+        // a fast text re-generation can land in.
+        final image = await _testImage();
+        addTearDown(image.dispose);
+        final generateImageCompleter =
+            Completer<Result<ApiFailure, GenerationImageResult>>();
+        when(
+          () => generateImageUseCase(
+            captionEn: result.captionEn,
+            aspectRatio: GenerationAspectRatio.oneToOne,
+            brandKitId: 'brand-kit-1',
+          ),
+        ).thenAnswer((_) => generateImageCompleter.future);
+
+        await tester.ensureVisible(
+          find.byKey(const Key('composer_create_graphic_button')),
+        );
+        await tester.tap(
+          find.byKey(const Key('composer_create_graphic_button')),
+        );
+        await tester.pump();
+
+        // While idea A's image request is still pending, re-generate the
+        // idea text as idea B — GenerationBloc is free to accept this
+        // (only ImageGenerationBloc's own in-flight request blocks a
+        // second *image* request; nothing about a pending image request
+        // blocks a new *text* one).
+        when(
+          () => generateTextUseCase(
+            inputText: 'Idea B',
+            inputLanguage: InputLanguage.auto,
+            platform: ContentPlatform.instagram,
+            brandKitId: 'brand-kit-1',
+          ),
+        ).thenAnswer((_) async => const Result.ok(resultB));
+        await tester.enterText(
+          find.byKey(const Key('composer_idea_field')),
+          'Idea B',
+        );
+        await tester.tap(find.byKey(const Key('composer_generate_button')));
+        // Not pumpAndSettle(): the "Create graphic" button's spinner is
+        // still indeterminate here (idea A's image request is
+        // deliberately still held open via generateImageCompleter), and an
+        // indeterminate CircularProgressIndicator never stops scheduling
+        // frames on its own (see PrimaryButton.loadingValue's doc
+        // comment) — pumpAndSettle would hang waiting for it regardless of
+        // whether idea B's (already-mocked, near-instant) text generation
+        // has finished. A few bounded pumps are enough to flush it.
+        await tester.pump();
+        await tester.pump();
+        await tester.pump();
+
+        // GenerationBloc has now moved on to resultB's captions — confirm
+        // that actually happened, so this test is exercising the race it
+        // claims to.
+        expect(find.text(resultB.captionEn), findsOneWidget);
+
+        // Now let idea A's held-open image request resolve.
+        when(
+          () => decodeGeneratedImageUseCase(
+            'https://picsum.photos/seed/a/1080/1080',
+          ),
+        ).thenAnswer((_) async => Result.ok(image));
+        generateImageCompleter.complete(
+          const Result.ok(
+            GenerationImageResult(
+              assetId: 'asset-a',
+              imageUrl: 'https://picsum.photos/seed/a/1080/1080',
+              width: 1080,
+              height: 1080,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(CanvasEditorPage), findsOneWidget);
+        expect(pushedArgs, isNotNull);
+        // Must still be idea A's captions — the ones "Create graphic" was
+        // actually tapped for — not idea B's, even though GenerationBloc's
+        // current state is resultB by the time this navigation happens.
+        expect(pushedArgs!.captionEn, result.captionEn);
+        expect(pushedArgs!.captionAm, result.captionAm);
+      },
+    );
   });
 }
 

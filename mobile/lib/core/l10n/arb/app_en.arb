@@ -225,13 +225,9 @@
   "@canvasEditorRemoveTextButton": {
     "description": "Removes the currently selected TextLayer, disabled when no layer is selected."
   },
-  "canvasEditorContinueComingSoon": "Export isn't wired up yet — that's the next branch in the stack.",
-  "@canvasEditorContinueComingSoon": {
-    "description": "SnackBar shown when tapping Continue before features/export exists (feat/export-share, later branch) — deliberately not a silent no-op or a route to nowhere."
-  },
   "canvasEditorContinueButton": "Continue",
   "@canvasEditorContinueButton": {
-    "description": "Primary CTA at the bottom of CanvasEditorPage — currently a placeholder, see canvasEditorContinueComingSoon."
+    "description": "Primary CTA at the bottom of CanvasEditorPage — pushes to /export with the current scene and captions."
   },
   "canvasEditorEditSheetHeading": "Edit text",
   "@canvasEditorEditSheetHeading": {
@@ -244,5 +240,57 @@
   "canvasEditorEditSheetSaveButton": "Save",
   "@canvasEditorEditSheetSaveButton": {
     "description": "Commits the edited text back onto the selected TextLayer."
+  },
+  "exportPageTitle": "Save & share",
+  "@exportPageTitle": {
+    "description": "AppBar title on ExportPage (PRD §6.11), reached via CanvasEditorPage's Continue button."
+  },
+  "exportFirstRunOverlayHeading": "One more step to post",
+  "@exportFirstRunOverlayHeading": {
+    "description": "Heading of the first-run instructional bottom sheet (ExportOverlaySeenCubit) shown the first time a user reaches ExportPage — PRD §6.11's required UX teaching the long-press-to-paste step."
+  },
+  "exportFirstRunOverlayBody": "We can't post directly to Instagram, TikTok, or Telegram for you. Copy your caption below, then long-press to paste it once you're in the app you're posting to.",
+  "@exportFirstRunOverlayBody": {
+    "description": "Body of the first-run instructional bottom sheet — explains the manual copy-then-long-press-paste workflow (PRD §6.11 is explicit that this is never a programmatic paste)."
+  },
+  "exportFirstRunOverlayAction": "Got it",
+  "@exportFirstRunOverlayAction": {
+    "description": "Single dismiss action on the first-run overlay — dismissing marks ExportOverlaySeenCubit as seen so it isn't shown again."
+  },
+  "exportCaptionLanguageSectionLabel": "Caption language",
+  "@exportCaptionLanguageSectionLabel": {
+    "description": "Small section label above ExportPage's EN/AM caption-language AppSegmentedControl (see OQ-EXPORT-1 in export_page.dart for why this toggle exists)."
+  },
+  "exportSaveButton": "Save to gallery",
+  "@exportSaveButton": {
+    "description": "ExportPage's PrimaryButton label — dispatches ExportGallerySaveRequested."
+  },
+  "exportShareButton": "Share",
+  "@exportShareButton": {
+    "description": "ExportPage's PrimaryButton label — dispatches ExportShareRequested, invoking the OS Share Sheet."
+  },
+  "exportCopyCaptionButton": "Copy caption",
+  "@exportCopyCaptionButton": {
+    "description": "ExportPage's OutlinedButton label — copies the selected-language caption to the clipboard (never a programmatic paste, per PRD §6.11)."
+  },
+  "exportCaptionCopiedMessage": "Caption copied to clipboard.",
+  "@exportCaptionCopiedMessage": {
+    "description": "Snack bar shown after tapping ExportPage's copy-caption button."
+  },
+  "exportGallerySaveSuccessMessage": "Saved to your gallery.",
+  "@exportGallerySaveSuccessMessage": {
+    "description": "Snack bar shown after ExportBloc reaches ExportGallerySaveSuccess."
+  },
+  "exportGalleryPermissionDeniedMessage": "We need permission to save to your gallery. You can grant it in your device settings.",
+  "@exportGalleryPermissionDeniedMessage": {
+    "description": "Plain-language copy for ExportFailureType.galleryPermissionDenied — covers both Gal.requestAccess() returning false and a GalException(accessDenied) thrown mid-write."
+  },
+  "exportGalleryWriteFailedMessage": "We couldn't save to your gallery. Check your device storage and try again.",
+  "@exportGalleryWriteFailedMessage": {
+    "description": "Plain-language copy for ExportFailureType.galleryWriteFailed — covers gal's notEnoughSpace/notSupportedFormat GalException types; PRD review checklist explicitly calls out device-storage-full as a required edge case here."
+  },
+  "exportShareFailedMessage": "We couldn't open the share sheet. Please try again.",
+  "@exportShareFailedMessage": {
+    "description": "Plain-language copy for ExportFailureType.shareFailed — share_plus's share() call itself threw; not shown for a user simply dismissing the share sheet, which is a normal outcome, not this failure."
   }
 }

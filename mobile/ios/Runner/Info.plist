@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Kelal Studio uses your photo library to let you choose a logo for your Brand Kit.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Kelal Studio saves your exported graphics to your photo library.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

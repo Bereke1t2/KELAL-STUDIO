@@ -86,9 +86,21 @@
   "canvasEditorTitle": "ልጥፍዎን ያርትዑ",
   "canvasEditorAddTextButton": "ጽሑፍ ጨምር",
   "canvasEditorRemoveTextButton": "ጽሑፍ አስወግድ",
-  "canvasEditorContinueComingSoon": "ወደ ውጪ መላክ ገና አልተገናኘም — ያ በቅደም ተከተል ውስጥ ቀጣዩ ቅርንጫፍ ነው።",
   "canvasEditorContinueButton": "ቀጥል",
   "canvasEditorEditSheetHeading": "ጽሑፍ አርትዕ",
   "canvasEditorEditSheetFieldLabel": "ጽሑፍ",
-  "canvasEditorEditSheetSaveButton": "አስቀምጥ"
+  "canvasEditorEditSheetSaveButton": "አስቀምጥ",
+  "exportPageTitle": "አስቀምጥ እና አጋራ",
+  "exportFirstRunOverlayHeading": "ለመልጠፍ አንድ ተጨማሪ ደረጃ",
+  "exportFirstRunOverlayBody": "በቀጥታ ወደ Instagram፣ TikTok ወይም Telegram መልጠፍ አንችልም። ከዚህ በታች ያለውን መግለጫ ጽሑፍ ይቅዱ፣ ከዚያም ወደሚለጥፉበት መተግበሪያ ከገቡ በኋላ ለመለጠፍ ረዘም ላለ ጊዜ ይጫኑ።",
+  "exportFirstRunOverlayAction": "ገባኝ",
+  "exportCaptionLanguageSectionLabel": "የመግለጫ ቋንቋ",
+  "exportSaveButton": "ወደ ፎቶ ማዕከል አስቀምጥ",
+  "exportShareButton": "አጋራ",
+  "exportCopyCaptionButton": "መግለጫ ቅዳ",
+  "exportCaptionCopiedMessage": "መግለጫው ወደ ቅንጥብ ሰሌዳ ተቀድቷል።",
+  "exportGallerySaveSuccessMessage": "ወደ ፎቶ ማዕከልዎ ተቀምጧል።",
+  "exportGalleryPermissionDeniedMessage": "ወደ ፎቶ ማዕከልዎ ለማስቀመጥ ፍቃድ ያስፈልገናል። በመሳሪያዎ ቅንብሮች ውስጥ መስጠት ይችላሉ።",
+  "exportGalleryWriteFailedMessage": "ወደ ፎቶ ማዕከልዎ ማስቀመጥ አልቻልንም። የመሳሪያዎን ማከማቻ ያረጋግጡና እንደገና ይሞክሩ።",
+  "exportShareFailedMessage": "የማጋሪያ ገጹን መክፈት አልቻልንም። እባክዎ እንደገና ይሞክሩ።"
 }

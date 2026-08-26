@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:kelal_studio/core/di/injection.dart';
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
@@ -13,31 +14,55 @@ import 'package:kelal_studio/features/canvas_editor/presentation/bloc/canvas_edi
 import 'package:kelal_studio/features/canvas_editor/presentation/bloc/canvas_editor_event.dart';
 import 'package:kelal_studio/features/canvas_editor/presentation/bloc/canvas_editor_state.dart';
 import 'package:kelal_studio/features/canvas_editor/presentation/widgets/safe_zone_guide.dart';
+import 'package:kelal_studio/features/export/presentation/pages/export_page.dart';
 import 'package:kelal_studio/features/generation/domain/entities/aspect_ratio.dart';
 
+/// `/canvas-editor`'s `state.extra` payload — bundles the [scene] to edit
+/// with the two caption strings from the `GenerationResult` that produced
+/// it. `CanvasScene` itself carries no caption field (see `ExportPageArgs`'s
+/// doc comment in `features/export/presentation/pages/export_page.dart` for
+/// the full contract-gap note); `CanvasEditorPage` doesn't render
+/// [captionEn]/[captionAm] itself, it only holds onto them to forward
+/// unchanged into an [ExportPageArgs] once the user taps Continue — this is
+/// where that thread starts, fed by `ComposerPage`'s `ImageGenerationSuccess`
+/// listener (`composer_page.dart`).
+class CanvasEditorPageArgs {
+  const CanvasEditorPageArgs({
+    required this.scene,
+    required this.captionEn,
+    required this.captionAm,
+  });
+
+  final CanvasScene scene;
+  final String captionEn;
+  final String captionAm;
+}
+
 /// The interactive canvas editor — PRD §6.9. Owns no generation logic
-/// itself; [initialScene] is expected to already be built (decoded
+/// itself; [args]' `scene` is expected to already be built (decoded
 /// background, sized to a real `GenerateImageResponse`) by whatever
 /// screen navigated here, typically the composer after a successful
 /// `ImageGenerationSuccess` (see
 /// `features/generation/presentation/bloc/image_generation_bloc.dart`).
 class CanvasEditorPage extends StatelessWidget {
-  const CanvasEditorPage({required this.initialScene, super.key});
+  const CanvasEditorPage({required this.args, super.key});
 
-  final CanvasScene initialScene;
+  final CanvasEditorPageArgs args;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) =>
-          getIt<CanvasEditorBloc>()..add(CanvasEditorSceneLoaded(initialScene)),
-      child: const _CanvasEditorView(),
+          getIt<CanvasEditorBloc>()..add(CanvasEditorSceneLoaded(args.scene)),
+      child: _CanvasEditorView(args: args),
     );
   }
 }
 
 class _CanvasEditorView extends StatelessWidget {
-  const _CanvasEditorView();
+  const _CanvasEditorView({required this.args});
+
+  final CanvasEditorPageArgs args;
 
   static const _ratios = [
     GenerationAspectRatio.oneToOne,
@@ -229,16 +254,17 @@ class _CanvasEditorView extends StatelessWidget {
                 ),
                 child: ElevatedButton(
                   key: const Key('canvas_editor_continue_button'),
-                  // TODO(export-feature): wire to features/export once that
-                  // branch exists (see mobile/CLAUDE.md's branch stack —
-                  // feat/export-share). Deliberately not a route/navigation
-                  // stub either, since no export destination exists yet to
-                  // route to — a SnackBar is the least presumptive
-                  // placeholder that doesn't imply functionality that isn't
-                  // there.
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(l10n.canvasEditorContinueComingSoon),
+                  // Forwards the *current* (possibly user-edited) scene —
+                  // not `args.scene`, which is only the initial state this
+                  // page was loaded with — plus the two caption strings
+                  // threaded through unchanged from `args` (see
+                  // `CanvasEditorPageArgs`'s doc comment above).
+                  onPressed: () => context.push(
+                    '/export',
+                    extra: ExportPageArgs(
+                      scene: scene,
+                      captionEn: args.captionEn,
+                      captionAm: args.captionAm,
                     ),
                   ),
                   child: Text(l10n.canvasEditorContinueButton),

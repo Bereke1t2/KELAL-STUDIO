@@ -1,8 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- gal (features/export): only relevant on API <= 29 (this app's
+         minSdk is 24, see mobile/CLAUDE.md's decisions log) — API 30+
+         devices save to the gallery via MediaStore without this
+         permission. Not declared by gal's own plugin manifest (verified:
+         it's empty), so the app must declare it itself. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
     <application
         android:label="kelal_studio"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:requestLegacyExternalStorage="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -35,7 +44,15 @@
          https://developer.android.com/training/package-visibility and
          https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
 
-         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin.
+
+         share_plus (features/export) needs no entry added here: its Android
+         implementation invokes ACTION_SEND/ACTION_SEND_MULTIPLE through the
+         system chooser (Intent.createChooser), which is exempt from
+         Android 11+ package-visibility <queries> requirements, and its own
+         plugin manifest (verified: declares only a FileProvider + a
+         PendingIntent broadcast receiver, no <queries> block) is merged in
+         automatically by Gradle — nothing to add or duplicate here. -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>

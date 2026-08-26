@@ -3,12 +3,14 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kelal_studio/core/di/injection.dart';
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/core/render_engine/canvas_scene.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
 import 'package:kelal_studio/features/canvas_editor/presentation/bloc/canvas_editor_bloc.dart';
 import 'package:kelal_studio/features/canvas_editor/presentation/pages/canvas_editor_page.dart';
+import 'package:kelal_studio/features/export/presentation/pages/export_page.dart';
 
 Future<ui.Image> _testImage() async {
   final recorder = ui.PictureRecorder();
@@ -48,7 +50,13 @@ void main() {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [Locale('en'), Locale('am')],
-      home: CanvasEditorPage(initialScene: scene),
+      home: CanvasEditorPage(
+        args: CanvasEditorPageArgs(
+          scene: scene,
+          captionEn: 'English caption',
+          captionAm: 'Amharic caption',
+        ),
+      ),
     );
   }
 
@@ -192,24 +200,69 @@ void main() {
     },
   );
 
-  testWidgets(
-    'tapping Continue shows a SnackBar rather than navigating — export '
-    "isn't wired up yet (feat/export-share, later branch)",
-    (tester) async {
-      final scene = CanvasScene(
-        backgroundImage: background,
-        canvasSize: const Size(1080, 1080),
-      );
+  testWidgets('tapping Continue pushes /export with the current scene plus the '
+      "captions carried in from ComposerPage's CanvasEditorPageArgs", (
+    tester,
+  ) async {
+    final scene = CanvasScene(
+      backgroundImage: background,
+      canvasSize: const Size(1080, 1080),
+    );
 
-      await tester.pumpWidget(wrap(scene));
-      await tester.pumpAndSettle();
+    ExportPageArgs? pushedArgs;
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => CanvasEditorPage(
+            args: CanvasEditorPageArgs(
+              scene: scene,
+              captionEn: 'English caption',
+              captionAm: 'Amharic caption',
+            ),
+          ),
+        ),
+        // A bare placeholder rather than the real ExportPage — that
+        // screen's own contract (ExportBloc/ExportOverlaySeenCubit via
+        // getIt, HydratedCubit storage) is out of scope for this test
+        // file and covered by export_page_test.dart instead. This test
+        // only needs to prove *what* CanvasEditorPage hands off when
+        // Continue is tapped.
+        GoRoute(
+          path: '/export',
+          builder: (context, state) {
+            pushedArgs = state.extra! as ExportPageArgs;
+            return const Scaffold(body: Text('export-destination'));
+          },
+        ),
+      ],
+    );
 
-      await tester.tap(find.byKey(const Key('canvas_editor_continue_button')));
-      await tester.pump();
+    await tester.pumpWidget(
+      MaterialApp.router(
+        theme: AppTheme.light(),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('en'), Locale('am')],
+        routerConfig: router,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.byType(SnackBar), findsOneWidget);
-    },
-  );
+    await tester.tap(find.byKey(const Key('canvas_editor_continue_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('export-destination'), findsOneWidget);
+    expect(pushedArgs, isNotNull);
+    expect(pushedArgs!.captionEn, 'English caption');
+    expect(pushedArgs!.captionAm, 'Amharic caption');
+    expect(pushedArgs!.scene.canvasSize, scene.canvasSize);
+  });
 
   testWidgets(
     "the aspect ratio selector reflects the loaded scene's canvasSize",

@@ -328,22 +328,42 @@ void main() {
       expect(find.text('Sign in'), findsOneWidget);
     });
 
-    testWidgets('landing on /canvas-editor without a CanvasScene extra (e.g. '
-        'go_router state restored after process death, which drops extra) '
-        'redirects to Compose instead of crashing on the unguarded cast', (
-      tester,
-    ) async {
-      final router = AppRouter(authRepository);
-      await tester.pumpWidget(wrap(router));
+    testWidgets(
+      'landing on /canvas-editor without a CanvasEditorPageArgs extra (e.g. '
+      'go_router state restored after process death, which drops extra) '
+      'redirects to Compose instead of crashing on the unguarded cast',
+      (tester) async {
+        final router = AppRouter(authRepository);
+        await tester.pumpWidget(wrap(router));
 
-      authController.add(true);
-      await tester.pumpAndSettle();
+        authController.add(true);
+        await tester.pumpAndSettle();
 
-      router.config.go('/canvas-editor');
-      await tester.pumpAndSettle();
+        router.config.go('/canvas-editor');
+        await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull);
-      expect(find.widgetWithText(AppBar, 'Compose'), findsOneWidget);
-    });
+        expect(tester.takeException(), isNull);
+        expect(find.widgetWithText(AppBar, 'Compose'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'landing on /export without an ExportPageArgs extra redirects to '
+      'Compose instead of crashing on the unguarded cast — same '
+      'process-death `extra`-drop guard as /canvas-editor',
+      (tester) async {
+        final router = AppRouter(authRepository);
+        await tester.pumpWidget(wrap(router));
+
+        authController.add(true);
+        await tester.pumpAndSettle();
+
+        router.config.go('/export');
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(find.widgetWithText(AppBar, 'Compose'), findsOneWidget);
+      },
+    );
   });
 }

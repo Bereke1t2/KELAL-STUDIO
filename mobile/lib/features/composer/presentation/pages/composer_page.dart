@@ -12,6 +12,7 @@ import 'package:kelal_studio/core/widgets/error_snack_bar.dart';
 import 'package:kelal_studio/core/widgets/primary_button.dart';
 import 'package:kelal_studio/core/widgets/quota_exceeded_dialog.dart';
 import 'package:kelal_studio/core/widgets/segmented_control.dart';
+import 'package:kelal_studio/features/canvas_editor/presentation/pages/canvas_editor_page.dart';
 import 'package:kelal_studio/features/generation/domain/entities/aspect_ratio.dart';
 import 'package:kelal_studio/features/generation/domain/entities/content_platform.dart';
 import 'package:kelal_studio/features/generation/domain/entities/generation_result.dart';
@@ -99,6 +100,13 @@ class _ComposerViewState extends State<_ComposerView> {
 
   String? _ideaError;
 
+  // Snapshotted in `_createGraphic` at the moment "Create graphic" is
+  // tapped, not re-read from `GenerationBloc`'s state when
+  // `ImageGenerationSuccess` later lands (see `_createGraphic`'s doc
+  // comment for why re-reading is unsafe).
+  String _pendingGraphicCaptionEn = '';
+  String _pendingGraphicCaptionAm = '';
+
   // OQ: `api_contract/openapi.yaml`'s `/generate/text` request schema
   // declares `input_text` as an unbounded `string` — no `maxLength`. A
   // pasted wall of text would otherwise go straight to a paid,
@@ -167,7 +175,25 @@ class _ComposerViewState extends State<_ComposerView> {
         : _errorMessage(l10n, failure);
   }
 
+  /// Snapshots [result]'s captions into [_pendingGraphicCaptionEn]/
+  /// [_pendingGraphicCaptionAm] **before** dispatching the request —
+  /// deliberately not left to be re-read from `GenerationBloc`'s state
+  /// later when `ImageGenerationSuccess` lands. `ImageGenerationBloc`'s
+  /// own request/decode span can run for a while (a real network call plus
+  /// an image fetch+decode), and nothing prevents the user from firing a
+  /// *second*, unrelated `GenerationRequested` (re-generating the idea
+  /// text) on `GenerationBloc` while that's in flight — the "Create
+  /// graphic" button's own disabled-while-`ImageGenerationInProgress`
+  /// guard only stops a second *image* request, not a concurrent text one.
+  /// If this method instead re-read `context.read<GenerationBloc>().state`
+  /// inside the `ImageGenerationSuccess` listener, a text re-generation
+  /// landing in that window would silently pair the *new* idea's captions
+  /// with the graphic actually rendered from *this* one. Snapshotting here
+  /// ties the captions to the specific tap that triggered this graphic,
+  /// immune to whatever `GenerationBloc` does afterward.
   void _createGraphic(BuildContext context, GenerationResult result) {
+    _pendingGraphicCaptionEn = result.captionEn;
+    _pendingGraphicCaptionAm = result.captionAm;
     context.read<ImageGenerationBloc>().add(
       ImageGenerationRequested(
         captionEn: result.captionEn,
@@ -200,7 +226,23 @@ class _ComposerViewState extends State<_ComposerView> {
           listener: (context, state) {
             switch (state) {
               case ImageGenerationSuccess(:final scene):
-                context.push('/canvas-editor', extra: scene);
+                // GenerationResult itself was never carried into
+                // ImageGenerationBloc (only its English caption was — see
+                // `_createGraphic` above), so both captions come from
+                // `_pendingGraphicCaptionEn`/`_pendingGraphicCaptionAm`
+                // instead — snapshotted in `_createGraphic` at the moment
+                // this graphic's request was dispatched, not re-read from
+                // `GenerationBloc`'s (possibly since-changed) current state
+                // here. See `_createGraphic`'s doc comment for the race
+                // this avoids.
+                context.push(
+                  '/canvas-editor',
+                  extra: CanvasEditorPageArgs(
+                    scene: scene,
+                    captionEn: _pendingGraphicCaptionEn,
+                    captionAm: _pendingGraphicCaptionAm,
+                  ),
+                );
               case ImageGenerationBrandKitRequired():
                 showErrorSnackBar(
                   context,

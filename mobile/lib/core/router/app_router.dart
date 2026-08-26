@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
-import 'package:kelal_studio/core/render_engine/canvas_scene.dart';
 import 'package:kelal_studio/core/router/app_shell.dart';
 import 'package:kelal_studio/core/router/go_router_refresh_stream.dart';
 import 'package:kelal_studio/core/router/placeholder_page.dart';
@@ -17,6 +16,7 @@ import 'package:kelal_studio/features/auth/presentation/widgets/email_verificati
 import 'package:kelal_studio/features/brand_kit/presentation/pages/brand_kit_page.dart';
 import 'package:kelal_studio/features/canvas_editor/presentation/pages/canvas_editor_page.dart';
 import 'package:kelal_studio/features/composer/presentation/pages/composer_page.dart';
+import 'package:kelal_studio/features/export/presentation/pages/export_page.dart';
 import 'package:kelal_studio/features/quota/presentation/widgets/quota_status_badge.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_confirm_page.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_consequence_page.dart';
@@ -56,11 +56,17 @@ class AppRouter {
   /// `ImageGenerationSuccess` lands — not a `StatefulShellBranch` tab
   /// (nothing in the bottom nav points here directly), same top-level
   /// pattern as `registerLocation`/`resetPasswordRequestLocation`. Reached
-  /// via `context.push(canvasEditorLocation, extra: scene)`: a `CanvasScene`
-  /// holds a decoded `ui.Image`, which can't round-trip through a URL query
-  /// param, so `GoRouterState.extra` (in-memory only) is the only viable
-  /// way to hand it off — see `builder:` below.
+  /// via `context.push(canvasEditorLocation, extra: CanvasEditorPageArgs(..))`:
+  /// a `CanvasScene` holds a decoded `ui.Image`, which can't round-trip
+  /// through a URL query param, so `GoRouterState.extra` (in-memory only) is
+  /// the only viable way to hand it (plus the two caption strings riding
+  /// alongside it) off — see `builder:` below.
   static const canvasEditorLocation = '/canvas-editor';
+
+  /// Pushed from `CanvasEditorPage`'s Continue button once editing is done
+  /// — same top-level, non-tab pattern as [canvasEditorLocation], and same
+  /// `extra`-only reasoning (`ExportPageArgs` carries a `CanvasScene` too).
+  static const exportLocation = '/export';
 
   /// Where an authenticated user lands after leaving `/login` — the
   /// Compose branch is this shell's designated home destination.
@@ -100,9 +106,19 @@ class AppRouter {
         // instead of crashing; a scene worth editing is only ever one
         // "Create graphic" tap away.
         redirect: (context, state) =>
-            state.extra is CanvasScene ? null : homeLocation,
+            state.extra is CanvasEditorPageArgs ? null : homeLocation,
         builder: (context, state) =>
-            CanvasEditorPage(initialScene: state.extra! as CanvasScene),
+            CanvasEditorPage(args: state.extra! as CanvasEditorPageArgs),
+      ),
+      GoRoute(
+        path: exportLocation,
+        // Same process-death `extra`-drop guard as [canvasEditorLocation]
+        // above, same reasoning — bounce to Compose rather than crash on
+        // the cast below.
+        redirect: (context, state) =>
+            state.extra is ExportPageArgs ? null : homeLocation,
+        builder: (context, state) =>
+            ExportPage(args: state.extra! as ExportPageArgs),
       ),
       // Pushed from `SettingsPage` (see the `/settings` shell branch below)
       // rather than tabs themselves — kept as top-level routes, same
