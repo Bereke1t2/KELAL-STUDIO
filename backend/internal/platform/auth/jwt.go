@@ -19,14 +19,24 @@ const (
 	RoleAdmin = "admin"
 )
 
-// purposeReset tags a token minted for password reset so it can never be
-// replayed as an access or refresh token (ParseReset rejects any other purpose).
-const purposeReset = "pwreset"
+// purposeReset tags a token minted for password reset, and purposeVerify one
+// minted for email verification, so neither can be replayed as an access or
+// refresh token (ParseReset/ParseVerify reject any other purpose, and each
+// checks its own).
+const (
+	purposeReset  = "pwreset"
+	purposeVerify = "emailverify"
+)
 
 // AccessClaims is the short-lived bearer token used to authorize API calls.
+// EmailVerified mirrors the account's verification state at mint time so the
+// EmailVerifiedRequired middleware can gate content generation (PRD §6.1)
+// without a per-request DB lookup; a user who verifies mid-session sees the gate
+// lift on their next refresh (≤ access TTL).
 type AccessClaims struct {
-	UserID string `json:"uid"`
-	Role   string `json:"role"`
+	UserID        string `json:"uid"`
+	Role          string `json:"role"`
+	EmailVerified bool   `json:"email_verified"`
 	jwt.RegisteredClaims
 }
 
@@ -44,11 +54,22 @@ type RefreshClaims struct {
 // reset (PRD §6.1). It is signed with the refresh secret but carries a distinct
 // Purpose so it can't be swapped for a refresh token, and vice versa.
 //
-// FLAG: this token is stateless — it cannot be individually revoked before it
-// expires. For V1 the short TTL bounds the window; a production hardening step
-// is to make it single-use (store a jti hash and burn it on confirm). Tracked
-// in docs/OPEN_QUESTIONS.md.
+// Version pins the token to the user's TokenVersion at mint time. ConfirmPassword-
+// Reset only applies the change when this still matches the stored version, and
+// every password change bumps that version — so the token is single-use and dies
+// on any password change. This is what closes the reset-token-single-use item.
 type ResetClaims struct {
+	UserID  string `json:"uid"`
+	Purpose string `json:"purpose"`
+	Version int    `json:"ver"`
+	jwt.RegisteredClaims
+}
+
+// VerifyClaims is the short-lived, single-purpose token minted for email
+// verification (PRD §6.1). Like ResetClaims it is signed with the refresh secret
+// and purpose-tagged; it needs no version because verification is idempotent (a
+// replay just re-confirms an already-verified address).
+type VerifyClaims struct {
 	UserID  string `json:"uid"`
 	Purpose string `json:"purpose"`
 	jwt.RegisteredClaims
@@ -74,12 +95,14 @@ func NewManager(accessSecret, refreshSecret string, accessTTL, refreshTTL time.D
 	}
 }
 
-// GenerateAccess mints a signed access token for a user + role.
-func (m *Manager) GenerateAccess(userID, role string) (string, error) {
+// GenerateAccess mints a signed access token for a user + role. emailVerified is
+// stamped into the token so the generation gate can read it without a DB hit.
+func (m *Manager) GenerateAccess(userID, role string, emailVerified bool) (string, error) {
 	now := time.Now()
 	claims := AccessClaims{
-		UserID: userID,
-		Role:   role,
+		UserID:        userID,
+		Role:          role,
+		EmailVerified: emailVerified,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(m.accessTTL)),
@@ -125,14 +148,15 @@ func (m *Manager) ParseRefresh(token string) (*RefreshClaims, error) {
 	return claims, nil
 }
 
-// GenerateReset mints a short-lived password-reset token for a user. It is
-// signed with the refresh secret and purpose-tagged so ParseReset is the only
-// method that will accept it.
-func (m *Manager) GenerateReset(userID string, ttl time.Duration) (string, error) {
+// GenerateReset mints a short-lived password-reset token for a user, pinned to
+// the given TokenVersion. It is signed with the refresh secret and purpose-tagged
+// so ParseReset is the only method that will accept it.
+func (m *Manager) GenerateReset(userID string, version int, ttl time.Duration) (string, error) {
 	now := time.Now()
 	claims := ResetClaims{
 		UserID:  userID,
 		Purpose: purposeReset,
+		Version: version,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
@@ -142,15 +166,46 @@ func (m *Manager) GenerateReset(userID string, ttl time.Duration) (string, error
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(m.refreshSecret)
 }
 
-// ParseReset verifies a password-reset token and returns the user id it was
-// minted for. A token that parses but carries the wrong purpose (e.g. a raw
-// refresh token) is rejected — the purpose check is what stops cross-use.
-func (m *Manager) ParseReset(token string) (userID string, err error) {
+// ParseReset verifies a password-reset token and returns the user id and the
+// TokenVersion it was minted against. A token that parses but carries the wrong
+// purpose (e.g. a raw refresh token) is rejected — the purpose check is what
+// stops cross-use; the version check (in the service) is what makes it single-use.
+func (m *Manager) ParseReset(token string) (userID string, version int, err error) {
 	claims := &ResetClaims{}
+	if err := parse(token, claims, m.refreshSecret); err != nil {
+		return "", 0, err
+	}
+	if claims.Purpose != purposeReset {
+		return "", 0, ErrInvalidToken
+	}
+	return claims.UserID, claims.Version, nil
+}
+
+// GenerateVerify mints a short-lived email-verification token. Like the reset
+// token it is signed with the refresh secret and purpose-tagged so only
+// ParseVerify accepts it.
+func (m *Manager) GenerateVerify(userID string, ttl time.Duration) (string, error) {
+	now := time.Now()
+	claims := VerifyClaims{
+		UserID:  userID,
+		Purpose: purposeVerify,
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
+			Subject:   userID,
+		},
+	}
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(m.refreshSecret)
+}
+
+// ParseVerify verifies an email-verification token and returns its user id. A
+// token carrying any other purpose is rejected.
+func (m *Manager) ParseVerify(token string) (userID string, err error) {
+	claims := &VerifyClaims{}
 	if err := parse(token, claims, m.refreshSecret); err != nil {
 		return "", err
 	}
-	if claims.Purpose != purposeReset {
+	if claims.Purpose != purposeVerify {
 		return "", ErrInvalidToken
 	}
 	return claims.UserID, nil

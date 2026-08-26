@@ -52,13 +52,15 @@ const (
 // string and branches only on the five contract codes above. Until that's
 // decided, the backend emits these.
 const (
-	CodeUnauthorized   Code = "unauthorized"
-	CodeForbidden      Code = "forbidden"
-	CodeNotFound       Code = "not_found"
-	CodeConflict       Code = "conflict"
-	CodeRateLimited    Code = "rate_limited"
-	CodeInternal       Code = "internal"
-	CodeNotImplemented Code = "not_implemented"
+	CodeUnauthorized     Code = "unauthorized"
+	CodeForbidden        Code = "forbidden"
+	CodeEmailNotVerified Code = "email_not_verified"
+	CodeNotFound         Code = "not_found"
+	CodeConflict         Code = "conflict"
+	CodeRateLimited      Code = "rate_limited"
+	CodeAccountLocked    Code = "account_locked"
+	CodeInternal         Code = "internal"
+	CodeNotImplemented   Code = "not_implemented"
 )
 
 // Error is the one error type that crosses feature boundaries.
@@ -136,6 +138,14 @@ func Forbidden(message string) *Error {
 	return &Error{Code: CodeForbidden, Message: message, HTTPStatus: http.StatusForbidden}
 }
 
+// EmailNotVerified builds a 403 — the caller is authenticated but hasn't verified
+// their email, which gates content generation (PRD §6.1). Distinct code from
+// Forbidden so the client can prompt "verify your email" rather than "access
+// denied".
+func EmailNotVerified(message string) *Error {
+	return &Error{Code: CodeEmailNotVerified, Message: message, HTTPStatus: http.StatusForbidden}
+}
+
 // NotFound builds a 404.
 func NotFound(message string) *Error {
 	return &Error{Code: CodeNotFound, Message: message, HTTPStatus: http.StatusNotFound}
@@ -154,6 +164,13 @@ func QuotaExceeded(message string, resetsAt time.Time) *Error {
 // RateLimited builds a 429 for gateway rate limiting (distinct from quota).
 func RateLimited(message string) *Error {
 	return &Error{Code: CodeRateLimited, Message: message, HTTPStatus: http.StatusTooManyRequests}
+}
+
+// AccountLocked builds a 429 — the account is temporarily locked after too many
+// failed logins (PRD §6.1 lockout policy). Distinct code from RateLimited so the
+// client can explain it's the account, not the request rate, that's throttled.
+func AccountLocked(message string) *Error {
+	return &Error{Code: CodeAccountLocked, Message: message, HTTPStatus: http.StatusTooManyRequests}
 }
 
 // ProviderTimeout builds a 504 — the whole provider failover chain failed.

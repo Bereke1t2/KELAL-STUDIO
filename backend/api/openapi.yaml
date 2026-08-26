@@ -66,9 +66,11 @@ components:
             # Infrastructure / transport codes (flagged — not in the closed set):
             - unauthorized
             - forbidden
+            - email_not_verified
             - not_found
             - conflict
             - rate_limited
+            - account_locked
             - internal
             - not_implemented
         message:
@@ -87,6 +89,19 @@ components:
       properties:
         access_token: { type: string }
         refresh_token: { type: string }
+
+    RegisterResult:
+      type: object
+      required: [user_id, verification_sent]
+      description: >
+        Result of registration (PRD §11). Registration does NOT establish a
+        session — the caller must verify their email, then log in. `user_id` is
+        the new account; `verification_sent` reports whether the verification
+        email was dispatched (a transient delivery failure does not fail the
+        registration — the caller can request a resend).
+      properties:
+        user_id: { type: string, format: uuid }
+        verification_sent: { type: boolean }
 
     User:
       type: object
@@ -196,10 +211,12 @@ paths:
       security: []
       x-implementation-status: implemented
       description: >
-        DIVERGENCE (flagged): returns AuthTokens per the mobile contract, but
-        PRD §11 specifies a verification-first flow ({user_id, verification_sent}).
-        V1 serves tokens; email_verified stays false on the User until a
-        verification flow is built (docs/OPEN_QUESTIONS.md, register-verification).
+        Creates the account and sends a verification email; it does NOT establish
+        a session (PRD §11). The caller verifies their email (POST
+        /auth/verify-email) and then logs in. BREAKING CHANGE (product-approved
+        2026-08-25): earlier drafts returned AuthTokens per the mobile contract —
+        the generated mobile client must regenerate against this shape
+        (docs/OPEN_QUESTIONS.md, register-verification).
       requestBody:
         required: true
         content:
@@ -211,12 +228,69 @@ paths:
                 email: { type: string, format: email }
                 password: { type: string, minLength: 8 }
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Account created; verification email dispatched.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/AuthTokens' }
+              schema: { $ref: '#/components/schemas/RegisterResult' }
         default: { $ref: '#/components/responses/Error' }
+
+  /auth/verify-email:
+    post:
+      operationId: verifyEmail
+      tags: [auth]
+      security: []
+      x-implementation-status: implemented
+      description: >
+        Consumes a purpose-bound verification token (from the registration email)
+        and marks the account's email verified — the gate PRD §6.1 puts in front
+        of content generation. Idempotent: verifying an already-verified account
+        succeeds. Content generation returns `email_not_verified` (403) until this
+        completes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '200':
+          description: Email verified.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [verified]
+                properties:
+                  verified: { type: boolean }
+        default: { $ref: '#/components/responses/Error' }
+
+  /auth/verify-email/resend:
+    post:
+      operationId: resendVerification
+      tags: [auth]
+      security: []
+      x-implementation-status: implemented
+      description: >
+        Re-sends the verification email. Always 200 regardless of whether the
+        email exists or is already verified (anti-enumeration, mirrors
+        password-reset/request) — the client MUST NOT branch UI on this response
+        implying account existence or state.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200':
+          description: Accepted (whether or not a fresh email was dispatched).
 
   /auth/login:
     post:
@@ -281,8 +355,8 @@ paths:
       description: >
         Always 200 regardless of whether the email exists (anti-enumeration,
         PRD §6.1) — the client MUST NOT branch UI on this response implying
-        account existence. Delivery of the reset token is not implemented yet;
-        in non-production the token is logged server-side for testing.
+        account existence. The reset token is delivered by email; in
+        non-production the dev log sender writes it server-side for testing.
       requestBody:
         required: true
         content:
@@ -304,9 +378,10 @@ paths:
       x-implementation-status: implemented
       description: >
         Consumes a purpose-bound reset token and sets a new password, then
-        revokes all of the user's refresh tokens (forces re-login). FLAG: the
-        reset token is a stateless JWT and is not yet single-use
-        (docs/OPEN_QUESTIONS.md, reset-token-single-use).
+        revokes all of the user's refresh tokens (forces re-login). The token is
+        single-use: it carries the account's token version, and confirming a
+        password change bumps that version, so a replayed token (or one issued
+        before any later password change) is rejected.
       requestBody:
         required: true
         content:
@@ -377,17 +452,22 @@ paths:
               schema: { $ref: '#/components/schemas/BrandKit' }
         default: { $ref: '#/components/responses/Error' }
 
-  # ── Assets / upload hardening — STUB, backend-only (PRD §6.8, §7.8) ──────────
+  # ── Assets / upload hardening — backend-only (PRD §6.8, §7.8) ────────────────
   /assets:
     post:
       operationId: uploadAsset
       tags: [assets]
-      x-implementation-status: stub
+      x-implementation-status: implemented
       description: >
-        Multipart upload. HIGHEST-RISK untrusted-input surface: the real
-        implementation MUST validate by content (not extension), re-encode the
-        image, strip metadata, and store bytes outside any web root (PRD §6.8,
-        §7.8). Rate-limited per user.
+        Multipart image upload — the highest-risk untrusted-input surface.
+        The type is decided by CONTENT (magic bytes), never the filename or
+        Content-Type; only JPEG and PNG are accepted. Byte-size (default 10 MiB)
+        and min/max side (default 200–4096 px) limits are enforced before the
+        image is fully decoded, then every image is RE-ENCODED from its decoded
+        pixels — stripping all EXIF/GPS/ICC metadata and neutralizing polyglots
+        — and stored outside any web root (PRD §6.8, §7.8). Any rejected upload
+        (wrong type, too large, out-of-range dimensions, corrupt) returns
+        `validation_error` (400). Bearer-authenticated and rate-limited per user.
       requestBody:
         required: true
         content:
@@ -406,12 +486,17 @@ paths:
         default: { $ref: '#/components/responses/Error' }
 
   # ── Generation — STUBS (via the Provider Abstraction Layer; PRD §6.2/§6.5) ───
+  # All /generate/* endpoints require a verified email: an unverified caller gets
+  # `email_not_verified` (403) before any rate-limit, quota, or provider work
+  # (PRD §6.1). /jobs/{id} is not gated (status lookups don't consume the model).
   /generate/text:
     post:
       operationId: generateText
       tags: [generation]
       x-implementation-status: stub
-      description: Rate-limited and quota-enforced BEFORE any provider call (PRD §6.14).
+      description: >
+        Requires a verified email (`email_not_verified`, 403, otherwise).
+        Rate-limited and quota-enforced BEFORE any provider call (PRD §6.14).
       requestBody:
         required: true
         content:

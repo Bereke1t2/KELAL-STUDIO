@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -17,7 +18,8 @@ import (
 
 // Handler tests drive the feature through a real gin engine with httptest —
 // exercising binding, the auth middleware, and the contract-shaped JSON. Like
-// the service tests, they run on the mock repo with no external dependencies.
+// the service tests, they run on the mock repo with no external dependencies
+// (module.New supplies a dev LogSender when Deps.Mailer is nil).
 
 func newTestHandler() (*gin.Engine, *auth.Manager) {
 	gin.SetMode(gin.TestMode)
@@ -66,18 +68,42 @@ func decodeTokens(t *testing.T, rec *httptest.ResponseRecorder) authTokensRespon
 	return resp
 }
 
+func decodeRegister(t *testing.T, rec *httptest.ResponseRecorder) registerResponse {
+	t.Helper()
+	var resp registerResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode RegisterResult: %v (body=%s)", err, rec.Body.String())
+	}
+	return resp
+}
+
+// login registers is done separately; this logs in and returns the token pair.
+func login(t *testing.T, engine *gin.Engine, email, password string) authTokensResponse {
+	t.Helper()
+	rec := do(engine, http.MethodPost, "/v1/auth/login",
+		gin.H{"email": email, "password": password}, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("login: want 200, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	return decodeTokens(t, rec)
+}
+
 func TestHandlerRegisterAndLogin(t *testing.T) {
 	engine, _ := newTestHandler()
 
-	// Register returns 200 + AuthTokens (contract shape).
+	// Register returns 201 + {user_id, verification_sent} (PRD §11 shape); it no
+	// longer establishes a session.
 	rec := do(engine, http.MethodPost, "/v1/auth/register",
 		gin.H{"email": "user@example.com", "password": "password123"}, "")
-	if rec.Code != http.StatusOK {
-		t.Fatalf("register: want 200, got %d (%s)", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("register: want 201, got %d (%s)", rec.Code, rec.Body.String())
 	}
-	tokens := decodeTokens(t, rec)
-	if tokens.AccessToken == "" || tokens.RefreshToken == "" {
-		t.Fatalf("register: expected populated AuthTokens, got %+v", tokens)
+	reg := decodeRegister(t, rec)
+	if reg.UserID == "" {
+		t.Fatalf("register: expected a user_id, got %+v", reg)
+	}
+	if !reg.VerificationSent {
+		t.Fatalf("register: expected verification_sent=true, got %+v", reg)
 	}
 
 	// A short password fails validation with 400.
@@ -87,11 +113,10 @@ func TestHandlerRegisterAndLogin(t *testing.T) {
 		t.Fatalf("register short password: want 400, got %d", rec.Code)
 	}
 
-	// Login with the registered credentials succeeds.
-	rec = do(engine, http.MethodPost, "/v1/auth/login",
-		gin.H{"email": "user@example.com", "password": "password123"}, "")
-	if rec.Code != http.StatusOK {
-		t.Fatalf("login: want 200, got %d (%s)", rec.Code, rec.Body.String())
+	// Login with the registered credentials succeeds and returns AuthTokens.
+	tokens := login(t, engine, "user@example.com", "password123")
+	if tokens.AccessToken == "" || tokens.RefreshToken == "" {
+		t.Fatalf("login: expected populated AuthTokens, got %+v", tokens)
 	}
 
 	// Wrong password is a 401.
@@ -99,6 +124,42 @@ func TestHandlerRegisterAndLogin(t *testing.T) {
 		gin.H{"email": "user@example.com", "password": "wrong"}, "")
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("login wrong password: want 401, got %d", rec.Code)
+	}
+}
+
+func TestHandlerVerifyEmail(t *testing.T) {
+	engine, mgr := newTestHandler()
+
+	rec := do(engine, http.MethodPost, "/v1/auth/register",
+		gin.H{"email": "user@example.com", "password": "password123"}, "")
+	reg := decodeRegister(t, rec)
+
+	// Mint the same verification token the registration email carries.
+	token, err := mgr.GenerateVerify(reg.UserID, time.Hour)
+	if err != nil {
+		t.Fatalf("GenerateVerify: %v", err)
+	}
+	rec = do(engine, http.MethodPost, "/v1/auth/verify-email", gin.H{"token": token}, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("verify-email: want 200, got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	// A malformed body is a 400 (missing token).
+	rec = do(engine, http.MethodPost, "/v1/auth/verify-email", gin.H{}, "")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("verify-email missing token: want 400, got %d", rec.Code)
+	}
+	// A bad token is a 401.
+	rec = do(engine, http.MethodPost, "/v1/auth/verify-email", gin.H{"token": "nope"}, "")
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("verify-email bad token: want 401, got %d", rec.Code)
+	}
+
+	// Resend always returns 200 for a well-formed body, even for an unknown email.
+	rec = do(engine, http.MethodPost, "/v1/auth/verify-email/resend",
+		gin.H{"email": "ghost@example.com"}, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("verify-email/resend: want 200, got %d", rec.Code)
 	}
 }
 
@@ -121,10 +182,10 @@ func TestHandlerDeleteAccountRequiresAuth(t *testing.T) {
 		t.Fatalf("delete account unauthenticated: want 401, got %d", rec.Code)
 	}
 
-	// Register to get a valid access token, then delete succeeds.
-	rec = do(engine, http.MethodPost, "/v1/auth/register",
+	// Register then log in for a valid access token (register no longer returns one).
+	do(engine, http.MethodPost, "/v1/auth/register",
 		gin.H{"email": "user@example.com", "password": "password123"}, "")
-	tokens := decodeTokens(t, rec)
+	tokens := login(t, engine, "user@example.com", "password123")
 
 	rec = do(engine, http.MethodDelete, "/v1/auth/account", nil, tokens.AccessToken)
 	if rec.Code != http.StatusOK {

@@ -22,8 +22,11 @@ func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
 
 // RegisterRoutes mounts the generation surface, all bearer-authenticated and
 // rate-limited per user (openapi.yaml).
+// RegisterRoutes mounts the generation surface, all bearer-authenticated,
+// email-verified, and rate-limited per user (openapi.yaml; PRD §6.1 gates
+// generation on a verified email). Handlers return not_implemented for now.
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup, mw middleware.Set) {
-	g := r.Group("/generate", mw.AuthRequired, mw.UserRateLimit)
+	g := r.Group("/generate", mw.AuthRequired, mw.EmailVerified, mw.UserRateLimit)
 	g.POST("/text", h.text)
 	g.POST("/image", h.image)
 	g.POST("/video", h.video)

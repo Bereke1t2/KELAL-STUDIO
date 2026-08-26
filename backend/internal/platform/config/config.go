@@ -7,6 +7,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -32,6 +33,19 @@ type Config struct {
 	Provider   ProviderConfig
 	Queue      QueueConfig
 	Asset      AssetConfig
+	// PublicBaseURL is the front-door origin embedded in verification / reset
+	// links (the app/web surface that captures the token). No trailing slash.
+	PublicBaseURL string
+
+	DB       DBConfig
+	JWT      JWTConfig
+	Auth     AuthConfig
+	Email    EmailConfig
+	RateLim  RateLimitConfig
+	Quota    QuotaConfig
+	Provider ProviderConfig
+	Queue    QueueConfig
+	Asset    AssetConfig
 }
 
 // DBConfig holds the PostgreSQL connection settings and pool tuning.
@@ -65,6 +79,28 @@ type JWTConfig struct {
 	RefreshSecret string
 	AccessTTL     time.Duration
 	RefreshTTL    time.Duration
+}
+
+// AuthConfig holds the auth-flow policy: token lifetimes for the email flows and
+// the login-lockout thresholds (PRD §6.1).
+type AuthConfig struct {
+	EmailVerificationTTL   time.Duration
+	PasswordResetTTL       time.Duration
+	LoginMaxFailedAttempts int
+	LoginLockoutDuration   time.Duration
+}
+
+// EmailConfig configures outbound email (platform/email). Provider selects the
+// adapter; the SMTP fields matter only when Provider=="smtp". The default "log"
+// provider is DEV-ONLY — validate() refuses it in production because it writes
+// verification/reset tokens to the logs.
+type EmailConfig struct {
+	Provider     string
+	From         string
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUsername string
+	SMTPPassword string
 }
 
 // RateLimitConfig holds the per-user and per-IP request-rate limits.
@@ -124,10 +160,11 @@ func Load() (*Config, error) {
 	_ = godotenv.Load() // best-effort; ignore "file not found"
 
 	cfg := &Config{
-		Env:         getStr("APP_ENV", "development"),
-		HTTPPort:    getStr("HTTP_PORT", "8080"),
-		LogLevel:    getStr("LOG_LEVEL", "info"),
-		UseMockData: getBool("USE_MOCK_DATA", false),
+		Env:           getStr("APP_ENV", "development"),
+		HTTPPort:      getStr("HTTP_PORT", "8080"),
+		LogLevel:      getStr("LOG_LEVEL", "info"),
+		UseMockData:   getBool("USE_MOCK_DATA", false),
+		PublicBaseURL: strings.TrimRight(getStr("PUBLIC_BASE_URL", "http://localhost:8080"), "/"),
 		DB: DBConfig{
 			URL:             getStr("DATABASE_URL", ""),
 			Host:            getStr("DB_HOST", "localhost"),
@@ -145,6 +182,20 @@ func Load() (*Config, error) {
 			RefreshSecret: getStr("JWT_REFRESH_SECRET", devRefreshSecretPlaceholder),
 			AccessTTL:     getDuration("JWT_ACCESS_TTL", 15*time.Minute),
 			RefreshTTL:    getDuration("JWT_REFRESH_TTL", 720*time.Hour),
+		},
+		Auth: AuthConfig{
+			EmailVerificationTTL:   getDuration("EMAIL_VERIFICATION_TTL", 24*time.Hour),
+			PasswordResetTTL:       getDuration("PASSWORD_RESET_TTL", time.Hour),
+			LoginMaxFailedAttempts: getInt("LOGIN_MAX_FAILED_ATTEMPTS", 10),
+			LoginLockoutDuration:   getDuration("LOGIN_LOCKOUT_DURATION", 15*time.Minute),
+		},
+		Email: EmailConfig{
+			Provider:     getStr("EMAIL_PROVIDER", "log"),
+			From:         getStr("EMAIL_FROM", "Kelal Studio <no-reply@kelalstudio.example>"),
+			SMTPHost:     getStr("EMAIL_SMTP_HOST", ""),
+			SMTPPort:     getInt("EMAIL_SMTP_PORT", 587),
+			SMTPUsername: getStr("EMAIL_SMTP_USERNAME", ""),
+			SMTPPassword: getStr("EMAIL_SMTP_PASSWORD", ""),
 		},
 		RateLim: RateLimitConfig{
 			PerUserPerMinute: getInt("RATE_LIMIT_PER_MINUTE", 60),
@@ -196,9 +247,37 @@ func (c *Config) validate() error {
 		if c.UseMockData {
 			return fmt.Errorf("config: USE_MOCK_DATA must be false in production")
 		}
+		// The log email sender writes live verification/reset tokens to the logs
+		// — refuse it in production, mirroring the dev-JWT-secret refusal above.
+		if p := strings.ToLower(strings.TrimSpace(c.Email.Provider)); p == "" || p == "log" {
+			return fmt.Errorf("config: EMAIL_PROVIDER must be a real sender (e.g. smtp) when APP_ENV=production; the log sender exposes tokens in logs")
+		}
 	}
 	if c.JWT.AccessSecret == "" || c.JWT.RefreshSecret == "" {
 		return fmt.Errorf("config: JWT_ACCESS_SECRET and JWT_REFRESH_SECRET are required")
+	}
+	if err := c.validateAsset(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateAsset guards the upload-hardening limits. Every uploaded byte is
+// attacker-influenced, so a misconfigured limit is a security hole, not a
+// nuisance — fail fast at boot rather than at first upload (PRD §6.8/§7.8).
+func (c *Config) validateAsset() error {
+	// In production the blob store must sit at an ABSOLUTE path. The relative
+	// dev default (./storage/assets) resolves against the process CWD and could
+	// land under a directory that's being served — uploaded bytes must live
+	// outside any web root.
+	if c.IsProduction() && !filepath.IsAbs(c.Asset.StorageDir) {
+		return fmt.Errorf("config: ASSET_STORAGE_DIR must be an absolute path when APP_ENV=production (got %q)", c.Asset.StorageDir)
+	}
+	if c.Asset.MaxBytes <= 0 {
+		return fmt.Errorf("config: ASSET_MAX_BYTES must be positive")
+	}
+	if c.Asset.MinDimension <= 0 || c.Asset.MaxDimension < c.Asset.MinDimension {
+		return fmt.Errorf("config: ASSET_MIN_DIMENSION must be positive and ASSET_MAX_DIMENSION must be >= ASSET_MIN_DIMENSION")
 	}
 	return nil
 }

@@ -77,7 +77,24 @@ func (m *mockRepository) FindUserByID(_ context.Context, id uuid.UUID) (*models.
 	return &u, nil
 }
 
-func (m *mockRepository) UpdateUserPassword(_ context.Context, id uuid.UUID, passwordHash string) error {
+func (m *mockRepository) UpdateUserPassword(_ context.Context, id uuid.UUID, expectedVersion int, passwordHash string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	u, ok := m.usersByID[id]
+	// Mirror the GORM adapter: a version mismatch (used token / password since
+	// changed) is indistinguishable from a missing user.
+	if !ok || m.deleted[id] || u.TokenVersion != expectedVersion {
+		return ErrUserNotFound
+	}
+	u.PasswordHash = passwordHash
+	u.TokenVersion++
+	u.UpdatedAt = time.Now()
+	m.usersByID[id] = u
+	return nil
+}
+
+func (m *mockRepository) MarkEmailVerified(_ context.Context, id uuid.UUID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -85,9 +102,12 @@ func (m *mockRepository) UpdateUserPassword(_ context.Context, id uuid.UUID, pas
 	if !ok || m.deleted[id] {
 		return ErrUserNotFound
 	}
-	u.PasswordHash = passwordHash
-	u.UpdatedAt = time.Now()
-	m.usersByID[id] = u
+	if u.EmailVerifiedAt == nil { // idempotent: don't move an existing timestamp
+		now := time.Now()
+		u.EmailVerifiedAt = &now
+		u.UpdatedAt = now
+		m.usersByID[id] = u
+	}
 	return nil
 }
 
@@ -99,6 +119,50 @@ func (m *mockRepository) SoftDeleteUser(_ context.Context, id uuid.UUID) error {
 		return ErrUserNotFound
 	}
 	m.deleted[id] = true
+	return nil
+}
+
+func (m *mockRepository) IncrementFailedLoginAttempts(_ context.Context, id uuid.UUID) (int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	u, ok := m.usersByID[id]
+	if !ok || m.deleted[id] {
+		return 0, ErrUserNotFound
+	}
+	u.FailedLoginAttempts++
+	u.UpdatedAt = time.Now()
+	m.usersByID[id] = u
+	return u.FailedLoginAttempts, nil
+}
+
+func (m *mockRepository) LockUser(_ context.Context, id uuid.UUID, until time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	u, ok := m.usersByID[id]
+	if !ok || m.deleted[id] {
+		return ErrUserNotFound
+	}
+	u.LockedUntil = &until
+	u.FailedLoginAttempts = 0
+	u.UpdatedAt = time.Now()
+	m.usersByID[id] = u
+	return nil
+}
+
+func (m *mockRepository) ResetFailedLoginAttempts(_ context.Context, id uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	u, ok := m.usersByID[id]
+	if !ok || m.deleted[id] {
+		return ErrUserNotFound
+	}
+	u.FailedLoginAttempts = 0
+	u.LockedUntil = nil
+	u.UpdatedAt = time.Now()
+	m.usersByID[id] = u
 	return nil
 }
 

@@ -73,20 +73,28 @@ decision, made with the product owner, that updates this file.
 ## Contract-vs-PRD divergences
 
 The mobile client is already generated against `mobile/api_contract/openapi.yaml`.
-Where the PRD data model and that contract disagree, **V1 serves the contract
-shape** (so mobile isn't broken) and **flags the mismatch here** — it does not
-silently pick a side. `backend/api/openapi.yaml` is the source of truth and
-carries the same flags.
+Where the PRD data model and that contract disagree, the default is **V1 serves
+the contract shape** (so mobile isn't broken) and **flags the mismatch here** — it
+does not silently pick a side. `backend/api/openapi.yaml` is the source of truth
+and carries the same flags. An item marked **RESOLVED** has since been decided
+with the product owner — which may mean choosing the PRD side and requiring mobile
+to regenerate; the resolution and its date are recorded in the entry.
 
-### register-verification
-- **Divergence:** the contract's `POST /auth/register` returns `AuthTokens`; PRD
-  §11 specifies a verification-first flow (`{user_id, verification_sent}`).
-- **V1 behavior:** serve `AuthTokens`. `User.email_verified` still exists and
-  defaults false; no verification email is sent yet.
-- **Flagged in:** `features/auth/service.go` (`Register`), `models/user.go`
-  (`EmailVerifiedAt`), `api/openapi.yaml` (`register`).
-- **Closes when:** the verification flow is built — reconcile the response shape
-  with mobile at that point.
+### register-verification — RESOLVED 2026-08-25
+- **Was:** the contract's `POST /auth/register` returned `AuthTokens`; PRD §11
+  specifies a verification-first flow (`{user_id, verification_sent}`).
+- **Resolution (product-approved 2026-08-25):** V1 serves the **PRD shape**.
+  `POST /auth/register` returns `201 {user_id, verification_sent}` and does **not**
+  establish a session; a verification email is sent, the caller verifies via
+  `POST /auth/verify-email` (or `.../resend`), then logs in. Content generation is
+  gated on a verified email — an unverified caller gets `email_not_verified` (403).
+- **Breaking change:** the generated mobile client (built against the old
+  `AuthTokens` shape) **must regenerate** against `api/openapi.yaml` and add the
+  verify-email step to onboarding — register no longer logs the user in.
+- **Implemented in:** `features/auth/service.go` (`Register`, `VerifyEmail`,
+  `ResendVerification`), `platform/auth/jwt.go` (verify token + `email_verified`
+  access claim), `platform/httpx/middleware/verified.go`, `platform/email/*`,
+  `api/openapi.yaml` (`register`, `verifyEmail`, `resendVerification`).
 
 ### job-result-field
 - **Divergence:** the contract's `Job` exposes `result_asset_id`; the PRD data
@@ -107,9 +115,9 @@ confirm rather than inherit blindly.
 ### error-code-enum
 - **Question:** the contract's `ErrorResponse.error_code` is a **closed enum of
   five** codes. The backend also needs codes for 401/403/404/409/429/500/501, so
-  it emits seven additional infrastructure codes.
+  it emits nine additional infrastructure codes.
 - **V1 behavior:** emit the infra codes (inventing `validation_error` for an auth
-  failure would be a lie). `api/openapi.yaml` lists all twelve.
+  failure would be a lie). `api/openapi.yaml` lists all fourteen.
 - **Flagged in:** `apperror/apperror.go` (the two comment blocks).
 - **Closes when:** the team decides either to widen the contract enum or to have
   the client treat `error_code` as an open string keyed only on the five.
@@ -125,16 +133,18 @@ confirm rather than inherit blindly.
   become authoritative once the schema stabilizes, and AutoMigrate is disabled
   outside local dev).
 
-### reset-token-single-use
+### reset-token-single-use — RESOLVED 2026-08-25
 - **Question:** the PRD data model has no password-reset-token table.
-- **V1 behavior:** the reset token is a **stateless, purpose-bound JWT** (signed
-  with the refresh secret, `purpose=pwreset`, 1h TTL) — no new table. It is **not
-  yet single-use**: a leaked-but-unexpired token could be replayed within the
-  window.
-- **Flagged in:** `platform/auth/jwt.go` (reset claims), `features/auth/service.go`
-  (`ConfirmPasswordReset`), `api/openapi.yaml`.
-- **Closes when:** production hardening — make it single-use (a used-token table
-  or a per-user token version bumped on use).
+- **Resolution:** the reset token stays a **stateless, purpose-bound JWT** (signed
+  with the refresh secret, `purpose=pwreset`, 1h TTL — no new table) but is now
+  **single-use**: it embeds the account's `token_version`, and confirming a reset
+  performs a version-conditional password `UPDATE` that also bumps the version. A
+  replayed token — or any token issued before a later password change — no longer
+  matches the current version and is rejected.
+- **Implemented in:** `models/user.go` (`TokenVersion`), `platform/auth/jwt.go`
+  (`ResetClaims.Version`, `GenerateReset`/`ParseReset`), `features/auth/domain.go`
+  + `features/auth/repository.go` (`UpdateUserPassword` conditional UPDATE),
+  `features/auth/service.go` (`ConfirmPasswordReset`), `api/openapi.yaml`.
 
 ### foreign-key constraints
 - **Question:** the `models` carry no association tags, so neither AutoMigrate nor
@@ -155,8 +165,8 @@ confirm rather than inherit blindly.
   uncreatable through the documented API. `GET`/`PUT` on a kit owned by someone
   else return **404** (indistinguishable from absent) so ids can't be
   enumerated. `logo_asset_id` is stored as an opaque nullable reference; its
-  existence is **not** validated (the asset feature isn't built, and features
-  never import each other — referential integrity is deferred to the
+  existence is **not** validated (features never import each other —
+  referential integrity is deferred to the
   [foreign-key constraints](#foreign-key-constraints) item).
 - **Flagged in:** `features/brandkit/service.go` (`Upsert`), `api/openapi.yaml`
   (`/brand-kits/{id}` `put.description`).
@@ -164,3 +174,48 @@ confirm rather than inherit blindly.
   `POST /brand-kits`, auto-creating a per-user singleton at registration, or
   formally blessing client-supplied ids on `PUT`. Reconcile the contract at that
   point.
+
+### asset-upload-policy
+- **Question:** `POST /assets` is specified only as "harden the upload" (PRD
+  §6.8/§7.8); the contract fixes neither the accepted formats, the
+  out-of-range-dimension behavior, the re-encode target, nor the rejection
+  status code. Four choices were made to ship it, and two further §6.8 details
+  — an "aspect-ratio warning" and "serve from a non-executable path" — were
+  deliberately deferred. All are recorded here rather than silently resolved.
+- **V1 behavior:**
+  - **Formats: JPEG and PNG only.** Both use stdlib decoders, so the allowlist
+    adds **zero dependencies** and is enforced twice (magic-byte sniff, then the
+    only two registered `image.Decode` codecs). WebP/HEIC/GIF/SVG are rejected.
+  - **Out-of-range dimensions are rejected, not downscaled.** `AssetConfig`
+    models only reject bounds (`MinDimension`/`MaxDimension`); silent
+    downscaling would change the user's pixels without telling them. An upload
+    outside the band is a `validation_error`.
+  - **Re-encode preserves the format family** (PNG→PNG, JPEG→JPEG q85) rather
+    than normalizing everything to one format. This still strips all metadata and
+    neutralizes polyglots (the security goal) while keeping PNG's lossless/alpha
+    and avoiding a double-lossy JPEG→PNG→JPEG round-trip.
+  - **All rejections are `validation_error` (400)**, not `413 Payload Too Large`
+    / `415 Unsupported Media Type`. This keeps the error-code surface inside the
+    contract's closed enum — see [error-code-enum](#error-code-enum); revisit
+    together with that item.
+  - **Aspect-ratio warning: not implemented.** §6.8 names logo validation as
+    "(file type, size limits, aspect-ratio warning)". V1 enforces type, byte
+    size, and the min/max dimension band but emits no aspect-ratio warning: the
+    success-or-`validation_error`(400) contract has no non-fatal-warning
+    channel, and the `Asset` response already returns `width`/`height`, so a
+    "this logo will look off once composited" hint is a client/brand-kit
+    concern, not a rejection. No aspect ratio is rejected.
+  - **No asset-serving route yet.** §6.8's "serve from a non-executable path"
+    constrains WHERE bytes live, not that a download endpoint ships now; the
+    slice is `POST /assets` only. Bytes sit behind an opaque `StorageRef` via
+    `platform/storage`, to be read back later by an access-checked route (the
+    `storage.Reader` seam already exists). No `GET /assets/{id}` is in the
+    contract.
+- **Flagged in:** `features/asset/service.go` (the pipeline + `sniffFormat`/
+  `reencode`), `features/asset/dto.go` and `platform/storage/storage.go` (the
+  deferred serve route), `api/openapi.yaml` (`/assets` `post.description`).
+- **Closes when:** product/design confirm the accepted formats and whether
+  oversized-but-valid images should be downscaled server-side; decide whether an
+  aspect-ratio warning is surfaced (and through which channel) and whether an
+  authenticated asset-serving route is in scope; reconcile the status codes when
+  `error-code-enum` is decided.

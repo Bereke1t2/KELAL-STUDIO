@@ -88,6 +88,32 @@ func run(migrateOnly bool) error {
 		cfg.JWT.AccessSecret, cfg.JWT.RefreshSecret, cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL,
 	)
 
+	// Blob store for uploaded assets. In mock mode it lives in memory (like the
+	// in-memory repos); otherwise it's a filesystem store rooted OUTSIDE any web
+	// root (config.validate enforces an absolute path in production).
+	var assetStore storage.Store
+	if cfg.UseMockData {
+		assetStore = storage.NewMemory()
+	} else {
+		assetStore, err = storage.NewFS(cfg.Asset.StorageDir)
+		if err != nil {
+			return err
+		}
+	// Outbound email: a real SMTP sender in production, the dev LogSender by
+	// default. New fails fast on a misconfigured provider (config.validate has
+	// already refused the log sender under APP_ENV=production).
+	mailer, err := email.New(email.Options{
+		Provider:     cfg.Email.Provider,
+		From:         cfg.Email.From,
+		SMTPHost:     cfg.Email.SMTPHost,
+		SMTPPort:     cfg.Email.SMTPPort,
+		SMTPUsername: cfg.Email.SMTPUsername,
+		SMTPPassword: cfg.Email.SMTPPassword,
+	}, log)
+	if err != nil {
+		return err
+	}
+
 	// Global middleware (applied once, in order) + the per-route middleware set
 	// features apply selectively.
 	engine, v1 := httpx.NewRouter(
@@ -110,6 +136,7 @@ func run(migrateOnly bool) error {
 		AuthRequired:  middleware.Auth(jwtMgr),
 		AdminOnly:     middleware.AdminOnly(),
 		UserRateLimit: middleware.UserRateLimit(cfg.RateLim.PerUserPerMinute),
+		EmailVerified: middleware.EmailVerifiedRequired(),
 	}
 
 	// Blob store for uploaded assets. In mock mode it lives in memory (like the
@@ -218,6 +245,10 @@ func run(migrateOnly bool) error {
 	// With the in-process driver, the API process itself consumes jobs —
 	// the separate cmd/worker binary is the shape for a real broker.
 	jobQueue := queue.NewInProc(cfg.Queue.VideoMaxAttempts, log)
+	generation.New().RegisterRoutes(v1, mw)
+	quota.New().RegisterRoutes(v1, mw)
+	reminder.New().RegisterRoutes(v1, mw)
+	admin.New().RegisterRoutes(v1, mw)
 
 	genMod := generation.New(generation.Deps{
 		DB:         db,

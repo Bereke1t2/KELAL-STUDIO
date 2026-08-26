@@ -22,11 +22,26 @@ const (
 // recoverable/auditable rather than a hard wipe.
 type User struct {
 	Base
-	Email           string     `gorm:"uniqueIndex;not null"`
-	PasswordHash    string     `gorm:"not null"`
-	EmailVerifiedAt *time.Time // nil until verified; see the register-flow FLAG in the auth feature
-	Role            Role       `gorm:"type:varchar(16);not null"`
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	DeletedAt       gorm.DeletedAt `gorm:"index"`
+	Email        string `gorm:"uniqueIndex;not null"`
+	PasswordHash string `gorm:"not null"`
+	// EmailVerifiedAt is nil until the user verifies via POST /auth/verify-email.
+	// Verification gates content generation (PRD §6.1) — the auth service reads
+	// this to set the email_verified access-token claim the gate checks.
+	EmailVerifiedAt *time.Time
+	Role            Role `gorm:"type:varchar(16);not null"`
+	// TokenVersion makes a password-reset token single-use (PRD §6.1). It is
+	// embedded in each reset token and bumped on every password change, so a used
+	// token — or any password change by another route — invalidates outstanding
+	// reset tokens. It is NOT an access-token security stamp; those are bounded by
+	// their short TTL, not by this counter.
+	TokenVersion int `gorm:"not null;default:0"`
+	// FailedLoginAttempts / LockedUntil back the account-lockout policy (PRD §6.1):
+	// the counter increments on each wrong password and resets to 0 on success or
+	// when a lock is applied; LockedUntil is when a temporary lock lifts (nil = not
+	// locked).
+	FailedLoginAttempts int `gorm:"not null;default:0"`
+	LockedUntil         *time.Time
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	DeletedAt           gorm.DeletedAt `gorm:"index"`
 }
