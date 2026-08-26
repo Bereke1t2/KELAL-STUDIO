@@ -155,8 +155,8 @@ confirm rather than inherit blindly.
   uncreatable through the documented API. `GET`/`PUT` on a kit owned by someone
   else return **404** (indistinguishable from absent) so ids can't be
   enumerated. `logo_asset_id` is stored as an opaque nullable reference; its
-  existence is **not** validated (the asset feature isn't built, and features
-  never import each other — referential integrity is deferred to the
+  existence is **not** validated (features never import each other —
+  referential integrity is deferred to the
   [foreign-key constraints](#foreign-key-constraints) item).
 - **Flagged in:** `features/brandkit/service.go` (`Upsert`), `api/openapi.yaml`
   (`/brand-kits/{id}` `put.description`).
@@ -164,3 +164,48 @@ confirm rather than inherit blindly.
   `POST /brand-kits`, auto-creating a per-user singleton at registration, or
   formally blessing client-supplied ids on `PUT`. Reconcile the contract at that
   point.
+
+### asset-upload-policy
+- **Question:** `POST /assets` is specified only as "harden the upload" (PRD
+  §6.8/§7.8); the contract fixes neither the accepted formats, the
+  out-of-range-dimension behavior, the re-encode target, nor the rejection
+  status code. Four choices were made to ship it, and two further §6.8 details
+  — an "aspect-ratio warning" and "serve from a non-executable path" — were
+  deliberately deferred. All are recorded here rather than silently resolved.
+- **V1 behavior:**
+  - **Formats: JPEG and PNG only.** Both use stdlib decoders, so the allowlist
+    adds **zero dependencies** and is enforced twice (magic-byte sniff, then the
+    only two registered `image.Decode` codecs). WebP/HEIC/GIF/SVG are rejected.
+  - **Out-of-range dimensions are rejected, not downscaled.** `AssetConfig`
+    models only reject bounds (`MinDimension`/`MaxDimension`); silent
+    downscaling would change the user's pixels without telling them. An upload
+    outside the band is a `validation_error`.
+  - **Re-encode preserves the format family** (PNG→PNG, JPEG→JPEG q85) rather
+    than normalizing everything to one format. This still strips all metadata and
+    neutralizes polyglots (the security goal) while keeping PNG's lossless/alpha
+    and avoiding a double-lossy JPEG→PNG→JPEG round-trip.
+  - **All rejections are `validation_error` (400)**, not `413 Payload Too Large`
+    / `415 Unsupported Media Type`. This keeps the error-code surface inside the
+    contract's closed enum — see [error-code-enum](#error-code-enum); revisit
+    together with that item.
+  - **Aspect-ratio warning: not implemented.** §6.8 names logo validation as
+    "(file type, size limits, aspect-ratio warning)". V1 enforces type, byte
+    size, and the min/max dimension band but emits no aspect-ratio warning: the
+    success-or-`validation_error`(400) contract has no non-fatal-warning
+    channel, and the `Asset` response already returns `width`/`height`, so a
+    "this logo will look off once composited" hint is a client/brand-kit
+    concern, not a rejection. No aspect ratio is rejected.
+  - **No asset-serving route yet.** §6.8's "serve from a non-executable path"
+    constrains WHERE bytes live, not that a download endpoint ships now; the
+    slice is `POST /assets` only. Bytes sit behind an opaque `StorageRef` via
+    `platform/storage`, to be read back later by an access-checked route (the
+    `storage.Reader` seam already exists). No `GET /assets/{id}` is in the
+    contract.
+- **Flagged in:** `features/asset/service.go` (the pipeline + `sniffFormat`/
+  `reencode`), `features/asset/dto.go` and `platform/storage/storage.go` (the
+  deferred serve route), `api/openapi.yaml` (`/assets` `post.description`).
+- **Closes when:** product/design confirm the accepted formats and whether
+  oversized-but-valid images should be downscaled server-side; decide whether an
+  aspect-ratio warning is surfaced (and through which channel) and whether an
+  authenticated asset-serving route is in scope; reconcile the status codes when
+  `error-code-enum` is decided.

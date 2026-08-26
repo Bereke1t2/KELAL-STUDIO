@@ -34,7 +34,7 @@ you change one, you affect everyone — review accordingly.
 |---|---|---|---|---|---|
 | **Auth & Accounts** (reference) | `features/auth` | ✅ done | `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/password-reset/{request,confirm}`, `DELETE /auth/account` | §6.1 | — |
 | **Brand Kit** | `features/brandkit` | ✅ done | `GET/PUT /brand-kits/{id}` | §6.8 | — |
-| **Assets / upload hardening** | `features/asset` | 🟡 stub | `POST /assets` | §6.8, §7.8 | _unclaimed_ |
+| **Assets / upload hardening** | `features/asset` | ✅ done | `POST /assets` | §6.8, §7.8 | — |
 | **Text Generation** | `features/generation` + `features/hashtag` | 🟡 stub | `POST /generate/text` | §6.2, §6.3 | _unclaimed_ |
 | **Image Generation** | `features/generation` | 🟡 stub | `POST /generate/image` | §6.5 | _unclaimed_ |
 | **Video Generation + Worker** | `features/generation` + `cmd/worker` | 🟡 stub | `POST /generate/video`, `GET /jobs/{id}` | §6.5, §8.4, §10.3 | _unclaimed_ |
@@ -58,11 +58,16 @@ Read these before starting — they're the non-obvious parts and the traps.
   no create endpoint, `PUT` is an idempotent owner-scoped **upsert** (update or
   create-at-id) — flagged as `brandkit-creation` in `OPEN_QUESTIONS.md`, not
   silently resolved.
-- **Assets** — the **highest-risk untrusted-input surface** in the whole backend.
-  The real implementation MUST: validate by content (magic bytes), not the
-  extension or client `Content-Type`; **re-encode** the image; **strip metadata**
-  (EXIF/GPS); enforce the dimension/byte limits from `AssetConfig`; and store
-  bytes **outside any web root** (PRD §6.8, §7.8). Do not cut corners here.
+- **Assets** (done) — the **highest-risk untrusted-input surface** in the whole
+  backend. The pipeline validates by content (magic bytes), not the extension or
+  client `Content-Type`; accepts **JPEG and PNG only**; enforces the byte and
+  min/max dimension limits from `AssetConfig` **before** the full decode; then
+  **re-encodes** every image from its decoded pixels — which **strips all
+  metadata** (EXIF/GPS/ICC) and neutralizes polyglots — and stores the bytes via
+  `platform/storage` **outside any web root** (PRD §6.8, §7.8). Every rejection is
+  a `validation_error` (400). Policy choices (formats, reject-vs-downscale,
+  re-encode format family, 400-vs-413/415) are flagged as `asset-upload-policy`
+  in `OPEN_QUESTIONS.md`, not silently resolved.
 - **Text Generation** — go through `provider.TextProvider` via the chain; call
   `moderation.Checker` **before** the provider; merge the `hashtag.Bank` output;
   enforce quota **before** the outbound call. Defensive-parse provider output
