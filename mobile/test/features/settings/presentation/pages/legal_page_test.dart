@@ -5,9 +5,7 @@ import 'package:kelal_studio/features/settings/presentation/pages/legal_page.dar
 
 void main() {
   Widget wrap() {
-    return const MaterialApp(
-      home: LegalPage(),
-    );
+    return const MaterialApp(home: LegalPage());
   }
 
   testWidgets('LegalPage renders new UI list items', (tester) async {
@@ -18,7 +16,12 @@ void main() {
     expect(find.text('Terms of Service'), findsOneWidget);
     expect(find.text('Content Ownership'), findsOneWidget);
     expect(find.text('Third-Party Font Licenses'), findsOneWidget);
-    expect(find.text('Noto Sans Ethiopic is licensed under the SIL Open Font License, version 1.1.'), findsOneWidget);
+    expect(
+      find.text(
+        'Noto Sans Ethiopic is licensed under the SIL Open Font License, version 1.1.',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Tapping a list item navigates to document page', (tester) async {
@@ -31,7 +34,8 @@ void main() {
         ),
         GoRoute(
           path: '/settings/legal_document',
-          builder: (context, state) => const Scaffold(body: Text('Document Page Placeholder')),
+          builder: (context, state) =>
+              const Scaffold(body: Text('Document Page Placeholder')),
         ),
       ],
     );

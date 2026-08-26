@@ -13,7 +13,8 @@ class AccountDeleteConfirmPage extends StatefulWidget {
   const AccountDeleteConfirmPage({super.key});
 
   @override
-  State<AccountDeleteConfirmPage> createState() => _AccountDeleteConfirmPageState();
+  State<AccountDeleteConfirmPage> createState() =>
+      _AccountDeleteConfirmPageState();
 }
 
 class _AccountDeleteConfirmPageState extends State<AccountDeleteConfirmPage> {
@@ -29,16 +30,19 @@ class _AccountDeleteConfirmPageState extends State<AccountDeleteConfirmPage> {
           if (state is AccountDeleted) {
             context.go('/settings/account_deleted');
           } else if (state is AccountDeleteError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.message)));
           }
         },
         child: Scaffold(
           backgroundColor: context.colors.bgCanvas,
           body: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xl,
+                vertical: AppSpacing.lg,
+              ),
               child: CustomScrollView(
                 slivers: [
                   SliverFillRemaining(
@@ -49,7 +53,9 @@ class _AccountDeleteConfirmPageState extends State<AccountDeleteConfirmPage> {
                         GestureDetector(
                           onTap: () => context.pop(),
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: AppSpacing.sm,
+                            ),
                             child: Text(
                               '← Back',
                               style: AppTypography.bodySmall.copyWith(
@@ -96,13 +102,25 @@ class _AccountDeleteConfirmPageState extends State<AccountDeleteConfirmPage> {
                           },
                           decoration: InputDecoration(
                             hintText: 'DELETE',
-                            contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.md,
+                            ),
                             enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: context.colors.interactiveDestructiveDefault),
+                              borderSide: BorderSide(
+                                color: context
+                                    .colors
+                                    .interactiveDestructiveDefault,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: context.colors.interactiveDestructiveDefault, width: 2),
+                              borderSide: BorderSide(
+                                color: context
+                                    .colors
+                                    .interactiveDestructiveDefault,
+                                width: 2,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
@@ -111,20 +129,29 @@ class _AccountDeleteConfirmPageState extends State<AccountDeleteConfirmPage> {
                         const SizedBox(height: AppSpacing.xxl),
                         BlocBuilder<AccountBloc, AccountState>(
                           builder: (context, state) {
-                            final isEnabled = _typedConfirm == 'DELETE' && state is! AccountDeleting;
-                            
+                            final isEnabled =
+                                _typedConfirm == 'DELETE' &&
+                                state is! AccountDeleting;
+
                             return SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
                                 onPressed: isEnabled
-                                    ? () => context.read<AccountBloc>().add(const AccountDeleteRequested())
+                                    ? () => context.read<AccountBloc>().add(
+                                        const AccountDeleteRequested(),
+                                      )
                                     : null,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: isEnabled 
-                                      ? context.colors.interactiveDestructiveDefault 
+                                  backgroundColor: isEnabled
+                                      ? context
+                                            .colors
+                                            .interactiveDestructiveDefault
                                       : context.colors.bgDisabled,
-                                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                                  disabledBackgroundColor: context.colors.bgDisabled,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: AppSpacing.md,
+                                  ),
+                                  disabledBackgroundColor:
+                                      context.colors.bgDisabled,
                                 ),
                                 child: state is AccountDeleting
                                     ? const SizedBox(
@@ -137,9 +164,14 @@ class _AccountDeleteConfirmPageState extends State<AccountDeleteConfirmPage> {
                                       )
                                     : Text(
                                         'Permanently Delete Account',
-                                        style: AppTypography.buttonLabel.copyWith(
-                                          color: isEnabled ? Colors.white : context.colors.textSecondary,
-                                        ),
+                                        style: AppTypography.buttonLabel
+                                            .copyWith(
+                                              color: isEnabled
+                                                  ? Colors.white
+                                                  : context
+                                                        .colors
+                                                        .textSecondary,
+                                            ),
                                       ),
                               ),
                             );
@@ -168,20 +200,23 @@ class _AccountDeleteConfirmPageState extends State<AccountDeleteConfirmPage> {
       },
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.md,
+        ),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? context.colors.primaryDefault : context.colors.borderSubtle,
+            color: isSelected
+                ? context.colors.primaryDefault
+                : context.colors.borderSubtle,
             width: isSelected ? 2 : 1,
           ),
         ),
         child: Text(
           reason,
-          style: AppTypography.body.copyWith(
-            color: context.colors.textPrimary,
-          ),
+          style: AppTypography.body.copyWith(color: context.colors.textPrimary),
         ),
       ),
     );

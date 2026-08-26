@@ -19,9 +19,9 @@ void main() {
   blocTest<AccountBloc, AccountState>(
     'emits [AccountDeleting, AccountDeleted] when deletion succeeds',
     setUp: () {
-      when(() => deleteAccountUseCase()).thenAnswer(
-        (_) async => const Result.ok(null),
-      );
+      when(
+        () => deleteAccountUseCase(),
+      ).thenAnswer((_) async => const Result.ok(null));
     },
     build: () => AccountBloc(deleteAccountUseCase),
     act: (bloc) => bloc.add(const AccountDeleteRequested()),

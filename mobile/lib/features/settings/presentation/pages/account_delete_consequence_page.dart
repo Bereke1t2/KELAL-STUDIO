@@ -13,7 +13,10 @@ class AccountDeleteConsequencePage extends StatelessWidget {
       backgroundColor: context.colors.bgCanvas,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xl,
+            vertical: AppSpacing.lg,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -47,7 +50,10 @@ class AccountDeleteConsequencePage extends StatelessWidget {
               const SizedBox(height: AppSpacing.lg),
               _buildBulletItem(context, 'All drafts saved on this device'),
               const SizedBox(height: AppSpacing.md),
-              _buildBulletItem(context, 'Your Brand Kit, logo, and saved preferences'),
+              _buildBulletItem(
+                context,
+                'Your Brand Kit, logo, and saved preferences',
+              ),
               const SizedBox(height: AppSpacing.md),
               _buildBulletItem(context, 'Your generation and quota history'),
               const SizedBox(height: AppSpacing.xxl),
@@ -61,14 +67,20 @@ class AccountDeleteConsequencePage extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => context.push('/settings/account_delete_confirm'),
+                  onPressed: () =>
+                      context.push('/settings/account_delete_confirm'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: context.colors.interactiveDestructiveDefault,
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    backgroundColor:
+                        context.colors.interactiveDestructiveDefault,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.md,
+                    ),
                   ),
                   child: Text(
                     'Continue',
-                    style: AppTypography.buttonLabel.copyWith(color: Colors.white),
+                    style: AppTypography.buttonLabel.copyWith(
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),

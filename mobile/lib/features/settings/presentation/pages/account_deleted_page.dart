@@ -20,7 +20,9 @@ class AccountDeletedPage extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: context.colors.bgDisabled.withOpacity(0.3), // Make it very light like the mockup
+                  color: context.colors.bgDisabled.withOpacity(
+                    0.3,
+                  ), // Make it very light like the mockup
                   shape: BoxShape.circle,
                 ),
               ),

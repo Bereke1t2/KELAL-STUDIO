@@ -25,7 +25,10 @@ class SettingsPage extends StatelessWidget {
         elevation: 0,
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         children: [
           _buildSectionHeader(context, 'ACCOUNT'),
           _buildListItem(
@@ -33,11 +36,7 @@ class SettingsPage extends StatelessWidget {
             title: 'Account',
             onTap: () => context.push('/settings/account'),
           ),
-          _buildListItem(
-            context,
-            title: 'Brand Kit',
-            onTap: () {},
-          ),
+          _buildListItem(context, title: 'Brand Kit', onTap: () {}),
           _buildListItem(
             context,
             title: 'Notifications & Reminders',
@@ -123,7 +122,9 @@ class SettingsPage extends StatelessWidget {
       title: 'Theme',
       trailingText: themeText,
       onTap: () {
-        context.read<ThemeCubit>().toggle(MediaQuery.of(context).platformBrightness);
+        context.read<ThemeCubit>().toggle(
+          MediaQuery.of(context).platformBrightness,
+        );
       },
     );
   }
@@ -140,7 +141,9 @@ class SettingsPage extends StatelessWidget {
       title: 'Language & Region',
       trailingText: langText,
       onTap: () {
-        final newLocale = locale?.languageCode == 'am' ? const Locale('en') : const Locale('am');
+        final newLocale = locale?.languageCode == 'am'
+            ? const Locale('en')
+            : const Locale('am');
         context.read<LocaleCubit>().setLocale(newLocale);
       },
     );

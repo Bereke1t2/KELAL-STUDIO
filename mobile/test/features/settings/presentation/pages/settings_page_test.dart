@@ -94,7 +94,9 @@ void main() {
     expect(find.text('Dark'), findsOneWidget);
   });
 
-  testWidgets('Language toggle changes between English and Amharic', (tester) async {
+  testWidgets('Language toggle changes between English and Amharic', (
+    tester,
+  ) async {
     await tester.pumpWidget(wrap());
 
     expect(find.text('English'), findsOneWidget);

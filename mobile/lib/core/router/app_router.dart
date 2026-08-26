@@ -24,12 +24,30 @@ class AppRouter {
     initialLocation: '/login',
     routes: [
       GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
-      GoRoute(path: '/settings', builder: (context, state) => const SettingsPage()),
-      GoRoute(path: '/settings/account', builder: (context, state) => const AccountPage()),
-      GoRoute(path: '/settings/account_delete_consequence', builder: (context, state) => const AccountDeleteConsequencePage()),
-      GoRoute(path: '/settings/account_delete_confirm', builder: (context, state) => const AccountDeleteConfirmPage()),
-      GoRoute(path: '/settings/account_deleted', builder: (context, state) => const AccountDeletedPage()),
-      GoRoute(path: '/settings/legal', builder: (context, state) => const LegalPage()),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsPage(),
+      ),
+      GoRoute(
+        path: '/settings/account',
+        builder: (context, state) => const AccountPage(),
+      ),
+      GoRoute(
+        path: '/settings/account_delete_consequence',
+        builder: (context, state) => const AccountDeleteConsequencePage(),
+      ),
+      GoRoute(
+        path: '/settings/account_delete_confirm',
+        builder: (context, state) => const AccountDeleteConfirmPage(),
+      ),
+      GoRoute(
+        path: '/settings/account_deleted',
+        builder: (context, state) => const AccountDeletedPage(),
+      ),
+      GoRoute(
+        path: '/settings/legal',
+        builder: (context, state) => const LegalPage(),
+      ),
       GoRoute(
         path: '/settings/legal_document',
         builder: (context, state) {

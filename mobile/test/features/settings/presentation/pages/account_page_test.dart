@@ -45,14 +45,13 @@ void main() {
         ),
         GoRoute(
           path: '/settings/account_deleted',
-          builder: (context, state) => const Scaffold(body: Text('Account Deleted Page')),
+          builder: (context, state) =>
+              const Scaffold(body: Text('Account Deleted Page')),
         ),
       ],
     );
 
-    return MaterialApp.router(
-      routerConfig: router,
-    );
+    return MaterialApp.router(routerConfig: router);
   }
 
   testWidgets('AccountPage renders UI correctly', (tester) async {
@@ -72,11 +71,18 @@ void main() {
     await tester.tap(find.text('Delete Account'));
     await tester.pumpAndSettle();
 
-    expect(find.text('This permanently deletes your account and everything tied to it:'), findsOneWidget);
+    expect(
+      find.text(
+        'This permanently deletes your account and everything tied to it:',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Continue'), findsOneWidget);
   });
 
-  testWidgets('Confirming deletion shows loading indicator and navigates', (tester) async {
+  testWidgets('Confirming deletion shows loading indicator and navigates', (
+    tester,
+  ) async {
     when(() => deleteAccountUseCase()).thenAnswer((_) async {
       await Future<void>.delayed(const Duration(milliseconds: 20));
       return const Result.ok(null);
@@ -94,7 +100,7 @@ void main() {
 
     // Verify confirm page UI
     expect(find.text('Why are you leaving? (optional)'), findsOneWidget);
-    
+
     // Type DELETE
     await tester.enterText(find.byType(TextField), 'DELETE');
     await tester.pump();

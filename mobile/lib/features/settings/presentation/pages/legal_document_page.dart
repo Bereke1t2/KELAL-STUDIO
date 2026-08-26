@@ -23,7 +23,10 @@ class LegalDocumentPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xl,
+                vertical: AppSpacing.lg,
+              ),
               child: GestureDetector(
                 onTap: () => context.pop(),
                 child: Padding(
@@ -49,7 +52,10 @@ class LegalDocumentPage extends StatelessWidget {
             const SizedBox(height: AppSpacing.xl),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xl,
+                  vertical: AppSpacing.md,
+                ),
                 child: Text(
                   content,
                   style: AppTypography.body.copyWith(

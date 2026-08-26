@@ -18,7 +18,10 @@ class AccountPage extends StatelessWidget {
       backgroundColor: context.colors.bgCanvas,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xl,
+            vertical: AppSpacing.lg,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -79,7 +82,8 @@ class AccountPage extends StatelessWidget {
               Divider(color: context.colors.borderSubtle, height: 1),
               const SizedBox(height: AppSpacing.lg),
               GestureDetector(
-                onTap: () => context.push('/settings/account_delete_consequence'),
+                onTap: () =>
+                    context.push('/settings/account_delete_consequence'),
                 child: Text(
                   'Delete Account',
                   style: AppTypography.body.copyWith(

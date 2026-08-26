@@ -9,7 +9,10 @@ import 'package:bloc_concurrency/bloc_concurrency.dart';
 @injectable
 class AccountBloc extends Bloc<AccountEvent, AccountState> {
   AccountBloc(this._deleteAccountUseCase) : super(const AccountInitial()) {
-    on<AccountDeleteRequested>(_onAccountDeleteRequested, transformer: droppable());
+    on<AccountDeleteRequested>(
+      _onAccountDeleteRequested,
+      transformer: droppable(),
+    );
   }
 
   final DeleteAccountUseCase _deleteAccountUseCase;
@@ -25,7 +28,11 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
       case Ok():
         emit(const AccountDeleted());
       case Err(:final failure):
-        emit(const AccountDeleteError('Failed to delete account. Please try again.'));
+        emit(
+          const AccountDeleteError(
+            'Failed to delete account. Please try again.',
+          ),
+        );
     }
   }
 }

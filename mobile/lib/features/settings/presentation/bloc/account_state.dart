@@ -21,7 +21,7 @@ final class AccountDeleted extends AccountState {
 
 final class AccountDeleteError extends AccountState {
   const AccountDeleteError(this.message);
-  
+
   final String message;
 
   @override
