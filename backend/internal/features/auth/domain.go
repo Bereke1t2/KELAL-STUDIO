@@ -18,6 +18,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -43,6 +44,16 @@ type Tokens struct {
 	Refresh string
 }
 
+// RegisterResult is what registration returns per PRD §11: registration no
+// longer establishes a session — it creates the account and (best-effort) sends
+// a verification email. VerificationSent reports whether that email was handed
+// to the mailer; a false value is not a registration failure (the user can
+// resend). The DTO layer maps this to {user_id, verification_sent}.
+type RegisterResult struct {
+	UserID           string
+	VerificationSent bool
+}
+
 // Repository is the port the auth service depends on. It is declared here, on
 // the CONSUMER side, so the feature never imports a concrete data layer. Two
 // adapters implement it: repository.go (GORM/Postgres) and repository_mock.go
@@ -58,12 +69,31 @@ type Repository interface {
 	FindUserByEmail(ctx context.Context, email string) (*models.User, error)
 	// FindUserByID returns the live user with this id, or ErrUserNotFound.
 	FindUserByID(ctx context.Context, id uuid.UUID) (*models.User, error)
-	// UpdateUserPassword sets a new bcrypt hash. Returns ErrUserNotFound if the
-	// user does not exist (or was soft-deleted).
-	UpdateUserPassword(ctx context.Context, id uuid.UUID, passwordHash string) error
+	// UpdateUserPassword sets a new bcrypt hash ONLY if the user's current
+	// TokenVersion still equals expectedVersion, and atomically bumps the version
+	// (so the reset token that carried expectedVersion can't be replayed). A
+	// mismatch — a used token, or a password changed by another route — and a
+	// missing/soft-deleted user are indistinguishable: both return ErrUserNotFound,
+	// which the service maps to the same opaque failure.
+	UpdateUserPassword(ctx context.Context, id uuid.UUID, expectedVersion int, passwordHash string) error
+	// MarkEmailVerified stamps email_verified_at (PRD §6.1). It is idempotent —
+	// verifying an already-verified account is not an error — and returns
+	// ErrUserNotFound only when no live user has this id.
+	MarkEmailVerified(ctx context.Context, id uuid.UUID) error
 	// SoftDeleteUser marks the account deleted (recoverable, PRD §6.1). Returns
 	// ErrUserNotFound if there was nothing live to delete.
 	SoftDeleteUser(ctx context.Context, id uuid.UUID) error
+
+	// ── Login lockout (PRD §6.1) ─────────────────────────────────────────────
+	// IncrementFailedLoginAttempts bumps the counter and returns the new value,
+	// so the service can decide whether the threshold was crossed.
+	IncrementFailedLoginAttempts(ctx context.Context, id uuid.UUID) (int, error)
+	// LockUser sets locked_until and resets the failed-attempt counter to 0 (the
+	// lock itself is now the gate; the counter starts fresh after it lifts).
+	LockUser(ctx context.Context, id uuid.UUID, until time.Time) error
+	// ResetFailedLoginAttempts clears the counter and any lock — called on a
+	// successful login.
+	ResetFailedLoginAttempts(ctx context.Context, id uuid.UUID) error
 
 	// ── Refresh tokens (rotation + reuse detection, PRD §6.1) ────────────────
 	// CreateRefreshToken persists a new refresh-token row. The caller sets the

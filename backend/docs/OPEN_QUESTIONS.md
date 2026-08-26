@@ -73,20 +73,28 @@ decision, made with the product owner, that updates this file.
 ## Contract-vs-PRD divergences
 
 The mobile client is already generated against `mobile/api_contract/openapi.yaml`.
-Where the PRD data model and that contract disagree, **V1 serves the contract
-shape** (so mobile isn't broken) and **flags the mismatch here** — it does not
-silently pick a side. `backend/api/openapi.yaml` is the source of truth and
-carries the same flags.
+Where the PRD data model and that contract disagree, the default is **V1 serves
+the contract shape** (so mobile isn't broken) and **flags the mismatch here** — it
+does not silently pick a side. `backend/api/openapi.yaml` is the source of truth
+and carries the same flags. An item marked **RESOLVED** has since been decided
+with the product owner — which may mean choosing the PRD side and requiring mobile
+to regenerate; the resolution and its date are recorded in the entry.
 
-### register-verification
-- **Divergence:** the contract's `POST /auth/register` returns `AuthTokens`; PRD
-  §11 specifies a verification-first flow (`{user_id, verification_sent}`).
-- **V1 behavior:** serve `AuthTokens`. `User.email_verified` still exists and
-  defaults false; no verification email is sent yet.
-- **Flagged in:** `features/auth/service.go` (`Register`), `models/user.go`
-  (`EmailVerifiedAt`), `api/openapi.yaml` (`register`).
-- **Closes when:** the verification flow is built — reconcile the response shape
-  with mobile at that point.
+### register-verification — RESOLVED 2026-08-25
+- **Was:** the contract's `POST /auth/register` returned `AuthTokens`; PRD §11
+  specifies a verification-first flow (`{user_id, verification_sent}`).
+- **Resolution (product-approved 2026-08-25):** V1 serves the **PRD shape**.
+  `POST /auth/register` returns `201 {user_id, verification_sent}` and does **not**
+  establish a session; a verification email is sent, the caller verifies via
+  `POST /auth/verify-email` (or `.../resend`), then logs in. Content generation is
+  gated on a verified email — an unverified caller gets `email_not_verified` (403).
+- **Breaking change:** the generated mobile client (built against the old
+  `AuthTokens` shape) **must regenerate** against `api/openapi.yaml` and add the
+  verify-email step to onboarding — register no longer logs the user in.
+- **Implemented in:** `features/auth/service.go` (`Register`, `VerifyEmail`,
+  `ResendVerification`), `platform/auth/jwt.go` (verify token + `email_verified`
+  access claim), `platform/httpx/middleware/verified.go`, `platform/email/*`,
+  `api/openapi.yaml` (`register`, `verifyEmail`, `resendVerification`).
 
 ### job-result-field
 - **Divergence:** the contract's `Job` exposes `result_asset_id`; the PRD data
@@ -107,9 +115,9 @@ confirm rather than inherit blindly.
 ### error-code-enum
 - **Question:** the contract's `ErrorResponse.error_code` is a **closed enum of
   five** codes. The backend also needs codes for 401/403/404/409/429/500/501, so
-  it emits seven additional infrastructure codes.
+  it emits nine additional infrastructure codes.
 - **V1 behavior:** emit the infra codes (inventing `validation_error` for an auth
-  failure would be a lie). `api/openapi.yaml` lists all twelve.
+  failure would be a lie). `api/openapi.yaml` lists all fourteen.
 - **Flagged in:** `apperror/apperror.go` (the two comment blocks).
 - **Closes when:** the team decides either to widen the contract enum or to have
   the client treat `error_code` as an open string keyed only on the five.
@@ -125,16 +133,18 @@ confirm rather than inherit blindly.
   become authoritative once the schema stabilizes, and AutoMigrate is disabled
   outside local dev).
 
-### reset-token-single-use
+### reset-token-single-use — RESOLVED 2026-08-25
 - **Question:** the PRD data model has no password-reset-token table.
-- **V1 behavior:** the reset token is a **stateless, purpose-bound JWT** (signed
-  with the refresh secret, `purpose=pwreset`, 1h TTL) — no new table. It is **not
-  yet single-use**: a leaked-but-unexpired token could be replayed within the
-  window.
-- **Flagged in:** `platform/auth/jwt.go` (reset claims), `features/auth/service.go`
-  (`ConfirmPasswordReset`), `api/openapi.yaml`.
-- **Closes when:** production hardening — make it single-use (a used-token table
-  or a per-user token version bumped on use).
+- **Resolution:** the reset token stays a **stateless, purpose-bound JWT** (signed
+  with the refresh secret, `purpose=pwreset`, 1h TTL — no new table) but is now
+  **single-use**: it embeds the account's `token_version`, and confirming a reset
+  performs a version-conditional password `UPDATE` that also bumps the version. A
+  replayed token — or any token issued before a later password change — no longer
+  matches the current version and is rejected.
+- **Implemented in:** `models/user.go` (`TokenVersion`), `platform/auth/jwt.go`
+  (`ResetClaims.Version`, `GenerateReset`/`ParseReset`), `features/auth/domain.go`
+  + `features/auth/repository.go` (`UpdateUserPassword` conditional UPDATE),
+  `features/auth/service.go` (`ConfirmPasswordReset`), `api/openapi.yaml`.
 
 ### foreign-key constraints
 - **Question:** the `models` carry no association tags, so neither AutoMigrate nor

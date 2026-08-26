@@ -16,16 +16,22 @@
 
 BEGIN;
 
--- users — accounts (PRD §6.1). Soft-deleted via deleted_at.
+-- users — accounts (PRD §6.1). Soft-deleted via deleted_at. token_version makes
+-- password-reset tokens single-use; failed_login_attempts + locked_until back
+-- the lockout policy (both PRD §6.1). bigint + NOT NULL DEFAULT 0 match GORM's
+-- mapping of the Go `int` fields so AutoMigrate and this file converge.
 CREATE TABLE users (
-    id                uuid        PRIMARY KEY,
-    email             text        NOT NULL,
-    password_hash     text        NOT NULL,
-    email_verified_at timestamptz,
-    role              varchar(16) NOT NULL,
-    created_at        timestamptz,
-    updated_at        timestamptz,
-    deleted_at        timestamptz
+    id                    uuid        PRIMARY KEY,
+    email                 text        NOT NULL,
+    password_hash         text        NOT NULL,
+    email_verified_at     timestamptz,
+    role                  varchar(16) NOT NULL,
+    token_version         bigint      NOT NULL DEFAULT 0,
+    failed_login_attempts bigint      NOT NULL DEFAULT 0,
+    locked_until          timestamptz,
+    created_at            timestamptz,
+    updated_at            timestamptz,
+    deleted_at            timestamptz
 );
 CREATE UNIQUE INDEX idx_users_email ON users (email);
 CREATE INDEX idx_users_deleted_at ON users (deleted_at);

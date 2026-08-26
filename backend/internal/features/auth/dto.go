@@ -35,8 +35,33 @@ type passwordResetConfirmRequest struct {
 	NewPassword string `json:"new_password" binding:"required,min=8"`
 }
 
-// authTokensResponse is the contract's AuthTokens schema — returned by
-// register, login, and refresh.
+// verifyEmailRequest is the body of POST /auth/verify-email. The token itself
+// authenticates the request (it's minted for one user), so no bearer is needed.
+type verifyEmailRequest struct {
+	Token string `json:"token" binding:"required"`
+}
+
+// resendVerificationRequest is the body of POST /auth/verify-email/resend.
+type resendVerificationRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+// registerResponse is the body of POST /auth/register (PRD §11). Registration no
+// longer returns tokens — it returns the new user's id and whether a verification
+// email went out.
+type registerResponse struct {
+	UserID           string `json:"user_id"`
+	VerificationSent bool   `json:"verification_sent"`
+}
+
+// registerResultToResponse maps the service result to the wire shape. The two
+// structs share field names and types, so a direct conversion suffices.
+func registerResultToResponse(r RegisterResult) registerResponse {
+	return registerResponse(r)
+}
+
+// authTokensResponse is the contract's AuthTokens schema — returned by login and
+// refresh (no longer by register, see registerResponse).
 type authTokensResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
