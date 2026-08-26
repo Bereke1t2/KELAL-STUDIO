@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 
+import { BrandKitPage } from '../features/brandKit/BrandKitPage';
 import { AppShell } from './AppShell';
 import { ProtectedRoute } from './ProtectedRoute';
 
@@ -23,7 +24,7 @@ export function AppRouter() {
               navigations, so theme state and focus are not torn down. */}
           <Route element={<AppShell />}>
             <Route path="/" element={<Navigate to="/brand-kit" replace />} />
-            <Route path="/brand-kit" element={<Placeholder title="Brand Kit" />} />
+            <Route path="/brand-kit" element={<BrandKitPage />} />
             <Route path="/admin/usage" element={<Placeholder title="Usage" />} />
             <Route path="/admin/flags" element={<Placeholder title="Flags" />} />
             <Route path="/admin/users" element={<Placeholder title="Users" />} />
