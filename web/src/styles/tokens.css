@@ -1,0 +1,177 @@
+/*
+ * Design tokens — Kelal Studio Figma design system, file 0dIrGk2LyVEseP6Tz1KxMa.
+ *
+ * Same source the Flutter app encodes in mobile/lib/core/theme/. Values here
+ * were pulled from Figma directly (get_variable_defs / get_design_context),
+ * NOT copied from the Dart file — see the FLAG on --color-interactive-primary-*
+ * below for why that distinction matters.
+ *
+ * Never hardcode a hex or px value in a component; always go through a token.
+ */
+
+:root {
+  /* ---- Primitive: GOLD ramp (node 9:70) ------------------------------ */
+  /* Raw scale. Never reference a primitive from a component — always go
+     through a semantic token below. Kept here so a semantic value can be
+     traced to its ramp position. */
+  --gold-50: #fdf6e7;
+  --gold-100: #fbe9c2;
+  --gold-200: #f5d18a;
+  --gold-300: #eab44e;
+  --gold-400: #da9b29;
+  --gold-500: #c6821f;
+  --gold-600: #a8690f;
+  --gold-700: #855312;
+  --gold-800: #633e12;
+  --gold-900: #402a10;
+
+  /* ---- Semantic: background ------------------------------------------ */
+  --color-bg-canvas: #fafafa;
+  --color-bg-surface: #ffffff;
+  --color-bg-surface-raised: #ffffff;
+  --color-bg-inverse: #171717;
+  --color-bg-brand-subtle: #fdf6e7;
+  --color-bg-accent-subtle: #fbeaec;
+  --color-bg-disabled: #f4f4f4;
+
+  /* ---- Semantic: border ---------------------------------------------- */
+  --color-border-default: #e7e7e7;
+  --color-border-subtle: #f4f4f4;
+  --color-border-strong: #a3a3a3;
+  --color-border-focus: #a8690f;
+  --color-border-error: #a32424;
+  --color-border-brand: #c6821f;
+
+  /* ---- Semantic: text ------------------------------------------------ */
+  --color-text-primary: #171717;
+  --color-text-secondary: #565656;
+  --color-text-tertiary: #757575;
+
+  /* ---- Semantic: icon ------------------------------------------------ */
+  --color-icon-brand: #855312;
+  --color-icon-on-brand: #ffffff;
+  --color-icon-secondary: #757575;
+
+  /* ---- Semantic: interactive ----------------------------------------- */
+  /* Primary fill states, verified against `Color — Interactive States`,
+     "Primary (fill)" (node 9:393): GOLD-700 / -800 / -900. */
+  --color-interactive-primary-default: var(--gold-700);
+  --color-interactive-primary-hover: var(--gold-800);
+  --color-interactive-primary-pressed: var(--gold-900);
+  --color-interactive-primary-disabled: #e7e7e7;
+  --color-interactive-tertiary-text: #855312;
+  --color-interactive-destructive-default: #8a1d1d;
+
+  /* ---- Semantic: feedback (node 11:4) -------------------------------- */
+  --color-feedback-success-bg: #eaf7ee;
+  --color-feedback-success-border: #5cb279;
+  --color-feedback-success-text: #1c4c2c;
+  --color-feedback-warning-bg: #fdf0e6;
+  --color-feedback-warning-border: #e68b45;
+  --color-feedback-warning-text: #632908;
+  --color-feedback-error-bg: #fbeaea;
+  --color-feedback-error-border: #d67575;
+  --color-feedback-error-text: #6e1717;
+  --color-feedback-info-bg: #eaf2fa;
+  --color-feedback-info-border: #63a6da;
+  --color-feedback-info-text: #1c4468;
+
+  /* ---- Spacing (4px grid, node 12:54) -------------------------------- */
+  --space-xxs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-xxl: 24px;
+  --space-xxxl: 32px;
+  --space-xxxxl: 40px;
+  --space-xxxxxl: 48px;
+
+  /* ---- Radius (same Figma node as spacing) --------------------------- */
+  --radius-none: 0;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 999px;
+}
+
+/*
+ * Dark mode.
+ *
+ * Applied from a single `data-theme="dark"` attribute rather than duplicating
+ * the block under `prefers-color-scheme`. The theme controller owns that
+ * attribute and is responsible for mirroring the system preference when the
+ * user has expressed no explicit choice — so there is exactly one dark
+ * declaration to keep in sync, not two.
+ *
+ * Provenance is marked per group, because it is not uniform:
+ *   VERIFIED — read from a bound Figma variable.
+ *   DERIVED  — no Figma source exists; see the FLAG below.
+ */
+:root[data-theme='dark'] {
+  /* VERIFIED (nodes 40:92, 11:31) */
+  --color-bg-canvas: #0d0d0d;
+  --color-bg-surface-raised: #262626;
+  --color-bg-brand-subtle: #402a10;
+  --color-border-subtle: #262626;
+  --color-text-tertiary: #a3a3a3;
+  --color-icon-brand: var(--gold-400);
+  --color-icon-on-brand: #000000;
+  --color-icon-secondary: #a3a3a3;
+  --color-interactive-tertiary-text: var(--gold-300);
+
+  /* DERIVED — same primitive ramps as their light counterparts. */
+  --color-bg-surface: #171717;
+  --color-bg-inverse: #fafafa;
+  --color-bg-accent-subtle: #270b10;
+  --color-bg-disabled: #262626;
+  --color-border-default: #3d3d3d;
+  --color-border-strong: #757575;
+  --color-border-focus: var(--gold-400);
+  --color-border-error: #c24a4a;
+  --color-border-brand: var(--gold-500);
+  --color-text-primary: #fafafa;
+  --color-text-secondary: #d1d1d1;
+  --color-interactive-destructive-default: #c24a4a;
+
+  /*
+   * FLAG — dark interactive primary ramp.
+   *
+   * `default` is VERIFIED as GOLD-400 (#da9b29) from the bound variable on
+   * node 40:92. `hover` and `pressed` have NO Figma source: the file's
+   * `Color — Interactive States` section is explicitly light-mode only
+   * (node 9:391), so no dark hover/pressed swatch exists to pull.
+   *
+   * They are derived by applying the light ramp's own verified offsets
+   * (default -> hover = one step, -> pressed = two steps) to the verified
+   * dark anchor, in the lightening direction that dark UI conventionally
+   * uses. Every value is a real GOLD primitive, but the STEP CHOICE is a
+   * derivation, not a design decision — do not treat it as ratified.
+   *
+   * Note mobile/lib/core/theme/app_colors.dart currently sets dark
+   * `primaryDefault` to GOLD-500, which contradicts the verified variable;
+   * its whole dark ramp is one step too dark. Reconcile with design, then
+   * fix both surfaces together — this file follows Figma.
+   */
+  --color-interactive-primary-default: var(--gold-400);
+  --color-interactive-primary-hover: var(--gold-300);
+  --color-interactive-primary-pressed: var(--gold-200);
+  --color-interactive-primary-disabled: #262626;
+
+  /* DERIVED — dark feedback triads, from the same green/orange/red/blue
+     ramps the light triads come from. No dark feedback node exists. */
+  --color-feedback-success-bg: #143820;
+  --color-feedback-success-border: #3b935a;
+  --color-feedback-success-text: #93d2a6;
+  --color-feedback-warning-bg: #421b05;
+  --color-feedback-warning-border: #a3450a;
+  --color-feedback-warning-text: #f5b37c;
+  --color-feedback-error-bg: #3d1119;
+  --color-feedback-error-border: #c24a4a;
+  --color-feedback-error-text: #f3ccd1;
+  --color-feedback-info-bg: #0c2032;
+  --color-feedback-info-border: #3d87c4;
+  --color-feedback-info-text: #c9e0f3;
+}
