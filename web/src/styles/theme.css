@@ -40,6 +40,7 @@
   --color-icon-brand: var(--color-icon-brand);
   --color-icon-on-brand: var(--color-icon-on-brand);
   --color-icon-secondary: var(--color-icon-secondary);
+  --color-on-brand: var(--color-text-on-brand);
 
   --color-primary: var(--color-interactive-primary-default);
   --color-primary-hover: var(--color-interactive-primary-hover);
