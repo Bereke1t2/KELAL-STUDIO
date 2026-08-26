@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 
+import { AppShell } from './AppShell';
 import { ProtectedRoute } from './ProtectedRoute';
 
 /**
@@ -18,14 +19,18 @@ export function AppRouter() {
     <BrowserRouter>
       <ProtectedRoute>
         <Routes>
-          <Route path="/" element={<Navigate to="/brand-kit" replace />} />
-          <Route path="/brand-kit" element={<Placeholder title="Brand Kit" />} />
-          <Route path="/admin/usage" element={<Placeholder title="Usage" />} />
-          <Route path="/admin/flags" element={<Placeholder title="Flags" />} />
-          <Route path="/admin/users" element={<Placeholder title="Users" />} />
-          {/* A bad URL is a normal way to arrive; send it somewhere real
-              rather than rendering nothing. */}
-          <Route path="*" element={<Navigate to="/brand-kit" replace />} />
+          {/* Layout route: the shell renders once and persists across
+              navigations, so theme state and focus are not torn down. */}
+          <Route element={<AppShell />}>
+            <Route path="/" element={<Navigate to="/brand-kit" replace />} />
+            <Route path="/brand-kit" element={<Placeholder title="Brand Kit" />} />
+            <Route path="/admin/usage" element={<Placeholder title="Usage" />} />
+            <Route path="/admin/flags" element={<Placeholder title="Flags" />} />
+            <Route path="/admin/users" element={<Placeholder title="Users" />} />
+            {/* A bad URL is a normal way to arrive; send it somewhere real
+                rather than rendering nothing. */}
+            <Route path="*" element={<Navigate to="/brand-kit" replace />} />
+          </Route>
         </Routes>
       </ProtectedRoute>
     </BrowserRouter>
