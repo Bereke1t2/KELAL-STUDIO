@@ -1,0 +1,68 @@
+/*
+ * Tailwind theme bridge.
+ *
+ * `@theme inline` is load-bearing here: it makes each generated utility emit
+ * `var(--color-bg-canvas)` rather than baking in the light-mode hex at build
+ * time. That is what lets a single `data-theme="dark"` flip on <html> restyle
+ * the whole app — with a non-inline @theme, dark mode would silently not work
+ * for any Tailwind utility.
+ *
+ * Names are shortened at this boundary (`--color-bg-canvas` -> `bg-canvas`)
+ * so utilities read naturally; the mapping is one-to-one and mechanical, and
+ * tokens.css remains the only place a value is defined.
+ */
+@import 'tailwindcss';
+
+/* Dark mode is driven by the attribute the theme controller owns, not by the
+   media query — see the note at the top of tokens.css. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme inline {
+  --color-canvas: var(--color-bg-canvas);
+  --color-surface: var(--color-bg-surface);
+  --color-surface-raised: var(--color-bg-surface-raised);
+  --color-inverse: var(--color-bg-inverse);
+  --color-brand-subtle: var(--color-bg-brand-subtle);
+  --color-accent-subtle: var(--color-bg-accent-subtle);
+  --color-disabled: var(--color-bg-disabled);
+
+  --color-line: var(--color-border-default);
+  --color-line-subtle: var(--color-border-subtle);
+  --color-line-strong: var(--color-border-strong);
+  --color-line-focus: var(--color-border-focus);
+  --color-line-error: var(--color-border-error);
+  --color-line-brand: var(--color-border-brand);
+
+  --color-ink: var(--color-text-primary);
+  --color-ink-secondary: var(--color-text-secondary);
+  --color-ink-tertiary: var(--color-text-tertiary);
+
+  --color-icon-brand: var(--color-icon-brand);
+  --color-icon-on-brand: var(--color-icon-on-brand);
+  --color-icon-secondary: var(--color-icon-secondary);
+
+  --color-primary: var(--color-interactive-primary-default);
+  --color-primary-hover: var(--color-interactive-primary-hover);
+  --color-primary-pressed: var(--color-interactive-primary-pressed);
+  --color-primary-disabled: var(--color-interactive-primary-disabled);
+  --color-tertiary-text: var(--color-interactive-tertiary-text);
+  --color-destructive: var(--color-interactive-destructive-default);
+
+  --color-success-bg: var(--color-feedback-success-bg);
+  --color-success-line: var(--color-feedback-success-border);
+  --color-success-text: var(--color-feedback-success-text);
+  --color-warning-bg: var(--color-feedback-warning-bg);
+  --color-warning-line: var(--color-feedback-warning-border);
+  --color-warning-text: var(--color-feedback-warning-text);
+  --color-error-bg: var(--color-feedback-error-bg);
+  --color-error-line: var(--color-feedback-error-border);
+  --color-error-text: var(--color-feedback-error-text);
+  --color-info-bg: var(--color-feedback-info-bg);
+  --color-info-line: var(--color-feedback-info-border);
+  --color-info-text: var(--color-feedback-info-text);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+}
