@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/apperror"
@@ -47,6 +48,8 @@ func (c *TextChain) GenerateText(ctx context.Context, req TextRequest) (TextResu
 		if err == nil {
 			return res, Meta{Provider: p.Name(), Model: model, ModelVersion: version, LatencyMS: latency}, nil
 		}
+		// Log the failure before trying the next provider.
+		log.Printf("text provider %q failed: %v", p.Name(), err)
 		lastErr = err
 	}
 	return TextResult{}, Meta{}, classify(lastErr, "all text providers failed")

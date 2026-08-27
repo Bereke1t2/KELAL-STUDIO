@@ -2,16 +2,25 @@ package generation
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/hashtag"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/moderation"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/features/quota"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/apperror"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/auth"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/config"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/httpx/middleware"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider/stub"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/queue"
 )
 
 // The generation surface is gated on a verified email (PRD §6.1). This wires the
@@ -28,11 +37,22 @@ func TestGenerateTextRequiresVerifiedEmail(t *testing.T) {
 		EmailVerified: middleware.EmailVerifiedRequired(),
 	}
 	engine := gin.New()
-	New().RegisterRoutes(engine.Group("/v1"), mw)
+	mod := New(Deps{
+		Config:     &config.Config{UseMockData: true},
+		Logger:     slog.Default(),
+		TextChain:  provider.NewTextChain(30*time.Second, nil, stub.NewText()),
+		Moderation: moderation.NewPermissiveChecker(),
+		Quota:      quota.NewService(quota.NewMockRepository(), quota.Limits{TextDaily: 50, ImageDaily: 20}, slog.Default()),
+		Hashtag:    hashtag.NewBank(),
+		Queue:      queue.NewInProc(3, slog.Default()),
+	})
+	mod.Handler.RegisterRoutes(engine.Group("/v1"), mw)
 
 	const uid = "11111111-1111-1111-1111-111111111111"
 	call := func(bearer string) *httptest.ResponseRecorder {
-		req := httptest.NewRequest(http.MethodPost, "/v1/generate/text", nil)
+		body := strings.NewReader(`{"input_text":"test","input_lang":"en","platform":"instagram"}`)
+		req := httptest.NewRequest(http.MethodPost, "/v1/generate/text", body)
+		req.Header.Set("Content-Type", "application/json")
 		if bearer != "" {
 			req.Header.Set("Authorization", "Bearer "+bearer)
 		}
@@ -60,13 +80,13 @@ func TestGenerateTextRequiresVerifiedEmail(t *testing.T) {
 		t.Fatalf("unverified: want error_code=%q, got %q", apperror.CodeEmailNotVerified, body.ErrorCode)
 	}
 
-	// Verified token passes the gate; the stub handler then returns 501.
+	// Verified token passes the gate; handler runs and returns 200.
 	verified, err := mgr.GenerateAccess(uid, auth.RoleUser, true)
 	if err != nil {
 		t.Fatalf("mint verified token: %v", err)
 	}
-	if rec := call(verified); rec.Code != http.StatusNotImplemented {
-		t.Fatalf("verified: want 501 (past the gate), got %d (%s)", rec.Code, rec.Body.String())
+	if rec := call(verified); rec.Code != http.StatusOK {
+		t.Fatalf("verified: want 200 (past the gate), got %d (%s)", rec.Code, rec.Body.String())
 	}
 
 	// No token at all → 401 from Auth; the gate is never reached.

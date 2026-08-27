@@ -46,7 +46,7 @@ func newTestHandler(cfg config.AssetConfig) (*gin.Engine, *platformauth.Manager)
 
 func tokenFor(t *testing.T, mgr *platformauth.Manager, userID uuid.UUID) string {
 	t.Helper()
-	tok, err := mgr.GenerateAccess(userID.String(), platformauth.RoleUser)
+	tok, err := mgr.GenerateAccess(userID.String(), platformauth.RoleUser, false)
 	if err != nil {
 		t.Fatalf("GenerateAccess: %v", err)
 	}

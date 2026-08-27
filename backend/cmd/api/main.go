@@ -57,18 +57,13 @@ func run(migrateOnly bool) error {
 	}
 	log := logger.New(cfg.LogLevel)
 
-	// Database: skipped entirely in mock mode (the analogue of the mobile app
-	// running on its fake data layer). db stays nil and every feature module
-	// falls back to its in-memory repository.
+	// Database: skipped entirely in mock mode.
 	var db *gorm.DB
 	if !cfg.UseMockData {
 		db, err = database.Connect(cfg.DB)
 		if err != nil {
 			return err
 		}
-		// AutoMigrate is the dev/V1 schema source (see database/migrate.go). In
-		// production the versioned migrations/ are applied out-of-band, so we
-		// only auto-migrate outside production or when explicitly asked.
 		if migrateOnly || !cfg.IsProduction() {
 			if err := database.AutoMigrate(db); err != nil {
 				return err
@@ -76,7 +71,7 @@ func run(migrateOnly bool) error {
 			log.Info("database migrated")
 		}
 	} else if migrateOnly {
-		return fmt.Errorf("cannot run -migrate-only with USE_MOCK_DATA=true (there is no database)")
+		return fmt.Errorf("cannot run -migrate-only with USE_MOCK_DATA=true")
 	}
 
 	if migrateOnly {
@@ -88,9 +83,7 @@ func run(migrateOnly bool) error {
 		cfg.JWT.AccessSecret, cfg.JWT.RefreshSecret, cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL,
 	)
 
-	// Blob store for uploaded assets. In mock mode it lives in memory (like the
-	// in-memory repos); otherwise it's a filesystem store rooted OUTSIDE any web
-	// root (config.validate enforces an absolute path in production).
+	// Blob store for uploaded assets.
 	var assetStore storage.Store
 	if cfg.UseMockData {
 		assetStore = storage.NewMemory()
@@ -99,9 +92,9 @@ func run(migrateOnly bool) error {
 		if err != nil {
 			return err
 		}
-	// Outbound email: a real SMTP sender in production, the dev LogSender by
-	// default. New fails fast on a misconfigured provider (config.validate has
-	// already refused the log sender under APP_ENV=production).
+	}
+
+	// Outbound email.
 	mailer, err := email.New(email.Options{
 		Provider:     cfg.Email.Provider,
 		From:         cfg.Email.From,
@@ -114,8 +107,7 @@ func run(migrateOnly bool) error {
 		return err
 	}
 
-	// Global middleware (applied once, in order) + the per-route middleware set
-	// features apply selectively.
+	// Global middleware.
 	engine, v1 := httpx.NewRouter(
 		cfg.IsProduction(),
 		middleware.RequestID(),
@@ -125,9 +117,6 @@ func run(migrateOnly bool) error {
 		middleware.IPRateLimit(cfg.RateLim.PerIPPerMinute),
 	)
 
-	// API docs: the raw contract + an interactive Swagger UI, mounted on the
-	// engine root (like /healthz) — non-production only, since they document the
-	// surface rather than being part of it (see internal/platform/apidocs).
 	if !cfg.IsProduction() {
 		apidocs.Mount(engine, api.Spec)
 	}
@@ -139,47 +128,19 @@ func run(migrateOnly bool) error {
 		EmailVerified: middleware.EmailVerifiedRequired(),
 	}
 
-	// Blob store for uploaded assets. In mock mode it lives in memory (like the
-	// in-memory repos); otherwise it's a filesystem store rooted OUTSIDE any web
-	// root (config.validate enforces an absolute path in production).
-	var assetStore storage.Store
-	if cfg.UseMockData {
-		assetStore = storage.NewMemory()
-	} else {
-		assetStore, err = storage.NewFS(cfg.Asset.StorageDir)
-		if err != nil {
-			return err
-		}
-	}
+	// ── Feature composition ───────────────────────────────────────────────
 
-	// Outbound email: a real SMTP sender in production, the dev LogSender by
-	// default. New fails fast on a misconfigured provider (config.validate has
-	// already refused the log sender under APP_ENV=production).
-	mailer, err := email.New(email.Options{
-		Provider:     cfg.Email.Provider,
-		From:         cfg.Email.From,
-		SMTPHost:     cfg.Email.SMTPHost,
-		SMTPPort:     cfg.Email.SMTPPort,
-		SMTPUsername: cfg.Email.SMTPUsername,
-		SMTPPassword: cfg.Email.SMTPPassword,
-	}, log)
-	if err != nil {
-		return err
-	}
-
-	// ── Feature composition — the one place features are wired ──────────────
-	// Auth is fully implemented; the rest are stubs returning not_implemented
-	// (see internal/features/*). Each takes the same (v1, mw) so wiring is
-	// uniform. moderation and hashtag are internal (no routes) — they'll be
-	// dependencies of generation, not mounted here.
+	// Auth, brandkit, asset — simple features.
 	auth.New(auth.Deps{DB: db, JWT: jwtMgr, Config: cfg, Logger: log, Mailer: mailer}).RegisterRoutes(v1, mw)
 	brandkit.New(brandkit.Deps{DB: db, Config: cfg, Logger: log}).RegisterRoutes(v1, mw)
 	asset.New(asset.Deps{DB: db, Config: cfg, Logger: log, Store: assetStore}).RegisterRoutes(v1, mw)
-	// Build the provider chains from config.
+
+	// Build provider chains from config.
 	textChain, err := factory.BuildTextChain(
 		cfg.Provider.TextOrder,
 		cfg.Provider.Timeout,
-		nil, // telemetry func — wire to persistence when GenerationRecord write is built
+		nil,
+		&cfg.Provider,
 	)
 	if err != nil {
 		return fmt.Errorf("building text provider chain: %w", err)
@@ -192,19 +153,16 @@ func run(migrateOnly bool) error {
 	if err != nil {
 		return fmt.Errorf("building image provider chain: %w", err)
 	}
-	// Moderation: internal service, no HTTP routes.
-	// - USE_MOCK_DATA=true  → permissive (all content allowed, for testing)
-	// - MODERATION_PROVIDER=openai → real OpenAI Moderation API
-	// - MODERATION_PROVIDER=stub   → fail-closed (refuses everything)
-	// - unset/empty            → permissive (safe default for dev)
+
+	// Moderation.
 	var modChecker moderation.Checker
 	switch {
 	case cfg.UseMockData:
 		modChecker = moderation.NewPermissiveChecker()
-		log.Info("moderation: permissive (mock mode — all content allowed)")
+		log.Info("moderation: permissive (mock mode)")
 	case cfg.Moderation.Provider == "openai":
 		if cfg.Moderation.APIKey == "" {
-			return fmt.Errorf("MODERATION_PROVIDER=openai requires OPENAI_API_KEY to be set")
+			return fmt.Errorf("MODERATION_PROVIDER=openai requires OPENAI_API_KEY")
 		}
 		modChecker = moderation.NewOpenAIChecker(cfg.Moderation.APIKey)
 		log.Info("moderation: OpenAI Moderation API")
@@ -213,11 +171,10 @@ func run(migrateOnly bool) error {
 		log.Info("moderation: stub (all content refused)")
 	default:
 		modChecker = moderation.NewPermissiveChecker()
-		log.Info("moderation: permissive (no provider configured — all content allowed)")
+		log.Info("moderation: permissive (no provider configured)")
 	}
 
-	// Quota: build the shared service used by both the quota endpoint and
-	// the generation feature's pre-call enforcement.
+	// Quota.
 	var quotaRepo quota.Repository
 	if cfg.UseMockData || db == nil {
 		quotaRepo = quota.NewMockRepository()
@@ -236,20 +193,13 @@ func run(migrateOnly bool) error {
 	}
 	quotaSvc := quota.NewService(quotaRepo, quotaLimits, log)
 
-	// Hashtag bank: curated, platform-aware hashtag source (PRD §6.3).
-	// Internal service — no HTTP routes; generation merges its output
-	// with provider-generated hashtags.
+	// Hashtag bank.
 	hashBank := hashtag.NewBank()
 
-	// Queue: in-process job queue for async video generation (PRD §10.3).
-	// With the in-process driver, the API process itself consumes jobs —
-	// the separate cmd/worker binary is the shape for a real broker.
+	// Queue for async video generation.
 	jobQueue := queue.NewInProc(cfg.Queue.VideoMaxAttempts, log)
-	generation.New().RegisterRoutes(v1, mw)
-	quota.New().RegisterRoutes(v1, mw)
-	reminder.New().RegisterRoutes(v1, mw)
-	admin.New().RegisterRoutes(v1, mw)
 
+	// Generation feature.
 	genMod := generation.New(generation.Deps{
 		DB:         db,
 		Config:     cfg,
@@ -263,20 +213,21 @@ func run(migrateOnly bool) error {
 	})
 	genMod.Handler.RegisterRoutes(v1, mw)
 
-	// Start the in-process queue consumer for video jobs. This runs in a
-	// goroutine and processes jobs as they are enqueued by the API.
+	// Start in-process queue consumer for video jobs.
 	go func() {
 		ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 		defer stop()
 		jobQueue.Start(ctx, genMod.Service.ProcessVideoJob)
 	}()
+
+	// Quota endpoint.
 	quota.NewHandler(quotaSvc).RegisterRoutes(v1, mw)
+
+	// Reminder feature.
 	reminderMod := reminder.New(reminder.Deps{DB: db, Config: cfg, Logger: log})
 	reminderMod.Handler.RegisterRoutes(v1, mw)
 
-	// Background scheduler: checks for due reminders every 60 seconds and
-	// fires them (PRD §6.12). In V1 this logs the notification; a real
-	// implementation would dispatch push notifications via FCM/SNS.
+	// Background scheduler for due reminders (every 60 seconds).
 	go func() {
 		ticker := time.NewTicker(60 * time.Second)
 		defer ticker.Stop()
@@ -284,15 +235,17 @@ func run(migrateOnly bool) error {
 			reminderMod.Service.FireDueReminders(context.Background())
 		}
 	}()
+
+	// Admin feature.
 	admin.New().RegisterRoutes(v1, mw)
 
+	// HTTP server.
 	srv := &http.Server{
 		Addr:              ":" + cfg.HTTPPort,
 		Handler:           engine,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	// Run the server and shut it down gracefully on SIGINT/SIGTERM.
 	serverErr := make(chan error, 1)
 	go func() {
 		log.Info("api listening", "port", cfg.HTTPPort, "env", cfg.Env, "mock_data", cfg.UseMockData)

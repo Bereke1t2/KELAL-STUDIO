@@ -27,6 +27,8 @@ type Config struct {
 
 	DB         DBConfig
 	JWT        JWTConfig
+	Auth       AuthConfig
+	Email      EmailConfig
 	RateLim    RateLimitConfig
 	Quota      QuotaConfig
 	Moderation ModerationConfig
@@ -36,16 +38,6 @@ type Config struct {
 	// PublicBaseURL is the front-door origin embedded in verification / reset
 	// links (the app/web surface that captures the token). No trailing slash.
 	PublicBaseURL string
-
-	DB       DBConfig
-	JWT      JWTConfig
-	Auth     AuthConfig
-	Email    EmailConfig
-	RateLim  RateLimitConfig
-	Quota    QuotaConfig
-	Provider ProviderConfig
-	Queue    QueueConfig
-	Asset    AssetConfig
 }
 
 // DBConfig holds the PostgreSQL connection settings and pool tuning.
@@ -125,10 +117,11 @@ type ModerationConfig struct {
 // ProviderConfig configures the Provider Abstraction Layer: the failover order
 // per modality, the per-provider timeout, and request logging (off by default).
 type ProviderConfig struct {
-	TextOrder   []string // failover order, e.g. ["nemotron","gemini"]; ["stub"] by default
-	ImageOrder  []string
-	Timeout     time.Duration
-	LogRequests bool // OQ-13/OQ-19: OFF until confidentiality/residency are resolved
+	TextOrder    []string // failover order, e.g. ["nemotron","gemini"]; ["stub"] by default
+	ImageOrder   []string
+	Timeout      time.Duration
+	LogRequests  bool   // OQ-13/OQ-19: OFF until confidentiality/residency are resolved
+	GeminiAPIKey string // required when "gemini" is in TextOrder or ImageOrder
 }
 
 // QueueConfig configures the async job queue (PRD §10.3).
@@ -211,10 +204,11 @@ func Load() (*Config, error) {
 			APIKey:   getStr("OPENAI_API_KEY", ""),
 		},
 		Provider: ProviderConfig{
-			TextOrder:   getCSV("TEXT_PROVIDER_ORDER", []string{"stub"}),
-			ImageOrder:  getCSV("IMAGE_PROVIDER_ORDER", []string{"stub"}),
-			Timeout:     getDuration("PROVIDER_TIMEOUT", 20*time.Second),
-			LogRequests: getBool("PROVIDER_LOG_REQUESTS", false),
+			TextOrder:    getCSV("TEXT_PROVIDER_ORDER", []string{"stub"}),
+			ImageOrder:   getCSV("IMAGE_PROVIDER_ORDER", []string{"stub"}),
+			Timeout:      getDuration("PROVIDER_TIMEOUT", 20*time.Second),
+			LogRequests:  getBool("PROVIDER_LOG_REQUESTS", false),
+			GeminiAPIKey: getStr("GEMINI_API_KEY", ""),
 		},
 		Queue: QueueConfig{
 			Driver:           getStr("QUEUE_DRIVER", "inproc"),

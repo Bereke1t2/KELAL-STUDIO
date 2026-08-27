@@ -125,6 +125,7 @@ func (s *Service) GenerateText(ctx context.Context, userID uuid.UUID, req Genera
 	if genErr != nil {
 		return GenerateTextResponse{}, genErr
 	}
+	s.log.Info("text generation completed", "provider", meta.Provider, "model", meta.Model, "latency_ms", meta.LatencyMS)
 
 	// ── Step 5: Merge hashtags from bank ──────────────────────────────────
 	// The provider generates context-specific hashtags; the bank supplies
