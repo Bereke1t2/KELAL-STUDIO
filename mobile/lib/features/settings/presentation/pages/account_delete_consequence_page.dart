@@ -41,7 +41,8 @@ class AccountDeleteConsequencePage extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xxl),
               Text(
-                'This permanently deletes your account and everything tied to it:',
+                'This permanently deletes your account and '
+                'everything tied to it:',
                 style: AppTypography.body.copyWith(
                   color: context.colors.textSecondary,
                   height: 1.6,

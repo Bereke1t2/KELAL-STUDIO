@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kelal_studio/core/di/injection.dart';
 import 'package:kelal_studio/core/error/result.dart';
 import 'package:kelal_studio/features/auth/domain/usecases/delete_account_usecase.dart';
 import 'package:kelal_studio/features/settings/presentation/bloc/account_bloc.dart';
-import 'package:kelal_studio/features/settings/presentation/pages/account_page.dart';
-import 'package:mocktail/mocktail.dart';
-
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_confirm_page.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_consequence_page.dart';
-
-import 'package:go_router/go_router.dart';
+import 'package:kelal_studio/features/settings/presentation/pages/account_page.dart';
+import 'package:mocktail/mocktail.dart';
 
 class MockDeleteAccountUseCase extends Mock implements DeleteAccountUseCase {}
 

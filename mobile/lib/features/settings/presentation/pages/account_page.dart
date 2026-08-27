@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:get_it/get_it.dart';
 import 'package:kelal_studio/core/theme/app_colors.dart';
 import 'package:kelal_studio/core/theme/app_spacing.dart';
 import 'package:kelal_studio/core/theme/app_typography.dart';
-import 'package:kelal_studio/features/settings/presentation/bloc/account_bloc.dart';
-import 'package:kelal_studio/features/settings/presentation/bloc/account_event.dart';
-import 'package:kelal_studio/features/settings/presentation/bloc/account_state.dart';
 
 class AccountPage extends StatelessWidget {
   const AccountPage({super.key});

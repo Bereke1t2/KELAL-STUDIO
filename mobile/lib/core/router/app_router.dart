@@ -9,6 +9,7 @@ import 'package:kelal_studio/features/settings/presentation/pages/account_page.d
 import 'package:kelal_studio/features/settings/presentation/pages/legal_document_page.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/legal_page.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/settings_page.dart';
+import 'package:kelal_studio/features/video_teaser/presentation/pages/video_teaser_page.dart';
 
 /// Central route table. Kept as a plain [GoRouter] (string paths) for now —
 /// adopt `go_router_builder` codegen once the navigation model stabilizes
@@ -57,6 +58,10 @@ class AppRouter {
             content: args['content'] ?? '',
           );
         },
+      ),
+      GoRoute(
+        path: '/video_teaser',
+        builder: (context, state) => const VideoTeaserPage(),
       ),
     ],
   );

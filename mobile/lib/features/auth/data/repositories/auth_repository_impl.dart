@@ -46,11 +46,12 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Result<Failure, void>> deleteAccount() async {
     try {
-      // Mocking the delete account backend call for now since no remote method exists yet.
-      // Clears local token as a side effect (the user is "deleted" and thus logged out locally).
+      // Mocking the delete account backend call for now
+      // since no remote method exists yet. Clears local
+      // token as a side effect (user is logged out).
       await logout();
       return const Result.ok(null);
-    } catch (_) {
+    } on Exception catch (_) {
       return const Result.err(
         UnexpectedFailure('Something went wrong. Please try again.'),
       );

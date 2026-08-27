@@ -38,12 +38,13 @@ dependencies:
   go_router: 14.8.1
   hydrated_bloc: 10.1.1
   injectable: 2.7.1+4
-  intl: 0.20.2
+  intl: 0.20.3
   json_annotation: 4.12.0
   path_provider: 2.1.6
   pretty_dio_logger: 1.4.0
   retrofit: 4.10.0
   uuid: 4.6.0
+  video_player: 2.14.0
 
 dev_dependencies:
   alchemist: 0.14.0
