@@ -54,6 +54,7 @@ func BuildImageChain(order []string, timeout time.Duration, telemetry provider.T
 			providers = append(providers, gemini.NewImage(cfg.GeminiAPIKey))
 		default:
 			return nil, fmt.Errorf("factory: image provider %q is not implemented (supported: stub, gemini)", name)
+			return nil, fmt.Errorf("factory: image provider %q is not implemented (only %q ships today)", name, "stub")
 		}
 	}
 	if len(providers) == 0 {

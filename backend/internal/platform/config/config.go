@@ -123,6 +123,9 @@ type ProviderConfig struct {
 	Timeout      time.Duration
 	LogRequests  bool   // OQ-13/OQ-19: OFF until confidentiality/residency are resolved
 	GeminiAPIKey string // required when "gemini" is in TextOrder, ImageOrder, or VideoOrder
+	Timeout      time.Duration
+	LogRequests  bool   // OQ-13/OQ-19: OFF until confidentiality/residency are resolved
+	GeminiAPIKey string // required when "gemini" is in TextOrder or ImageOrder
 }
 
 // QueueConfig configures the async job queue (PRD §10.3).

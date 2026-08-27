@@ -51,6 +51,7 @@ func tokenFor(t *testing.T, mgr *platformauth.Manager, userID uuid.UUID) string 
 	// verified flag is immaterial here — pass true for a representative
 	// fully-onboarded user.
 	tok, err := mgr.GenerateAccess(userID.String(), platformauth.RoleUser, true)
+	tok, err := mgr.GenerateAccess(userID.String(), platformauth.RoleUser, false)
 	if err != nil {
 		t.Fatalf("GenerateAccess: %v", err)
 	}
