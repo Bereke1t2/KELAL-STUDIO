@@ -11,6 +11,7 @@ import (
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/config"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/queue"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/storage"
 )
 
 // Deps are everything the generation feature needs from the composition root
@@ -26,6 +27,7 @@ type Deps struct {
 	Quota      *quota.Service
 	Hashtag    hashtag.Bank
 	Queue      queue.Queue
+	Store      storage.Store
 }
 
 // Module holds the wired Handler and Service. The Service is exposed so
@@ -46,7 +48,7 @@ func New(d Deps) Module {
 		repo = NewGormRepository(d.DB)
 	}
 
-	svc := NewService(repo, d.TextChain, d.ImageChain, d.Moderation, d.Quota, d.Hashtag, d.Queue, d.Logger)
+	svc := NewService(repo, d.TextChain, d.ImageChain, d.Moderation, d.Quota, d.Hashtag, d.Queue, d.Store, d.Logger)
 	h := NewHandler(svc)
 	return Module{Handler: h, Service: svc}
 }

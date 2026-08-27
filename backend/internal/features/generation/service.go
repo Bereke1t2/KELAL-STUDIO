@@ -8,8 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,6 +19,7 @@ import (
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/apperror"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/queue"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/storage"
 )
 
 // Service holds the generation use cases. Each public method is ONE use case
@@ -36,11 +35,12 @@ type Service struct {
 	quota *quota.Service
 	bank  hashtag.Bank
 	queue queue.Queue
+	store storage.Store
 	log   *slog.Logger
 }
 
 // NewService wires the use cases.
-func NewService(repo Repository, textChain *provider.TextChain, imageChain *provider.ImageChain, mod moderation.Checker, quotaSvc *quota.Service, bank hashtag.Bank, q queue.Queue, log *slog.Logger) *Service {
+func NewService(repo Repository, textChain *provider.TextChain, imageChain *provider.ImageChain, mod moderation.Checker, quotaSvc *quota.Service, bank hashtag.Bank, q queue.Queue, store storage.Store, log *slog.Logger) *Service {
 	return &Service{
 		repo:  repo,
 		text:  textChain,
@@ -181,45 +181,47 @@ func computeInputHash(inputText, platform, brandName, tone string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// persistAsset saves the generated image bytes to disk and creates an Asset
-// DB record. The storage path is OUTSIDE any web root (PRD §6.8). Returns
+// persistAsset saves the generated image bytes via storage.Store and creates
+// an Asset DB record. The StorageRef is an opaque key (e.g. "ab/uuid.png")
+// managed by the store — never a raw filesystem path (PRD §6.8). Returns
 // the created Asset for the caller to reference.
 func (s *Service) persistAsset(ctx context.Context, userID uuid.UUID, img provider.ImageResult) (*models.Asset, error) {
-	// Generate a unique filename.
-	filename := uuid.New().String() + ".png"
+	id := uuid.New()
 
-	// Use a configurable storage directory. For V1, use a default path.
-	storageDir := "./storage/assets"
-	if err := os.MkdirAll(storageDir, 0o750); err != nil {
-		return nil, fmt.Errorf("create storage dir: %w", err)
-	}
+	// Derive a sharded storage key like "3f/3f7c9b1e-....png".
+	key := assetStorageKey(id)
 
-	filePath := filepath.Join(storageDir, filename)
-	if err := os.WriteFile(filePath, img.ImageBytes, 0o600); err != nil {
-		return nil, fmt.Errorf("write image file: %w", err)
+	// Write bytes through the store (atomic, path-traversal-safe).
+	if err := s.store.Put(ctx, key, img.ImageBytes); err != nil {
+		return nil, fmt.Errorf("write asset blob: %w", err)
 	}
 
 	// Create the Asset DB record.
 	asset := &models.Asset{
+		Base:             models.Base{ID: id},
 		OwnerUserID:      userID,
-		StorageRef:       filePath,
+		StorageRef:       key,
 		Width:            img.Width,
 		Height:           img.Height,
 		MimeType:         img.MimeType,
-		StrippedMetadata: true, // stub images have no metadata to strip
+		StrippedMetadata: true, // AI-generated images have no user metadata to strip
 		CreatedAt:        time.Now().UTC(),
 	}
 
-	// Persist via the repository (reuses the generation repo's DB handle
-	// through a helper — the Asset is owned by the asset feature in the
-	// full implementation, but for V1 we persist directly).
 	if err := s.repo.CreateAsset(ctx, asset); err != nil {
-		// Clean up the file if DB persist fails.
-		_ = os.Remove(filePath)
+		// Best-effort cleanup: remove the orphaned blob so a DB error
+		// doesn't leave unreferenced bytes on disk.
+		_ = s.store.Delete(ctx, key)
 		return nil, fmt.Errorf("persist asset record: %w", err)
 	}
 
 	return asset, nil
+}
+
+// assetStorageKey derives a sharded blob key for a generated asset.
+func assetStorageKey(id uuid.UUID) string {
+	h := id.String()
+	return h[0:2] + "/" + h + ".png"
 }
 
 // GenerateVideo enqueues an async video generation job (PRD §8.4, §10.3).

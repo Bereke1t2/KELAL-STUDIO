@@ -38,15 +38,22 @@ func BuildTextChain(order []string, timeout time.Duration, telemetry provider.Te
 	return provider.NewTextChain(timeout, telemetry, providers...), nil
 }
 
-// BuildImageChain is the image-generation analogue of BuildTextChain.
-func BuildImageChain(order []string, timeout time.Duration, telemetry provider.TelemetryFunc) (*provider.ImageChain, error) {
+// BuildImageChain constructs an image failover chain from an ordered list of
+// provider names. Supported providers: "stub", "gemini". An empty order
+// defaults to the stub.
+func BuildImageChain(order []string, timeout time.Duration, telemetry provider.TelemetryFunc, cfg *config.ProviderConfig) (*provider.ImageChain, error) {
 	providers := make([]provider.ImageProvider, 0, len(order))
 	for _, name := range order {
 		switch name {
 		case "stub":
 			providers = append(providers, stub.NewImage())
+		case "gemini":
+			if cfg == nil || cfg.GeminiAPIKey == "" {
+				return nil, fmt.Errorf("factory: image provider %q requires GEMINI_API_KEY to be set", name)
+			}
+			providers = append(providers, gemini.NewImage(cfg.GeminiAPIKey))
 		default:
-			return nil, fmt.Errorf("factory: image provider %q is not implemented (only %q ships today)", name, "stub")
+			return nil, fmt.Errorf("factory: image provider %q is not implemented (supported: stub, gemini)", name)
 		}
 	}
 	if len(providers) == 0 {

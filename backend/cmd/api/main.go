@@ -149,6 +149,7 @@ func run(migrateOnly bool) error {
 		cfg.Provider.ImageOrder,
 		cfg.Provider.Timeout,
 		nil,
+		&cfg.Provider,
 	)
 	if err != nil {
 		return fmt.Errorf("building image provider chain: %w", err)
@@ -210,6 +211,7 @@ func run(migrateOnly bool) error {
 		Quota:      quotaSvc,
 		Hashtag:    hashBank,
 		Queue:      jobQueue,
+		Store:      assetStore,
 	})
 	genMod.Handler.RegisterRoutes(v1, mw)
 
