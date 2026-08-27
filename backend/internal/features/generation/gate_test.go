@@ -17,11 +17,11 @@ import (
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/apperror"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/auth"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/config"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/config"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/httpx/middleware"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider/stub"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/queue"
-	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/storage"
 )
 
 // The generation surface is gated on a verified email (PRD §6.1). This wires the
@@ -38,17 +38,20 @@ func TestGenerateTextRequiresVerifiedEmail(t *testing.T) {
 		EmailVerified: middleware.EmailVerifiedRequired(),
 	}
 	engine := gin.New()
+	// Only the middleware gate is under test here, so a minimal module suffices:
+	// an empty request body fails binding (400) before the service — and its nil
+	// provider/quota deps — is ever reached. Config must be non-nil (New reads
+	// UseMockData) and a nil DB selects the in-memory repository.
+	mod := New(Deps{Config: &config.Config{}})
+	mod.Handler.RegisterRoutes(engine.Group("/v1"), mw)
 	mod := New(Deps{
 		Config:     &config.Config{UseMockData: true},
 		Logger:     slog.Default(),
 		TextChain:  provider.NewTextChain(30*time.Second, nil, stub.NewText()),
-		ImageChain: provider.NewImageChain(30*time.Second, nil, stub.NewImage()),
-		VideoChain: provider.NewVideoChain(30*time.Second, nil, stub.NewVideo()),
 		Moderation: moderation.NewPermissiveChecker(),
 		Quota:      quota.NewService(quota.NewMockRepository(), quota.Limits{TextDaily: 50, ImageDaily: 20}, slog.Default()),
 		Hashtag:    hashtag.NewBank(),
 		Queue:      queue.NewInProc(3, slog.Default()),
-		Store:      storage.NewMemory(),
 	})
 	// Only the middleware gate is under test here, so a minimal module suffices:
 	// an empty request body fails binding (400) before the service — and its nil
