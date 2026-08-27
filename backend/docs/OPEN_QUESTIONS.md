@@ -219,3 +219,27 @@ confirm rather than inherit blindly.
   aspect-ratio warning is surfaced (and through which channel) and whether an
   authenticated asset-serving route is in scope; reconcile the status codes when
   `error-code-enum` is decided.
+
+### admin-user-limits
+- **Question:** `PUT /admin/users/{id}/limits` (PRD §6.13) lets an admin override
+  a user's daily generation caps, but the PRD data model names **no** storage for
+  a per-user limit — the only quota knobs it specifies are the **global** daily
+  caps (`config.QuotaConfig.TextDaily`/`ImageDaily`). So where does a per-user
+  override live, and how is "no override" distinguished from "capped at zero"?
+- **V1 behavior:** two **nullable** columns on the existing `users` table —
+  `daily_text_quota` / `daily_image_quota` — rather than a new table. `NULL` means
+  **"no override — use the global default"**; `0` is a real value (**block all**
+  generation of that kind); a positive number is the per-user cap. The pointer/
+  nullable design is what makes "unset" distinct from "zero". Nullable columns (not
+  a `user_limits` table) keep this on the one connected schema graph and add no
+  join, matching the "shared `models`, features never import each other" model. The
+  endpoint **rejects negatives** (400) and writes an `AdminAuditLog` row per change.
+  Nothing **enforces** these caps yet — the quota enforcer (PRD §6.14, still a
+  stub) is their only consumer, and it reads them when it's built.
+- **Flagged in:** `models/user.go` (`DailyTextQuota`/`DailyImageQuota` doc),
+  `migrations/000001_init.up.sql` (the two columns), `features/admin/service.go`
+  (`SetUserLimits`), `api/openapi.yaml` (`SetUserLimitsRequest`/`UserLimits`).
+- **Closes when:** product confirms per-user overrides are a real §6.13 feature
+  (vs. admin only tuning the global caps). If richer policy is wanted (per-period,
+  per-provider, expiring grants), promote it to a dedicated `user_limits` table
+  then; the quota enforcer must read whatever this becomes.

@@ -29,6 +29,11 @@ CREATE TABLE users (
     token_version         bigint      NOT NULL DEFAULT 0,
     failed_login_attempts bigint      NOT NULL DEFAULT 0,
     locked_until          timestamptz,
+    -- Per-user overrides of the global daily generation caps (admin-set via
+    -- PUT /admin/users/{id}/limits, PRD §6.13). NULL = use the global default;
+    -- 0 is a real "block all" value. Consumed by the quota enforcer (PRD §6.14).
+    daily_text_quota      bigint,
+    daily_image_quota     bigint,
     created_at            timestamptz,
     updated_at            timestamptz,
     deleted_at            timestamptz

@@ -202,6 +202,64 @@ components:
         image_calls_limit: { type: integer }
         resets_at: { type: string, format: date-time }
 
+    AdminUsage:
+      type: object
+      description: >
+        Aggregate, whole-population usage counts (GET /admin/usage, PRD §6.13).
+        V1 analytics is intentionally coarse — no time-bucketing.
+      properties:
+        total_users: { type: integer, format: int64 }
+        total_generations: { type: integer, format: int64 }
+        text_generations: { type: integer, format: int64 }
+        image_generations: { type: integer, format: int64 }
+        video_generations: { type: integer, format: int64 }
+        total_flags: { type: integer, format: int64 }
+        pending_flags: { type: integer, format: int64 }
+
+    ModerationFlag:
+      type: object
+      description: >
+        One moderation-flag review-queue entry (PRD §6.4, §6.13). This is an
+        admin-only surface, so — unlike the user-facing moderation error — it
+        carries the raw input_snapshot that tripped the filter. reviewed_by_admin_id
+        and reviewed_at are null until an admin adjudicates it.
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        input_snapshot: { type: string }
+        reason: { type: string }
+        reviewed_by_admin_id: { type: string, format: uuid, nullable: true }
+        reviewed_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    ModerationFlagList:
+      type: object
+      properties:
+        flags:
+          type: array
+          items: { $ref: '#/components/schemas/ModerationFlag' }
+
+    SetUserLimitsRequest:
+      type: object
+      description: >
+        Per-user daily generation caps (PUT /admin/users/{id}/limits, PRD §6.13).
+        Each field is nullable: null (or omitted) CLEARS the override, falling
+        back to the global default; a number sets it; 0 is a valid "block all".
+        Negative values are rejected.
+      properties:
+        daily_text_quota: { type: integer, nullable: true }
+        daily_image_quota: { type: integer, nullable: true }
+
+    UserLimits:
+      type: object
+      description: >
+        A user's resulting per-user quota overrides. A null field means "no
+        override — the global default applies".
+      properties:
+        user_id: { type: string, format: uuid }
+        daily_text_quota: { type: integer, nullable: true }
+        daily_image_quota: { type: integer, nullable: true }
+
 paths:
   # ── Auth & Accounts — IMPLEMENTED (reference feature, PRD §6.1) ──────────────
   /auth/register:
@@ -643,47 +701,90 @@ paths:
         '201': { description: Created }
         default: { $ref: '#/components/responses/Error' }
 
-  # ── Admin — STUBS, backend-only, audit-logged (PRD §6.13) ───────────────────
+  # ── Admin — IMPLEMENTED, backend-only, audit-logged (PRD §6.13) ─────────────
+  # Every route requires the admin role (mw.AuthRequired + mw.AdminOnly); the two
+  # mutating routes each write an append-only AdminAuditLog row in the same
+  # transaction as the change. Backend-only; not in the mobile contract.
   /admin/usage:
     get:
       operationId: adminUsage
       tags: [admin]
-      x-implementation-status: stub
-      description: Requires the admin role. Backend-only; not in the mobile contract.
+      x-implementation-status: implemented
+      description: >
+        Aggregate usage analytics (PRD §6.13). Requires the admin role.
+        Backend-only; not in the mobile contract. Read-only — no audit row.
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUsage' }
         default: { $ref: '#/components/responses/Error' }
 
   /admin/flags:
     get:
       operationId: adminlistFlags
       tags: [admin]
-      x-implementation-status: stub
-      description: Requires the admin role. Moderation-flag review queue (PRD §6.4, §6.13).
+      x-implementation-status: implemented
+      description: >
+        Moderation-flag review queue, newest first (PRD §6.4, §6.13). Requires
+        the admin role. Read-only — no audit row.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: When 'pending', returns only flags not yet reviewed. Any other value (or omitted) returns all flags.
+          schema: { type: string, enum: [pending] }
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModerationFlagList' }
         default: { $ref: '#/components/responses/Error' }
 
   /admin/flags/{id}/review:
     post:
       operationId: adminReviewFlag
       tags: [admin]
-      x-implementation-status: stub
-      description: Requires the admin role. MUST write an AdminAuditLog row.
+      x-implementation-status: implemented
+      description: >
+        Marks a moderation flag adjudicated by the calling admin and writes an
+        AdminAuditLog row in the same transaction. Requires the admin role. The
+        action itself is the payload, so the request is bodyless. Re-reviewing an
+        already-reviewed flag is a 409 Conflict (the flag records a single
+        reviewer; it is not overwritten).
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModerationFlag' }
         default: { $ref: '#/components/responses/Error' }
 
   /admin/users/{id}/limits:
     put:
       operationId: adminSetUserLimits
       tags: [admin]
-      x-implementation-status: stub
-      description: Requires the admin role. MUST write an AdminAuditLog row.
+      x-implementation-status: implemented
+      description: >
+        Overrides a user's per-user daily generation caps and writes an
+        AdminAuditLog row in the same transaction (PRD §6.13). Requires the admin
+        role. A null/omitted field CLEARS that override (falls back to the global
+        default); 0 is a valid "block all"; negatives are rejected (400).
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetUserLimitsRequest' }
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserLimits' }
         default: { $ref: '#/components/responses/Error' }

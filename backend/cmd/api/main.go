@@ -95,6 +95,9 @@ func run(migrateOnly bool) error {
 	}
 
 	// Outbound email.
+	// Outbound email: a real SMTP sender in production, the dev LogSender by
+	// default. New fails fast on a misconfigured provider (config.validate has
+	// already refused the log sender under APP_ENV=production).
 	mailer, err := email.New(email.Options{
 		Provider:     cfg.Email.Provider,
 		From:         cfg.Email.From,
@@ -131,6 +134,11 @@ func run(migrateOnly bool) error {
 	// ── Feature composition ───────────────────────────────────────────────
 
 	// Auth, brandkit, asset — simple features.
+	// ── Feature composition — the one place features are wired ──────────────
+	// Every feature is implemented: auth, brandkit, asset, generation, quota,
+	// reminder, and admin all register routes below. moderation and hashtag are
+	// internal (no routes) — they are dependencies of generation, not mounted
+	// here.
 	auth.New(auth.Deps{DB: db, JWT: jwtMgr, Config: cfg, Logger: log, Mailer: mailer}).RegisterRoutes(v1, mw)
 	brandkit.New(brandkit.Deps{DB: db, Config: cfg, Logger: log}).RegisterRoutes(v1, mw)
 	asset.New(asset.Deps{DB: db, Config: cfg, Logger: log, Store: assetStore}).RegisterRoutes(v1, mw)
@@ -250,6 +258,7 @@ func run(migrateOnly bool) error {
 
 	// Admin feature.
 	admin.New().RegisterRoutes(v1, mw)
+	admin.New(admin.Deps{DB: db, Config: cfg, Logger: log}).RegisterRoutes(v1, mw)
 
 	// HTTP server.
 	srv := &http.Server{
