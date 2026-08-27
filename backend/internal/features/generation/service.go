@@ -31,6 +31,7 @@ type Service struct {
 	repo  Repository
 	text  *provider.TextChain
 	image *provider.ImageChain
+	video *provider.VideoChain
 	mod   moderation.Checker
 	quota *quota.Service
 	bank  hashtag.Bank
@@ -40,15 +41,17 @@ type Service struct {
 }
 
 // NewService wires the use cases.
-func NewService(repo Repository, textChain *provider.TextChain, imageChain *provider.ImageChain, mod moderation.Checker, quotaSvc *quota.Service, bank hashtag.Bank, q queue.Queue, store storage.Store, log *slog.Logger) *Service {
+func NewService(repo Repository, textChain *provider.TextChain, imageChain *provider.ImageChain, videoChain *provider.VideoChain, mod moderation.Checker, quotaSvc *quota.Service, bank hashtag.Bank, q queue.Queue, store storage.Store, log *slog.Logger) *Service {
 	return &Service{
 		repo:  repo,
 		text:  textChain,
 		image: imageChain,
+		video: videoChain,
 		mod:   mod,
 		quota: quotaSvc,
 		bank:  bank,
 		queue: q,
+		store: store,
 		log:   log,
 	}
 }
@@ -332,15 +335,15 @@ func (s *Service) ProcessVideoJob(ctx context.Context, job queue.Job) error {
 	// Mark as running.
 	_ = s.repo.UpdateJobStatus(ctx, jobID, models.JobRunning, 1, nil)
 
-	// Run the image chain as a placeholder for video (no video provider exists yet).
-	imgReq := provider.ImageRequest{
-		CaptionEN:   payload.StoryboardText,
-		AspectRatio: "9:16", // vertical video format
-		BrandName:   payload.BrandName,
+	// Run the video provider chain.
+	videoReq := provider.VideoRequest{
+		StoryboardText: payload.StoryboardText,
+		AspectRatio:    "9:16", // vertical video format
+		BrandName:      payload.BrandName,
 	}
-	imgResult, meta, genErr := s.image.GenerateImage(ctx, imgReq)
+	videoResult, meta, genErr := s.video.GenerateVideo(ctx, videoReq)
 	if genErr != nil {
-		s.log.Error("video job: image provider failed",
+		s.log.Error("video job: video provider failed",
 			"job_id", jobID.String(),
 			"error", genErr.Error(),
 		)
@@ -348,8 +351,14 @@ func (s *Service) ProcessVideoJob(ctx context.Context, job queue.Job) error {
 		return genErr
 	}
 
-	// Persist the generated frame as an Asset.
-	assetRec, persistErr := s.persistAsset(ctx, payload.UserID, imgResult)
+	// Persist the generated video as an Asset.
+	videoAsset := provider.ImageResult{
+		ImageBytes: videoResult.VideoBytes,
+		MimeType:   videoResult.MimeType,
+		Width:      videoResult.Width,
+		Height:     videoResult.Height,
+	}
+	assetRec, persistErr := s.persistAsset(ctx, payload.UserID, videoAsset)
 	if persistErr != nil {
 		s.log.Error("video job: failed to persist asset",
 			"job_id", jobID.String(),
@@ -371,8 +380,8 @@ func (s *Service) ProcessVideoJob(ctx context.Context, job queue.Job) error {
 	}
 	_ = s.repo.CreateGenerationRecord(ctx, record)
 
-	// Mark job as done, linking to the generation record.
-	_ = s.repo.UpdateJobStatus(ctx, jobID, models.JobDone, 1, &record.ID)
+	// Mark job as done, linking to the asset (not the generation record).
+	_ = s.repo.UpdateJobStatus(ctx, jobID, models.JobDone, 1, &assetRec.ID)
 	s.log.Info("video job completed", "job_id", jobID.String(), "asset_id", assetRec.ID.String())
 
 	return nil

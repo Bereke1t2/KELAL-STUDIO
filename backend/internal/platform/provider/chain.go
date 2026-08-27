@@ -109,6 +109,55 @@ func (c *ImageChain) emit(u Usage) {
 	}
 }
 
+// VideoChain is the video-generation analogue of ImageChain.
+type VideoChain struct {
+	providers []VideoProvider
+	timeout   time.Duration
+	telemetry TelemetryFunc
+}
+
+// NewVideoChain builds a video chain. Order matters: providers are tried left
+// to right.
+func NewVideoChain(timeout time.Duration, telemetry TelemetryFunc, providers ...VideoProvider) *VideoChain {
+	return &VideoChain{providers: providers, timeout: timeout, telemetry: telemetry}
+}
+
+// Providers returns the ordered provider names (for logging/diagnostics).
+func (c *VideoChain) Providers() []string {
+	return names(len(c.providers), func(i int) string { return c.providers[i].Name() })
+}
+
+// GenerateVideo runs the failover chain, returning the winning provider's Meta
+// alongside the result. On total failure it returns a classified apperror.
+func (c *VideoChain) GenerateVideo(ctx context.Context, req VideoRequest) (VideoResult, Meta, *apperror.Error) {
+	if len(c.providers) == 0 {
+		return VideoResult{}, Meta{}, apperror.ProviderTimeout("no video providers configured")
+	}
+	var lastErr error
+	for _, p := range c.providers {
+		callCtx, cancel := context.WithTimeout(ctx, c.timeout)
+		start := time.Now()
+		res, err := p.GenerateVideo(callCtx, req)
+		latency := time.Since(start).Milliseconds()
+		cancel()
+
+		model, version := p.Model()
+		c.emit(Usage{Provider: p.Name(), Model: model, ModelVersion: version, LatencyMS: latency, Err: err})
+		if err == nil {
+			return res, Meta{Provider: p.Name(), Model: model, ModelVersion: version, LatencyMS: latency}, nil
+		}
+		log.Printf("video provider %q failed: %v", p.Name(), err)
+		lastErr = err
+	}
+	return VideoResult{}, Meta{}, classify(lastErr, "all video providers failed")
+}
+
+func (c *VideoChain) emit(u Usage) {
+	if c.telemetry != nil {
+		c.telemetry(u)
+	}
+}
+
 // Meta is the winning provider's identity, returned alongside a result so the
 // caller can persist it on the GenerationRecord (PRD §10.5).
 type Meta struct {

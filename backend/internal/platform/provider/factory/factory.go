@@ -61,3 +61,27 @@ func BuildImageChain(order []string, timeout time.Duration, telemetry provider.T
 	}
 	return provider.NewImageChain(timeout, telemetry, providers...), nil
 }
+
+// BuildVideoChain constructs a video failover chain from an ordered list of
+// provider names. Supported providers: "stub", "gemini". An empty order
+// defaults to the stub.
+func BuildVideoChain(order []string, timeout time.Duration, telemetry provider.TelemetryFunc, cfg *config.ProviderConfig) (*provider.VideoChain, error) {
+	providers := make([]provider.VideoProvider, 0, len(order))
+	for _, name := range order {
+		switch name {
+		case "stub":
+			providers = append(providers, stub.NewVideo())
+		case "gemini":
+			if cfg == nil || cfg.GeminiAPIKey == "" {
+				return nil, fmt.Errorf("factory: video provider %q requires GEMINI_API_KEY to be set", name)
+			}
+			providers = append(providers, gemini.NewVideo(cfg.GeminiAPIKey))
+		default:
+			return nil, fmt.Errorf("factory: video provider %q is not implemented (supported: stub, gemini)", name)
+		}
+	}
+	if len(providers) == 0 {
+		providers = append(providers, stub.NewVideo())
+	}
+	return provider.NewVideoChain(timeout, telemetry, providers...), nil
+}

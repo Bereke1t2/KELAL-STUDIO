@@ -485,6 +485,38 @@ paths:
               schema: { $ref: '#/components/schemas/Asset' }
         default: { $ref: '#/components/responses/Error' }
 
+  /assets/{id}:
+    get:
+      operationId: getAsset
+      tags: [assets]
+      x-implementation-status: implemented
+      description: >
+        Serves the raw image bytes for an asset. The caller must own the asset
+        (owner_user_id must match the authenticated user). Returns the image
+        with the correct Content-Type header (image/png or image/jpeg) and a
+        private cache directive. Used by the mobile app to display generated
+        images and uploaded logos.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          description: The asset UUID returned by POST /assets or POST /generate/image.
+      responses:
+        '200':
+          description: Image bytes
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+            image/jpeg:
+              schema: { type: string, format: binary }
+        '404':
+          description: Asset not found or not owned by the caller
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        default: { $ref: '#/components/responses/Error' }
+
   # ── Generation — STUBS (via the Provider Abstraction Layer; PRD §6.2/§6.5) ───
   # All /generate/* endpoints require a verified email: an unverified caller gets
   # `email_not_verified` (403) before any rate-limit, quota, or provider work

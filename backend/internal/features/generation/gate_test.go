@@ -21,6 +21,7 @@ import (
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider/stub"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/queue"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/storage"
 )
 
 // The generation surface is gated on a verified email (PRD §6.1). This wires the
@@ -41,10 +42,13 @@ func TestGenerateTextRequiresVerifiedEmail(t *testing.T) {
 		Config:     &config.Config{UseMockData: true},
 		Logger:     slog.Default(),
 		TextChain:  provider.NewTextChain(30*time.Second, nil, stub.NewText()),
+		ImageChain: provider.NewImageChain(30*time.Second, nil, stub.NewImage()),
+		VideoChain: provider.NewVideoChain(30*time.Second, nil, stub.NewVideo()),
 		Moderation: moderation.NewPermissiveChecker(),
 		Quota:      quota.NewService(quota.NewMockRepository(), quota.Limits{TextDaily: 50, ImageDaily: 20}, slog.Default()),
 		Hashtag:    hashtag.NewBank(),
 		Queue:      queue.NewInProc(3, slog.Default()),
+		Store:      storage.NewMemory(),
 	})
 	mod.Handler.RegisterRoutes(engine.Group("/v1"), mw)
 

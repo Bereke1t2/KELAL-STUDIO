@@ -119,9 +119,10 @@ type ModerationConfig struct {
 type ProviderConfig struct {
 	TextOrder    []string // failover order, e.g. ["nemotron","gemini"]; ["stub"] by default
 	ImageOrder   []string
+	VideoOrder   []string
 	Timeout      time.Duration
 	LogRequests  bool   // OQ-13/OQ-19: OFF until confidentiality/residency are resolved
-	GeminiAPIKey string // required when "gemini" is in TextOrder or ImageOrder
+	GeminiAPIKey string // required when "gemini" is in TextOrder, ImageOrder, or VideoOrder
 }
 
 // QueueConfig configures the async job queue (PRD §10.3).
@@ -206,6 +207,7 @@ func Load() (*Config, error) {
 		Provider: ProviderConfig{
 			TextOrder:    getCSV("TEXT_PROVIDER_ORDER", []string{"stub"}),
 			ImageOrder:   getCSV("IMAGE_PROVIDER_ORDER", []string{"stub"}),
+			VideoOrder:   getCSV("VIDEO_PROVIDER_ORDER", []string{"stub"}),
 			Timeout:      getDuration("PROVIDER_TIMEOUT", 20*time.Second),
 			LogRequests:  getBool("PROVIDER_LOG_REQUESTS", false),
 			GeminiAPIKey: getStr("GEMINI_API_KEY", ""),

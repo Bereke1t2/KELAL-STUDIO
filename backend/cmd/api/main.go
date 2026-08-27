@@ -154,6 +154,15 @@ func run(migrateOnly bool) error {
 	if err != nil {
 		return fmt.Errorf("building image provider chain: %w", err)
 	}
+	videoChain, err := factory.BuildVideoChain(
+		cfg.Provider.VideoOrder,
+		cfg.Provider.Timeout,
+		nil,
+		&cfg.Provider,
+	)
+	if err != nil {
+		return fmt.Errorf("building video provider chain: %w", err)
+	}
 
 	// Moderation.
 	var modChecker moderation.Checker
@@ -207,6 +216,7 @@ func run(migrateOnly bool) error {
 		Logger:     log,
 		TextChain:  textChain,
 		ImageChain: imageChain,
+		VideoChain: videoChain,
 		Moderation: modChecker,
 		Quota:      quotaSvc,
 		Hashtag:    hashBank,
