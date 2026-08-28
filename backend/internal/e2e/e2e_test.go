@@ -358,9 +358,15 @@ func setupE2EApp(t *testing.T) *testApp {
 	return app
 }
 
+// e2eResponse wraps HTTP response metadata without leaking raw http.Response to satisfy bodyclose.
+type e2eResponse struct {
+	StatusCode int
+	Header     http.Header
+}
+
 // Helpers for issuing HTTP requests to the live test server
 
-func (a *testApp) postJSON(t *testing.T, path string, body any, bearer string) (*http.Response, []byte) {
+func (a *testApp) postJSON(t *testing.T, path string, body any, bearer string) (e2eResponse, []byte) {
 	t.Helper()
 	var buf bytes.Buffer
 	if body != nil {
@@ -380,13 +386,15 @@ func (a *testApp) postJSON(t *testing.T, path string, body any, bearer string) (
 	if err != nil {
 		t.Fatalf("postJSON %s: %v", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	var resBuf bytes.Buffer
 	_, _ = resBuf.ReadFrom(resp.Body)
-	return resp, resBuf.Bytes()
+	return e2eResponse{StatusCode: resp.StatusCode, Header: resp.Header}, resBuf.Bytes()
 }
 
-func (a *testApp) get(t *testing.T, path string, bearer string) (*http.Response, []byte) {
+func (a *testApp) get(t *testing.T, path string, bearer string) (e2eResponse, []byte) {
 	t.Helper()
 	req, err := http.NewRequest(http.MethodGet, a.server.URL+path, nil)
 	if err != nil {
@@ -399,13 +407,15 @@ func (a *testApp) get(t *testing.T, path string, bearer string) (*http.Response,
 	if err != nil {
 		t.Fatalf("get %s: %v", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	var resBuf bytes.Buffer
 	_, _ = resBuf.ReadFrom(resp.Body)
-	return resp, resBuf.Bytes()
+	return e2eResponse{StatusCode: resp.StatusCode, Header: resp.Header}, resBuf.Bytes()
 }
 
-func (a *testApp) putJSON(t *testing.T, path string, body any, bearer string) (*http.Response, []byte) {
+func (a *testApp) putJSON(t *testing.T, path string, body any, bearer string) (e2eResponse, []byte) {
 	t.Helper()
 	var buf bytes.Buffer
 	if body != nil {
@@ -425,13 +435,15 @@ func (a *testApp) putJSON(t *testing.T, path string, body any, bearer string) (*
 	if err != nil {
 		t.Fatalf("putJSON %s: %v", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	var resBuf bytes.Buffer
 	_, _ = resBuf.ReadFrom(resp.Body)
-	return resp, resBuf.Bytes()
+	return e2eResponse{StatusCode: resp.StatusCode, Header: resp.Header}, resBuf.Bytes()
 }
 
-func (a *testApp) deleteReq(t *testing.T, path string, bearer string) (*http.Response, []byte) {
+func (a *testApp) deleteReq(t *testing.T, path string, bearer string) (e2eResponse, []byte) {
 	t.Helper()
 	req, err := http.NewRequest(http.MethodDelete, a.server.URL+path, nil)
 	if err != nil {
@@ -444,13 +456,15 @@ func (a *testApp) deleteReq(t *testing.T, path string, bearer string) (*http.Res
 	if err != nil {
 		t.Fatalf("deleteReq %s: %v", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	var resBuf bytes.Buffer
 	_, _ = resBuf.ReadFrom(resp.Body)
-	return resp, resBuf.Bytes()
+	return e2eResponse{StatusCode: resp.StatusCode, Header: resp.Header}, resBuf.Bytes()
 }
 
-func (a *testApp) uploadFile(t *testing.T, path, field, filename string, content []byte, bearer string) (*http.Response, []byte) {
+func (a *testApp) uploadFile(t *testing.T, path, field, filename string, content []byte, bearer string) (e2eResponse, []byte) {
 	t.Helper()
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
@@ -475,10 +489,12 @@ func (a *testApp) uploadFile(t *testing.T, path, field, filename string, content
 	if err != nil {
 		t.Fatalf("uploadFile %s: %v", path, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	var resBuf bytes.Buffer
 	_, _ = resBuf.ReadFrom(resp.Body)
-	return resp, resBuf.Bytes()
+	return e2eResponse{StatusCode: resp.StatusCode, Header: resp.Header}, resBuf.Bytes()
 }
 
 func extractTokenFromBody(t *testing.T, body string) string {
