@@ -257,7 +257,6 @@ func run(migrateOnly bool) error {
 	}()
 
 	// Admin feature.
-	admin.New().RegisterRoutes(v1, mw)
 	admin.New(admin.Deps{DB: db, Config: cfg, Logger: log}).RegisterRoutes(v1, mw)
 
 	// HTTP server.
