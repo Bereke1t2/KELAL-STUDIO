@@ -9,11 +9,16 @@
  * This is the foundation branch: routing, auth, and the real screens land in
  * the branches stacked on top of this one.
  */
+import { AppRouter } from './app/router';
+import { AuthProvider } from './auth/AuthContext';
+import { ThemeProvider } from './theme/ThemeContext';
+
 export function App() {
   return (
-    <main>
-      <h1>Kelal Studio</h1>
-      <p>Management portal</p>
-    </main>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppRouter />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

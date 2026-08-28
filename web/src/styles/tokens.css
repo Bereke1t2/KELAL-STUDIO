@@ -51,6 +51,9 @@
   --color-icon-brand: #855312;
   --color-icon-on-brand: #ffffff;
   --color-icon-secondary: #757575;
+  /* Label drawn on a brand fill (button text). A separate Figma variable from
+     icon/on-brand — node 14:2 binds the button label to text/on-brand. */
+  --color-text-on-brand: #ffffff;
 
   /* ---- Semantic: interactive ----------------------------------------- */
   /* Primary fill states, verified against `Color — Interactive States`,
@@ -120,6 +123,10 @@
   --color-icon-brand: var(--gold-400);
   --color-icon-on-brand: #000000;
   --color-icon-secondary: #a3a3a3;
+  /* DERIVED — no dark binding was readable for text/on-brand. Mirrors
+     icon/on-brand's VERIFIED dark value (#000000), since both are the
+     "content on a light-gold fill" role. Confirm with design. */
+  --color-text-on-brand: #000000;
   --color-interactive-tertiary-text: var(--gold-300);
 
   /* DERIVED — same primitive ramps as their light counterparts. */
