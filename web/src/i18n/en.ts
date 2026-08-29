@@ -27,6 +27,8 @@ export const en = {
   'action.saving': 'Saving…',
   'action.cancel': 'Cancel',
   'action.retry': 'Try again',
+  'action.copy': 'Copy',
+  'action.copied': 'Copied',
   'state.loading': 'Loading…',
 
   // Theme control
@@ -131,9 +133,49 @@ export const en = {
   'brandKit.preview.disclaimer':
     'Approximate preview. The final image is composed on the device at export time and may differ.',
 
-  // Placeholder screens (removed as each feature branch lands)
-  'placeholder.title': 'Coming soon',
-  'placeholder.body': 'This screen lands in a branch stacked on top of this one.',
+  // Admin — shared
+  'admin.forbidden':
+    'This account does not have admin access. Ask an administrator to grant it.',
+
+  // Admin — usage
+  'admin.usage.description':
+    'Whole-population totals. No targets are set yet, so nothing here is marked good or bad.',
+  'admin.usage.totalUsers': 'Total users',
+  'admin.usage.totalGenerations': 'Total generations',
+  'admin.usage.textGenerations': 'Text generations',
+  'admin.usage.imageGenerations': 'Image generations',
+  'admin.usage.videoGenerations': 'Video generations',
+  'admin.usage.totalFlags': 'Flagged prompts',
+  'admin.usage.pendingFlags': 'Pending review',
+
+  // Admin — flagged prompts
+  'admin.flags.description':
+    'Prompts the moderation filter stopped. Review each one.',
+  'admin.flags.confidential':
+    'These are unpublished business plans. Treat them as confidential — do not copy them elsewhere.',
+  'admin.flags.filterLabel': 'Filter',
+  'admin.flags.pending': 'Pending',
+  'admin.flags.all': 'All',
+  'admin.flags.markReviewed': 'Mark reviewed',
+  'admin.flags.alreadyReviewed': 'Another admin reviewed this first.',
+  'admin.flags.reviewedBy': 'Reviewed by {id} on {at}',
+  'admin.flags.emptyPending': 'Nothing pending review.',
+  'admin.flags.empty': 'No flagged prompts.',
+
+  // Admin — user limits
+  'admin.limits.description':
+    "Set a user's daily caps. Raising a cap draws on the beta's shared provider budget.",
+  'admin.limits.noRoster':
+    "There is no user directory yet. Paste a user's ID to set their limits.",
+  'admin.limits.userId': 'User ID',
+  'admin.limits.textCap': 'Daily text generations',
+  'admin.limits.imageCap': 'Daily image generations',
+  'admin.limits.default': 'Use the global default',
+  'admin.limits.block': 'Block all (0)',
+  'admin.limits.custom': 'Set a custom cap',
+  'admin.limits.customValue': 'Custom {field} value',
+  'admin.limits.apply': 'Apply limits',
+  'admin.limits.saved': 'Limits updated for {id}.',
 
   // Errors (shared, plain-language — never a raw status)
   'error.network': 'Could not reach the server. Check your connection and try again.',

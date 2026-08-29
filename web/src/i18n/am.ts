@@ -33,6 +33,8 @@ const am: Messages = {
   'action.saving': 'በማስቀመጥ ላይ…',
   'action.cancel': 'ይቅር',
   'action.retry': 'እንደገና ይሞክሩ',
+  'action.copy': 'ቅዳ',
+  'action.copied': 'ተቀድቷል',
   'state.loading': 'በመጫን ላይ…',
 
   'theme.label': 'ገጽታ',
@@ -128,8 +130,45 @@ const am: Messages = {
   'brandKit.preview.disclaimer':
     'ግምታዊ ቅድመ-እይታ። የመጨረሻው ምስል በመሣሪያው ላይ በመላክ ጊዜ ይዘጋጃል እና ሊለያይ ይችላል።',
 
-  'placeholder.title': 'በቅርቡ ይመጣል',
-  'placeholder.body': 'ይህ ማያ ገጽ ከዚህ በላይ በተደረደረ ቅርንጫፍ ውስጥ ይመጣል።',
+  'admin.forbidden':
+    'ይህ መለያ የአስተዳዳሪ መዳረሻ የለውም። አስተዳዳሪ እንዲሰጥዎት ይጠይቁ።',
+
+  'admin.usage.description':
+    'የመላው ተጠቃሚ ድምሮች። እስካሁን ዒላማ አልተቀመጠም፣ ስለዚህ እዚህ ምንም ጥሩ ወይም መጥፎ ተብሎ አልተሰየመም።',
+  'admin.usage.totalUsers': 'ጠቅላላ ተጠቃሚዎች',
+  'admin.usage.totalGenerations': 'ጠቅላላ ትውልዶች',
+  'admin.usage.textGenerations': 'የጽሑፍ ትውልዶች',
+  'admin.usage.imageGenerations': 'የምስል ትውልዶች',
+  'admin.usage.videoGenerations': 'የቪዲዮ ትውልዶች',
+  'admin.usage.totalFlags': 'የተጠቆሙ ጥያቄዎች',
+  'admin.usage.pendingFlags': 'በመጠባበቅ ላይ',
+
+  'admin.flags.description': 'የማጣሪያ ማጣሪያው ያቆማቸው ጥያቄዎች። እያንዳንዱን ይገምግሙ።',
+  'admin.flags.confidential':
+    'እነዚህ ያልታተሙ የንግድ ዕቅዶች ናቸው። እንደ ሚስጥራዊ ያዙዋቸው — ወደ ሌላ ቦታ አይቅዱዋቸው።',
+  'admin.flags.filterLabel': 'አጣራ',
+  'admin.flags.pending': 'በመጠባበቅ ላይ',
+  'admin.flags.all': 'ሁሉም',
+  'admin.flags.markReviewed': 'እንደተገመገመ ምልክት አድርግ',
+  'admin.flags.alreadyReviewed': 'ሌላ አስተዳዳሪ ይህንን አስቀድሞ ገምግሞታል።',
+  'admin.flags.reviewedBy': 'በ{id} በ{at} ተገምግሟል',
+  'admin.flags.emptyPending': 'በመጠባበቅ ላይ ምንም የለም።',
+  'admin.flags.empty': 'ምንም የተጠቆመ ጥያቄ የለም።',
+
+  'admin.limits.description':
+    'የተጠቃሚን ዕለታዊ ገደቦች ያዘጋጁ። ገደብ ማሳደግ ከቤታው የጋራ የአቅራቢ በጀት ላይ ይወስዳል።',
+  'admin.limits.noRoster':
+    'እስካሁን የተጠቃሚ ማውጫ የለም። ገደቦቻቸውን ለማዘጋጀት የተጠቃሚውን መታወቂያ ይለጥፉ።',
+  'admin.limits.userId': 'የተጠቃሚ መታወቂያ',
+  'admin.limits.textCap': 'ዕለታዊ የጽሑፍ ትውልዶች',
+  'admin.limits.imageCap': 'ዕለታዊ የምስል ትውልዶች',
+  'admin.limits.default': 'ዓለም አቀፍ ነባሪውን ተጠቀም',
+  'admin.limits.block': 'ሁሉንም አግድ (0)',
+  'admin.limits.custom': 'ብጁ ገደብ አዘጋጅ',
+  'admin.limits.customValue': 'ብጁ {field} ዋጋ',
+  'admin.limits.apply': 'ገደቦችን ተግብር',
+  'admin.limits.saved': 'ለ{id} ገደቦች ተዘምነዋል።',
+
 
   'error.network': 'አገልጋዩ ላይ መድረስ አልተቻለም። ግንኙነትዎን አረጋግጠው እንደገና ይሞክሩ።',
   'error.session': 'ክፍለ ጊዜዎ አብቅቷል። እባክዎ እንደገና ይግቡ።',

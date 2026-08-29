@@ -1,7 +1,9 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 
-import { PlaceholderPage } from '../features/PlaceholderPage';
 import { BrandKitPage } from '../features/brandKit/BrandKitPage';
+import { FlagsPage } from '../features/admin/FlagsPage';
+import { UsagePage } from '../features/admin/UsagePage';
+import { UsersPage } from '../features/admin/UsersPage';
 import { ForgotPasswordPage } from '../features/auth/ForgotPasswordPage';
 import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
@@ -18,8 +20,7 @@ import { PublicOnlyRoute } from './PublicOnlyRoute';
  * a signed-in user to the portal), and everything else under <ProtectedRoute>
  * (which redirects an anonymous visitor to /login, remembering where they were
  * headed). Scope is Brand Kit + admin (PRD §4, §5.6) — the composer is
- * mobile-only, so there is deliberately no generation route. The Brand Kit and
- * admin screens are placeholders until their feature branches replace them.
+ * mobile-only, so there is deliberately no generation route.
  */
 export function AppRouter() {
   return (
@@ -39,33 +40,9 @@ export function AppRouter() {
           <Route element={<AppShell />}>
             <Route index element={<Navigate to="/brand-kit" replace />} />
             <Route path="/brand-kit" element={<BrandKitPage />} />
-            <Route
-              path="/admin/usage"
-              element={
-                <PlaceholderPage
-                  eyebrowKey="nav.group.oversight"
-                  titleKey="nav.usage"
-                />
-              }
-            />
-            <Route
-              path="/admin/flags"
-              element={
-                <PlaceholderPage
-                  eyebrowKey="nav.group.oversight"
-                  titleKey="nav.flags"
-                />
-              }
-            />
-            <Route
-              path="/admin/users"
-              element={
-                <PlaceholderPage
-                  eyebrowKey="nav.group.oversight"
-                  titleKey="nav.users"
-                />
-              }
-            />
+            <Route path="/admin/usage" element={<UsagePage />} />
+            <Route path="/admin/flags" element={<FlagsPage />} />
+            <Route path="/admin/users" element={<UsersPage />} />
             {/* A bad URL while signed in is a normal way to arrive. */}
             <Route path="*" element={<Navigate to="/brand-kit" replace />} />
           </Route>
