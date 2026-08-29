@@ -23,6 +23,10 @@ describe('i18n catalog parity', () => {
       // Language names are intentionally the same in both catalogs.
       'lang.en',
       'lang.am',
+      // The preview card always shows one English and one Amharic sample line,
+      // whatever the UI locale — so each is identical across catalogs.
+      'brandKit.preview.sampleEn',
+      'brandKit.preview.sampleAm',
     ]);
     const untranslated = enKeys.filter(
       (k) => !allowlist.has(k) && am[k] === en[k],

@@ -100,6 +100,37 @@ export const en = {
   'reset.noToken.body': 'Request a new password reset link to continue.',
   'reset.requestNew': 'Request a new link',
 
+  // Brand Kit
+  'brandKit.description':
+    'Configure the brand your generated posts are built from. Changes take effect on your next mobile session.',
+  'brandKit.saved': 'Saved. This applies on your next mobile session.',
+  'brandKit.unsaved': 'Unsaved changes',
+  'brandKit.field.name': 'Brand name',
+  'brandKit.field.primary': 'Primary colour',
+  'brandKit.field.secondary': 'Secondary colour',
+  'brandKit.field.tone': 'Tone of voice',
+  'brandKit.field.toneHint': 'e.g. warm and concise, playful, formal',
+  'brandKit.field.contact': 'Contact info',
+  'brandKit.field.hexHint': 'Enter a hex colour like #1a2b3c.',
+  'brandKit.logo.label': 'Logo',
+  'brandKit.logo.limits': 'JPEG or PNG, up to 10 MB, 200–4096 px on each side.',
+  'brandKit.logo.choose': 'Choose file',
+  'brandKit.logo.uploading': 'Uploading…',
+  'brandKit.logo.uploaded': '{name} — {w}×{h}, uploaded',
+  'brandKit.logo.onFile': 'A logo is on file.',
+  'brandKit.logo.remove': 'Remove',
+  'brandKit.preview.title': 'Brand preview (approximate)',
+  'brandKit.preview.localeLabel': 'Preview language',
+  'brandKit.preview.placeholderName': 'Your brand',
+  'brandKit.preview.safeZone': 'Safe area',
+  'brandKit.preview.sampleEn': 'New this week at {brand} — come and see us.',
+  'brandKit.preview.sampleAm':
+    'በዚህ ሳምንት በ{brand} አዲስ ነገር አለ — ይምጡና ይጎብኙን።',
+  'brandKit.preview.cta': 'Visit us',
+  'brandKit.preview.toneLabel': 'Tone — {tone}',
+  'brandKit.preview.disclaimer':
+    'Approximate preview. The final image is composed on the device at export time and may differ.',
+
   // Placeholder screens (removed as each feature branch lands)
   'placeholder.title': 'Coming soon',
   'placeholder.body': 'This screen lands in a branch stacked on top of this one.',

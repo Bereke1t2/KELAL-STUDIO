@@ -98,6 +98,36 @@ const am: Messages = {
   'reset.noToken.body': 'ለመቀጠል አዲስ የይለፍ ቃል ዳግም ማስጀመሪያ አገናኝ ይጠይቁ።',
   'reset.requestNew': 'አዲስ አገናኝ ይጠይቁ',
 
+  'brandKit.description':
+    'የሚፈጠሩ ልጥፎችዎ የሚገነቡበትን ብራንድ ያዋቅሩ። ለውጦች በሚቀጥለው የሞባይል ክፍለ ጊዜዎ ተግባራዊ ይሆናሉ።',
+  'brandKit.saved': 'ተቀምጧል። ይህ በሚቀጥለው የሞባይል ክፍለ ጊዜዎ ተግባራዊ ይሆናል።',
+  'brandKit.unsaved': 'ያልተቀመጡ ለውጦች',
+  'brandKit.field.name': 'የብራንድ ስም',
+  'brandKit.field.primary': 'ዋና ቀለም',
+  'brandKit.field.secondary': 'ሁለተኛ ቀለም',
+  'brandKit.field.tone': 'የአነጋገር ቃና',
+  'brandKit.field.toneHint': 'ለምሳሌ፦ ሞቅ ያለ እና አጭር፣ ተጫዋች፣ መደበኛ',
+  'brandKit.field.contact': 'የመገኛ መረጃ',
+  'brandKit.field.hexHint': 'እንደ #1a2b3c ያለ የሄክስ ቀለም ያስገቡ።',
+  'brandKit.logo.label': 'አርማ',
+  'brandKit.logo.limits': 'JPEG ወይም PNG፣ እስከ 10 ሜባ፣ በእያንዳንዱ ጎን 200–4096 ፒክስል።',
+  'brandKit.logo.choose': 'ፋይል ይምረጡ',
+  'brandKit.logo.uploading': 'በመስቀል ላይ…',
+  'brandKit.logo.uploaded': '{name} — {w}×{h}፣ ተሰቅሏል',
+  'brandKit.logo.onFile': 'አርማ ተመዝግቧል።',
+  'brandKit.logo.remove': 'አስወግድ',
+  'brandKit.preview.title': 'የብራንድ ቅድመ-እይታ (ግምታዊ)',
+  'brandKit.preview.localeLabel': 'የቅድመ-እይታ ቋንቋ',
+  'brandKit.preview.placeholderName': 'ብራንድዎ',
+  'brandKit.preview.safeZone': 'አስተማማኝ ቦታ',
+  'brandKit.preview.sampleEn': 'New this week at {brand} — come and see us.',
+  'brandKit.preview.sampleAm':
+    'በዚህ ሳምንት በ{brand} አዲስ ነገር አለ — ይምጡና ይጎብኙን።',
+  'brandKit.preview.cta': 'ይጎብኙን',
+  'brandKit.preview.toneLabel': 'ቃና — {tone}',
+  'brandKit.preview.disclaimer':
+    'ግምታዊ ቅድመ-እይታ። የመጨረሻው ምስል በመሣሪያው ላይ በመላክ ጊዜ ይዘጋጃል እና ሊለያይ ይችላል።',
+
   'placeholder.title': 'በቅርቡ ይመጣል',
   'placeholder.body': 'ይህ ማያ ገጽ ከዚህ በላይ በተደረደረ ቅርንጫፍ ውስጥ ይመጣል።',
 

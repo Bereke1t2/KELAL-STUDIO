@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 
 import { PlaceholderPage } from '../features/PlaceholderPage';
+import { BrandKitPage } from '../features/brandKit/BrandKitPage';
 import { ForgotPasswordPage } from '../features/auth/ForgotPasswordPage';
 import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
@@ -37,15 +38,7 @@ export function AppRouter() {
               navigations, so theme/locale state and focus are not torn down. */}
           <Route element={<AppShell />}>
             <Route index element={<Navigate to="/brand-kit" replace />} />
-            <Route
-              path="/brand-kit"
-              element={
-                <PlaceholderPage
-                  eyebrowKey="nav.group.brand"
-                  titleKey="nav.brandKit"
-                />
-              }
-            />
+            <Route path="/brand-kit" element={<BrandKitPage />} />
             <Route
               path="/admin/usage"
               element={
