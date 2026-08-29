@@ -1,20 +1,23 @@
 import { useState, type FormEvent } from 'react';
 
 import { useAuth } from '../../auth/AuthContext';
+import { useTranslation } from '../../i18n/I18nContext';
 import { Alert } from '../../ui/Alert';
 import { Button } from '../../ui/Button';
 import { errorMessage } from '../../ui/errorMessage';
 import { Field } from '../../ui/Field';
 
 /**
- * Portal sign-in.
+ * Portal sign-in. Rendered inside <AuthScreen>, which provides the wordmark
+ * and the language/theme controls.
  *
- * Temporary shape for the teardown branch: email + password only. The
- * redesigned sign-in and the rest of the front door (register, verify email,
- * password reset) land in `feat/web-self-serve-auth`, stacked on top of this.
+ * Temporary shape for this branch: email + password only. The full front door
+ * (register, verify email, password reset) and a redesigned sign-in land in
+ * `feat/web-self-serve-auth`, stacked on top.
  */
 export function LoginPage() {
   const { login } = useAuth();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -28,8 +31,8 @@ export function LoginPage() {
     try {
       await login(email, password);
     } catch (err) {
-      // The backend returns one generic message for a wrong password AND an
-      // unknown email, by design (PRD §6.1) — do not try to be more specific.
+      // One generic message for wrong password AND unknown email, by design
+      // (PRD §6.1) — do not try to be more specific.
       setError(errorMessage(err));
     } finally {
       setSubmitting(false);
@@ -37,40 +40,34 @@ export function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-canvas px-4">
-      <form
-        onSubmit={onSubmit}
-        noValidate
-        className="flex w-full max-w-sm flex-col gap-4 rounded-lg border border-line bg-surface p-8"
-      >
-        <div className="flex flex-col gap-1">
-          <h1 className="text-title text-ink">Kelal Studio</h1>
-          <p className="text-body-sm text-ink-secondary">Management portal</p>
-        </div>
+    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-title text-ink">{t('login.title')}</h1>
+        <p className="text-body-sm text-ink-secondary">{t('login.subtitle')}</p>
+      </div>
 
-        {error ? <Alert tone="error">{error}</Alert> : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
 
-        <Field
-          label="Email"
-          type="email"
-          value={email}
-          autoComplete="username"
-          required
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <Field
-          label="Password"
-          type="password"
-          value={password}
-          autoComplete="current-password"
-          required
-          onChange={(e) => setPassword(e.target.value)}
-        />
+      <Field
+        label={t('login.email')}
+        type="email"
+        value={email}
+        autoComplete="username"
+        required
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <Field
+        label={t('login.password')}
+        type="password"
+        value={password}
+        autoComplete="current-password"
+        required
+        onChange={(e) => setPassword(e.target.value)}
+      />
 
-        <Button type="submit" disabled={submitting}>
-          {submitting ? 'Signing in…' : 'Sign in'}
-        </Button>
-      </form>
-    </main>
+      <Button type="submit" block disabled={submitting}>
+        {submitting ? t('login.submitting') : t('login.submit')}
+      </Button>
+    </form>
   );
 }

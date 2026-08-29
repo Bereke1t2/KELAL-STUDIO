@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 
 /**
- * Feedback banner — Figma `Color — Feedback` (node 11:4), documented in-file
- * as powering the Toast/Banner and Badge components directly.
+ * Feedback banner — Figma `Color — Feedback` (node 11:4), which also powers
+ * Toast/Banner/Badge.
  *
  * Every failure the portal shows should land here rather than in a bare
  * string, so the PRD's "plain-language guidance, never a raw technical error"
@@ -19,18 +19,21 @@ const TONES: Record<AlertTone, string> = {
 
 export function Alert({
   tone = 'info',
+  title,
   children,
 }: {
   tone?: AlertTone;
+  title?: string;
   children: ReactNode;
 }) {
   return (
     <div
       // Errors interrupt; the rest are announced politely when convenient.
       role={tone === 'error' ? 'alert' : 'status'}
-      className={`rounded-md border px-4 py-3 text-sm ${TONES[tone]}`}
+      className={`flex flex-col gap-1 rounded-md border px-4 py-3 text-body-sm ${TONES[tone]}`}
     >
-      {children}
+      {title ? <p className="tracking-[0.01em]">{title}</p> : null}
+      <div className={title ? 'opacity-90' : undefined}>{children}</div>
     </div>
   );
 }
