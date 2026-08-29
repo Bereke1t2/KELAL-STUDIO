@@ -14,6 +14,7 @@ import 'package:kelal_studio/features/canvas_editor/presentation/bloc/canvas_edi
 import 'package:kelal_studio/features/canvas_editor/presentation/bloc/canvas_editor_event.dart';
 import 'package:kelal_studio/features/canvas_editor/presentation/bloc/canvas_editor_state.dart';
 import 'package:kelal_studio/features/canvas_editor/presentation/widgets/safe_zone_guide.dart';
+import 'package:kelal_studio/features/drafts/presentation/cubit/draft_autosave_cubit.dart';
 import 'package:kelal_studio/features/export/presentation/pages/export_page.dart';
 import 'package:kelal_studio/features/generation/domain/entities/aspect_ratio.dart';
 
@@ -26,16 +27,32 @@ import 'package:kelal_studio/features/generation/domain/entities/aspect_ratio.da
 /// unchanged into an [ExportPageArgs] once the user taps Continue — this is
 /// where that thread starts, fed by `ComposerPage`'s `ImageGenerationSuccess`
 /// listener (`composer_page.dart`).
+///
+/// [inputText]/[brandKitId] exist purely to feed `DraftAutosaveCubit` (PRD
+/// §10.5) — neither is rendered by this page. [inputText] is required (a
+/// draft with no idea text behind it isn't meaningful); [brandKitId] is
+/// left `null` when the caller has no brand kit id in scope at this point
+/// in the flow (e.g. `ComposerPage` today doesn't thread one through its
+/// generation request) rather than inventing new cross-feature plumbing to
+/// populate it — a real, flagged gap, not a bug. **Also note**: resuming a
+/// saved draft (`DraftsPage`) can only recover [inputText], never the
+/// original captions — they aren't part of PRD §10.5's draft schema — so a
+/// resumed draft's [captionEn]/[captionAm] arrive here as empty strings;
+/// see `DraftsPage`'s listener for the other side of this same note.
 class CanvasEditorPageArgs {
   const CanvasEditorPageArgs({
     required this.scene,
     required this.captionEn,
     required this.captionAm,
+    required this.inputText,
+    this.brandKitId,
   });
 
   final CanvasScene scene;
   final String captionEn;
   final String captionAm;
+  final String inputText;
+  final String? brandKitId;
 }
 
 /// The interactive canvas editor — PRD §6.9. Owns no generation logic
@@ -51,9 +68,18 @@ class CanvasEditorPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) =>
-          getIt<CanvasEditorBloc>()..add(CanvasEditorSceneLoaded(args.scene)),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) =>
+              getIt<CanvasEditorBloc>()
+                ..add(CanvasEditorSceneLoaded(args.scene)),
+        ),
+        // PRD §10.5's debounced local-draft autosave — fed from every
+        // CanvasEditorBloc scene change via the BlocListener in
+        // _CanvasEditorView below, not read directly here.
+        BlocProvider(create: (_) => getIt<DraftAutosaveCubit>()),
+      ],
       child: _CanvasEditorView(args: args),
     );
   }
@@ -107,172 +133,199 @@ class _CanvasEditorView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.canvasEditorTitle)),
-      body: BlocConsumer<CanvasEditorBloc, CanvasEditorState>(
-        // Auto-opens the tap-to-edit sheet for a layer the moment it's
-        // added — CanvasEditorBloc._onLayerAdded intentionally leaves new
-        // layers with empty text (see that method's doc comment on why it
-        // isn't a placeholder phrase), so without this the user would see
-        // an invisible, empty text box with no obvious next step.
-        listenWhen: (previous, current) {
-          if (previous is! CanvasEditorReady || current is! CanvasEditorReady) {
-            return false;
-          }
-          final selectedId = current.selectedLayerId;
-          return selectedId != null &&
-              selectedId != previous.selectedLayerId &&
-              current.scene.textLayers.any(
-                (l) => l.id == selectedId && l.text.isEmpty,
+      body: MultiBlocListener(
+        listeners: [
+          // PRD §10.5's local-draft autosave: every CanvasEditorReady scene
+          // change restarts DraftAutosaveCubit's debounce timer. Separate
+          // BlocListener (rather than folding into the BlocConsumer below)
+          // so this autosave hook and the tap-to-edit-sheet behavior stay
+          // independently `listenWhen`-gated instead of one hand-rolled
+          // condition trying to cover both.
+          BlocListener<CanvasEditorBloc, CanvasEditorState>(
+            listenWhen: (previous, current) => current is CanvasEditorReady,
+            listener: (context, state) {
+              final ready = state as CanvasEditorReady;
+              context.read<DraftAutosaveCubit>().sceneChanged(
+                ready.scene,
+                inputText: args.inputText,
+                brandKitId: args.brandKitId,
               );
-        },
-        listener: (context, state) {
-          final ready = state as CanvasEditorReady;
-          final layer = ready.scene.textLayers.firstWhere(
-            (l) => l.id == ready.selectedLayerId,
-          );
-          _openEditSheet(context, layer);
-        },
-        builder: (context, state) {
-          if (state is! CanvasEditorReady) {
-            return const SizedBox.shrink();
-          }
-          final bloc = context.read<CanvasEditorBloc>();
-          final scene = state.scene;
+            },
+          ),
+        ],
+        child: BlocConsumer<CanvasEditorBloc, CanvasEditorState>(
+          // Auto-opens the tap-to-edit sheet for a layer the moment it's
+          // added — CanvasEditorBloc._onLayerAdded intentionally leaves new
+          // layers with empty text (see that method's doc comment on why it
+          // isn't a placeholder phrase), so without this the user would see
+          // an invisible, empty text box with no obvious next step.
+          listenWhen: (previous, current) {
+            if (previous is! CanvasEditorReady ||
+                current is! CanvasEditorReady) {
+              return false;
+            }
+            final selectedId = current.selectedLayerId;
+            return selectedId != null &&
+                selectedId != previous.selectedLayerId &&
+                current.scene.textLayers.any(
+                  (l) => l.id == selectedId && l.text.isEmpty,
+                );
+          },
+          listener: (context, state) {
+            final ready = state as CanvasEditorReady;
+            final layer = ready.scene.textLayers.firstWhere(
+              (l) => l.id == ready.selectedLayerId,
+            );
+            _openEditSheet(context, layer);
+          },
+          builder: (context, state) {
+            if (state is! CanvasEditorReady) {
+              return const SizedBox.shrink();
+            }
+            final bloc = context.read<CanvasEditorBloc>();
+            final scene = state.scene;
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: AppSegmentedControl(
-                  key: const Key('canvas_editor_aspect_ratio_selector'),
-                  labels: const ['1:1', '4:5'],
-                  selectedIndex: _selectedRatioIndex(scene.canvasSize),
-                  onChanged: (index) =>
-                      bloc.add(CanvasEditorAspectRatioChanged(_ratios[index])),
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: AppSegmentedControl(
+                    key: const Key('canvas_editor_aspect_ratio_selector'),
+                    labels: const ['1:1', '4:5'],
+                    selectedIndex: _selectedRatioIndex(scene.canvasSize),
+                    onChanged: (index) => bloc.add(
+                      CanvasEditorAspectRatioChanged(_ratios[index]),
+                    ),
                   ),
-                  child: Center(
-                    child: AspectRatio(
-                      aspectRatio:
-                          scene.canvasSize.width / scene.canvasSize.height,
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final boxSize = constraints.biggest;
-                          return GestureDetector(
-                            key: const Key('canvas_editor_deselect_area'),
-                            onTap: () =>
-                                bloc.add(const CanvasEditorLayerSelected(null)),
-                            child: Stack(
-                              children: [
-                                Positioned.fill(
-                                  child: CustomPaint(
-                                    key: const Key(
-                                      'canvas_editor_canvas_paint',
-                                    ),
-                                    painter: CanvasScenePainter(scene),
-                                  ),
-                                ),
-                                Positioned.fill(
-                                  child: SafeZoneGuide(boxSize: boxSize),
-                                ),
-                                for (final layer in scene.textLayers)
-                                  _DraggableTextLayer(
-                                    key: Key('canvas_editor_layer_${layer.id}'),
-                                    layer: layer,
-                                    selected: layer.id == state.selectedLayerId,
-                                    canvasSize: scene.canvasSize,
-                                    boxSize: boxSize,
-                                    onSelected: () => bloc.add(
-                                      CanvasEditorLayerSelected(layer.id),
-                                    ),
-                                    onDragUpdated: (delta) => bloc.add(
-                                      CanvasEditorLayerDragUpdated(
-                                        layerId: layer.id,
-                                        screenDelta: delta,
-                                        boxSize: boxSize,
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                    ),
+                    child: Center(
+                      child: AspectRatio(
+                        aspectRatio:
+                            scene.canvasSize.width / scene.canvasSize.height,
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final boxSize = constraints.biggest;
+                            return GestureDetector(
+                              key: const Key('canvas_editor_deselect_area'),
+                              onTap: () => bloc.add(
+                                const CanvasEditorLayerSelected(null),
+                              ),
+                              child: Stack(
+                                children: [
+                                  Positioned.fill(
+                                    child: CustomPaint(
+                                      key: const Key(
+                                        'canvas_editor_canvas_paint',
                                       ),
+                                      painter: CanvasScenePainter(scene),
                                     ),
-                                    onScaled: (factor) => bloc.add(
-                                      CanvasEditorLayerScaled(
-                                        layerId: layer.id,
-                                        scaleFactor: factor,
-                                      ),
-                                    ),
-                                    onTapToEdit: () =>
-                                        _openEditSheet(context, layer),
                                   ),
-                              ],
-                            ),
-                          );
-                        },
+                                  Positioned.fill(
+                                    child: SafeZoneGuide(boxSize: boxSize),
+                                  ),
+                                  for (final layer in scene.textLayers)
+                                    _DraggableTextLayer(
+                                      key: Key(
+                                        'canvas_editor_layer_${layer.id}',
+                                      ),
+                                      layer: layer,
+                                      selected:
+                                          layer.id == state.selectedLayerId,
+                                      canvasSize: scene.canvasSize,
+                                      boxSize: boxSize,
+                                      onSelected: () => bloc.add(
+                                        CanvasEditorLayerSelected(layer.id),
+                                      ),
+                                      onDragUpdated: (delta) => bloc.add(
+                                        CanvasEditorLayerDragUpdated(
+                                          layerId: layer.id,
+                                          screenDelta: delta,
+                                          boxSize: boxSize,
+                                        ),
+                                      ),
+                                      onScaled: (factor) => bloc.add(
+                                        CanvasEditorLayerScaled(
+                                          layerId: layer.id,
+                                          scaleFactor: factor,
+                                        ),
+                                      ),
+                                      onTapToEdit: () =>
+                                          _openEditSheet(context, layer),
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        key: const Key('canvas_editor_add_text_button'),
-                        onPressed: state.canAddTextLayer
-                            ? () => bloc.add(const CanvasEditorLayerAdded())
-                            : null,
-                        child: Text(l10n.canvasEditorAddTextButton),
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          key: const Key('canvas_editor_add_text_button'),
+                          onPressed: state.canAddTextLayer
+                              ? () => bloc.add(const CanvasEditorLayerAdded())
+                              : null,
+                          child: Text(l10n.canvasEditorAddTextButton),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: OutlinedButton(
-                        key: const Key('canvas_editor_remove_text_button'),
-                        onPressed: state.selectedLayerId != null
-                            ? () => bloc.add(
-                                CanvasEditorLayerRemoved(
-                                  state.selectedLayerId!,
-                                ),
-                              )
-                            : null,
-                        child: Text(l10n.canvasEditorRemoveTextButton),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: OutlinedButton(
+                          key: const Key('canvas_editor_remove_text_button'),
+                          onPressed: state.selectedLayerId != null
+                              ? () => bloc.add(
+                                  CanvasEditorLayerRemoved(
+                                    state.selectedLayerId!,
+                                  ),
+                                )
+                              : null,
+                          child: Text(l10n.canvasEditorRemoveTextButton),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  0,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                ),
-                child: ElevatedButton(
-                  key: const Key('canvas_editor_continue_button'),
-                  // Forwards the *current* (possibly user-edited) scene —
-                  // not `args.scene`, which is only the initial state this
-                  // page was loaded with — plus the two caption strings
-                  // threaded through unchanged from `args` (see
-                  // `CanvasEditorPageArgs`'s doc comment above).
-                  onPressed: () => context.push(
-                    '/export',
-                    extra: ExportPageArgs(
-                      scene: scene,
-                      captionEn: args.captionEn,
-                      captionAm: args.captionAm,
-                    ),
+                    ],
                   ),
-                  child: Text(l10n.canvasEditorContinueButton),
                 ),
-              ),
-            ],
-          );
-        },
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    0,
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                  ),
+                  child: ElevatedButton(
+                    key: const Key('canvas_editor_continue_button'),
+                    // Forwards the *current* (possibly user-edited) scene —
+                    // not `args.scene`, which is only the initial state this
+                    // page was loaded with — plus the two caption strings
+                    // threaded through unchanged from `args` (see
+                    // `CanvasEditorPageArgs`'s doc comment above).
+                    onPressed: () => context.push(
+                      '/export',
+                      extra: ExportPageArgs(
+                        scene: scene,
+                        captionEn: args.captionEn,
+                        captionAm: args.captionAm,
+                      ),
+                    ),
+                    child: Text(l10n.canvasEditorContinueButton),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
       backgroundColor: colors.bgCanvas,
     );

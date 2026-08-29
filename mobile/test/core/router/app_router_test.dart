@@ -20,6 +20,12 @@ import 'package:kelal_studio/features/brand_kit/domain/usecases/get_brand_kit_us
 import 'package:kelal_studio/features/brand_kit/domain/usecases/update_brand_kit_usecase.dart';
 import 'package:kelal_studio/features/brand_kit/domain/usecases/upload_brand_logo_usecase.dart';
 import 'package:kelal_studio/features/brand_kit/presentation/bloc/brand_kit_bloc.dart';
+import 'package:kelal_studio/features/drafts/domain/entities/draft.dart';
+import 'package:kelal_studio/features/drafts/domain/usecases/delete_draft_usecase.dart';
+import 'package:kelal_studio/features/drafts/domain/usecases/resume_draft_usecase.dart';
+import 'package:kelal_studio/features/drafts/domain/usecases/watch_drafts_usecase.dart';
+import 'package:kelal_studio/features/drafts/presentation/bloc/drafts_list_bloc.dart';
+import 'package:kelal_studio/features/drafts/presentation/cubit/drafts_disclosure_seen_cubit.dart';
 import 'package:kelal_studio/features/generation/domain/usecases/decode_generated_image_usecase.dart';
 import 'package:kelal_studio/features/generation/domain/usecases/generate_image_usecase.dart';
 import 'package:kelal_studio/features/generation/domain/usecases/generate_text_usecase.dart';
@@ -49,6 +55,12 @@ class MockGenerateImageUseCase extends Mock implements GenerateImageUseCase {}
 
 class MockDecodeGeneratedImageUseCase extends Mock
     implements DecodeGeneratedImageUseCase {}
+
+class MockWatchDraftsUseCase extends Mock implements WatchDraftsUseCase {}
+
+class MockDeleteDraftUseCase extends Mock implements DeleteDraftUseCase {}
+
+class MockResumeDraftUseCase extends Mock implements ResumeDraftUseCase {}
 
 /// Minimal in-memory [Storage] so the [HydratedCubit]s pulled in via
 /// `LoginPage` (`ThemeCubit`/`LocaleCubit`) can be constructed without
@@ -194,6 +206,18 @@ void main() {
         ),
       );
 
+      // DraftsPage (Drafts branch) resolves DraftsListBloc/
+      // DraftsDisclosureSeenCubit via getIt the same way. Emits an empty
+      // list immediately (not a never-emitting stream) — DraftsPage shows
+      // an indeterminate CircularProgressIndicator while still
+      // DraftsListLoading, which never settles and would time out
+      // pumpAndSettle() below, the same "indeterminate spinner never
+      // stops scheduling frames" gotcha PrimaryButton.isLoading documents.
+      final watchDraftsUseCase = MockWatchDraftsUseCase();
+      when(
+        watchDraftsUseCase.call,
+      ).thenAnswer((_) => Stream.value(const <Draft>[]));
+
       // QuotaStatusBadge (also mounted on the Compose branch, alongside
       // EmailVerificationGate — see app_router.dart) resolves QuotaBloc via
       // getIt the same way.
@@ -239,6 +263,16 @@ void main() {
             composerGetBrandKitUseCase,
             MockDecodeGeneratedImageUseCase(),
           ),
+        )
+        ..registerFactory<DraftsListBloc>(
+          () => DraftsListBloc(
+            watchDraftsUseCase,
+            MockDeleteDraftUseCase(),
+            MockResumeDraftUseCase(),
+          ),
+        )
+        ..registerFactory<DraftsDisclosureSeenCubit>(
+          DraftsDisclosureSeenCubit.new,
         );
     });
 
@@ -292,7 +326,9 @@ void main() {
         expect(find.widgetWithText(AppBar, 'Compose'), findsOneWidget);
         // "Coming soon" was ComposerPage's placeholder predecessor on this
         // route (see app_router.dart) — the real composer form is here
-        // now, "Drafts"/"Settings" below are still bare ComingSoonPages.
+        // now. DraftsPage (feat/local-drafts) replaced the Drafts branch's
+        // own ComingSoonPage the same way below; Brand/Settings already
+        // had real pages before this branch.
         expect(
           find.byKey(const Key('composer_generate_button')),
           findsOneWidget,

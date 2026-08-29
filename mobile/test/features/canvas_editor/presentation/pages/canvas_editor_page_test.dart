@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -10,7 +12,19 @@ import 'package:kelal_studio/core/render_engine/canvas_scene.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
 import 'package:kelal_studio/features/canvas_editor/presentation/bloc/canvas_editor_bloc.dart';
 import 'package:kelal_studio/features/canvas_editor/presentation/pages/canvas_editor_page.dart';
+import 'package:kelal_studio/features/drafts/domain/entities/draft.dart';
+import 'package:kelal_studio/features/drafts/domain/usecases/save_draft_usecase.dart';
+import 'package:kelal_studio/features/drafts/presentation/cubit/draft_autosave_cubit.dart';
 import 'package:kelal_studio/features/export/presentation/pages/export_page.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockSaveDraftUseCase extends Mock implements SaveDraftUseCase {}
+
+class MockDraftAutosaveCubit extends Mock implements DraftAutosaveCubit {}
+
+class FakeDraft extends Fake implements Draft {}
+
+class FakeCanvasScene extends Fake implements CanvasScene {}
 
 Future<ui.Image> _testImage() async {
   final recorder = ui.PictureRecorder();
@@ -26,13 +40,42 @@ Future<ui.Image> _testImage() async {
 
 void main() {
   late ui.Image background;
+  late MockSaveDraftUseCase saveDraftUseCase;
+
+  setUpAll(() {
+    registerFallbackValue(FakeDraft());
+    registerFallbackValue(FakeCanvasScene());
+    // Only exercised by the DraftAutosaveCubit-wiring test below, which
+    // lets a real DraftCanvasSnapshot.fromCanvasScene call reach
+    // path_provider's getApplicationDocumentsDirectory() — see
+    // draft_autosave_cubit_test.dart's identical setup for why this is
+    // mocked directly rather than adding a new dependency.
+    const channel = MethodChannel('plugins.flutter.io/path_provider');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          if (call.method == 'getApplicationDocumentsDirectory') {
+            return Directory.systemTemp.path;
+          }
+          return null;
+        });
+  });
 
   setUp(() async {
     background = await _testImage();
-    // CanvasEditorBloc takes no constructor dependencies (every handler is
-    // a synchronous, local mutation — see its own doc comment), so no
-    // mocking is needed to register it.
-    getIt.registerFactory<CanvasEditorBloc>(CanvasEditorBloc.new);
+    saveDraftUseCase = MockSaveDraftUseCase();
+    getIt
+      // CanvasEditorBloc takes no constructor dependencies (every handler
+      // is a synchronous, local mutation — see its own doc comment), so
+      // no mocking is needed to register it.
+      ..registerFactory<CanvasEditorBloc>(CanvasEditorBloc.new)
+      // CanvasEditorPage also provides a DraftAutosaveCubit (PRD §10.5)
+      // via getIt. Most tests below never wait past
+      // `draftAutosaveDebounce` (2s), so the mock is never actually
+      // called and needs no stubbing — except the one test below that
+      // specifically verifies this wiring, which stubs it itself.
+      ..registerFactory<DraftAutosaveCubit>(
+        () => DraftAutosaveCubit(saveDraftUseCase),
+      );
   });
 
   tearDown(() async {
@@ -55,6 +98,7 @@ void main() {
           scene: scene,
           captionEn: 'English caption',
           captionAm: 'Amharic caption',
+          inputText: 'Test idea text',
         ),
       ),
     );
@@ -220,6 +264,7 @@ void main() {
               scene: scene,
               captionEn: 'English caption',
               captionAm: 'Amharic caption',
+              inputText: 'Test idea text',
             ),
           ),
         ),
@@ -282,6 +327,67 @@ void main() {
       // bloc level (canvas_editor_bloc_test.dart).
       expect(find.text('1:1'), findsOneWidget);
       expect(find.text('4:5'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a scene change (aspect ratio toggle) feeds DraftAutosaveCubit via the '
+    'MultiBlocListener this page adds — with the current (post-toggle) '
+    'scene and args.inputText/brandKitId, not stale ones. DraftAutosaveCubit '
+    "'s own debounce/save behavior is covered separately, in "
+    'draft_autosave_cubit_test.dart — a mock stands in for it here so this '
+    "test only has to prove *this page's* listener wiring, not re-prove "
+    'the whole real Timer + dart:ui-encode + SaveDraftUseCase pipeline in a '
+    'widget test.',
+    (tester) async {
+      final autosaveCubit = MockDraftAutosaveCubit();
+      when(() => autosaveCubit.stream).thenAnswer((_) => const Stream.empty());
+      when(() => autosaveCubit.state).thenReturn(DraftAutosaveStatus.idle);
+      when(autosaveCubit.close).thenAnswer((_) async {});
+      when(
+        () => autosaveCubit.sceneChanged(
+          any(),
+          inputText: any(named: 'inputText'),
+          brandKitId: any(named: 'brandKitId'),
+          generationRecordId: any(named: 'generationRecordId'),
+        ),
+      ).thenReturn(null);
+      getIt
+        ..unregister<DraftAutosaveCubit>()
+        ..registerFactory<DraftAutosaveCubit>(() => autosaveCubit);
+
+      final scene = CanvasScene(
+        backgroundImage: background,
+        canvasSize: const Size(1080, 1080),
+      );
+
+      await tester.pumpWidget(wrap(scene));
+      await tester.pumpAndSettle();
+
+      // The initial CanvasEditorSceneLoaded already reaches
+      // CanvasEditorReady once, so the listener has already fired once
+      // for the 1:1 scene by this point — expected, not asserted on here.
+      clearInteractions(autosaveCubit);
+
+      await tester.tap(find.text('4:5'));
+      await tester.pumpAndSettle();
+
+      final captured = verify(
+        () => autosaveCubit.sceneChanged(
+          captureAny(),
+          inputText: captureAny(named: 'inputText'),
+          brandKitId: captureAny(named: 'brandKitId'),
+          generationRecordId: any(named: 'generationRecordId'),
+        ),
+      ).captured;
+      // captured interleaves [scene, inputText, brandKitId] per call.
+      expect(captured, hasLength(3));
+      final capturedScene = captured[0] as CanvasScene;
+      expect(captured[1], 'Test idea text');
+      expect(captured[2], isNull);
+      // The scene handed to DraftAutosaveCubit is the *current*
+      // (post-toggle, 4:5) scene, not the original 1:1 one wrap() loaded.
+      expect(capturedScene.canvasSize, const Size(1080, 1350));
     },
   );
 }

@@ -14,6 +14,8 @@ import 'package:kelal_studio/features/brand_kit/domain/usecases/get_brand_kit_us
 import 'package:kelal_studio/features/canvas_editor/presentation/bloc/canvas_editor_bloc.dart';
 import 'package:kelal_studio/features/canvas_editor/presentation/pages/canvas_editor_page.dart';
 import 'package:kelal_studio/features/composer/presentation/pages/composer_page.dart';
+import 'package:kelal_studio/features/drafts/domain/usecases/save_draft_usecase.dart';
+import 'package:kelal_studio/features/drafts/presentation/cubit/draft_autosave_cubit.dart';
 import 'package:kelal_studio/features/generation/domain/entities/aspect_ratio.dart';
 import 'package:kelal_studio/features/generation/domain/entities/content_platform.dart';
 import 'package:kelal_studio/features/generation/domain/entities/generation_image_result.dart';
@@ -34,6 +36,8 @@ class MockDecodeGeneratedImageUseCase extends Mock
     implements DecodeGeneratedImageUseCase {}
 
 class MockGetBrandKitUseCase extends Mock implements GetBrandKitUseCase {}
+
+class MockSaveDraftUseCase extends Mock implements SaveDraftUseCase {}
 
 Future<ui.Image> _testImage() async {
   final recorder = ui.PictureRecorder();
@@ -103,7 +107,14 @@ void main() {
       // Resolved by CanvasEditorPage once the "navigates to /canvas-editor"
       // test actually reaches that route — has no constructor dependencies
       // (see CanvasEditorBloc's own doc comment), so no mock is needed.
-      ..registerFactory<CanvasEditorBloc>(CanvasEditorBloc.new);
+      ..registerFactory<CanvasEditorBloc>(CanvasEditorBloc.new)
+      // CanvasEditorPage also provides a DraftAutosaveCubit (PRD §10.5) —
+      // registered purely so the widget tree builds once these tests
+      // navigate into it; its debounce timer never fires within these
+      // tests' timeframe, so the mock needs no stubbing.
+      ..registerFactory<DraftAutosaveCubit>(
+        () => DraftAutosaveCubit(MockSaveDraftUseCase()),
+      );
   });
 
   tearDown(() async {

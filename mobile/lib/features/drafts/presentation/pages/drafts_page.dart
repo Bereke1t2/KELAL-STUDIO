@@ -1,0 +1,269 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+
+import 'package:kelal_studio/core/di/injection.dart';
+import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
+import 'package:kelal_studio/core/theme/app_theme.dart';
+import 'package:kelal_studio/core/widgets/app_bottom_sheet.dart';
+import 'package:kelal_studio/core/widgets/empty_state.dart';
+import 'package:kelal_studio/features/canvas_editor/presentation/pages/canvas_editor_page.dart';
+import 'package:kelal_studio/features/drafts/domain/entities/draft.dart';
+import 'package:kelal_studio/features/drafts/presentation/bloc/drafts_list_bloc.dart';
+import 'package:kelal_studio/features/drafts/presentation/bloc/drafts_list_event.dart';
+import 'package:kelal_studio/features/drafts/presentation/bloc/drafts_list_state.dart';
+import 'package:kelal_studio/features/drafts/presentation/cubit/drafts_disclosure_seen_cubit.dart';
+
+const _snippetMaxLength = 80;
+
+String _snippet(String text) {
+  final trimmed = text.trim();
+  if (trimmed.length <= _snippetMaxLength) return trimmed;
+  return '${trimmed.substring(0, _snippetMaxLength)}…';
+}
+
+/// Relative "last saved" copy, hand-rolled from a plain `DateTime`
+/// difference rather than a `timeago`-style package — `intl` (already
+/// pinned in `pubspec.yaml`, used elsewhere for absolute formatting, e.g.
+/// `showQuotaExceededDialog`'s `DateFormat.jm()`) has no built-in relative-
+/// time helper, and adding a new dependency for four simple buckets isn't
+/// justified (see mobile/CLAUDE.md's "don't add a dependency unless
+/// confirmed genuinely unavailable" rule) — flagged in this branch's report
+/// rather than silently pulled in.
+String _relativeSavedLabel(AppLocalizations l10n, DateTime lastSavedAt) {
+  final diff = DateTime.now().toUtc().difference(lastSavedAt.toUtc());
+  if (diff.inMinutes < 1) return l10n.draftsLastSavedJustNow;
+  if (diff.inHours < 1) return l10n.draftsLastSavedMinutesAgo(diff.inMinutes);
+  if (diff.inDays < 1) return l10n.draftsLastSavedHoursAgo(diff.inHours);
+  return l10n.draftsLastSavedDaysAgo(diff.inDays);
+}
+
+/// PRD §10.5's local Drafts list — replaces the `/drafts` route's
+/// `ComingSoonPage` placeholder (see `core/router/app_router.dart`).
+class DraftsPage extends StatelessWidget {
+  const DraftsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => getIt<DraftsListBloc>()),
+        BlocProvider(create: (_) => getIt<DraftsDisclosureSeenCubit>()),
+      ],
+      child: const _DraftsView(),
+    );
+  }
+}
+
+class _DraftsView extends StatefulWidget {
+  const _DraftsView();
+
+  @override
+  State<_DraftsView> createState() => _DraftsViewState();
+}
+
+class _DraftsViewState extends State<_DraftsView> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowDisclosure());
+  }
+
+  /// PRD §6.10: first time the Drafts tab is opened, disclose that
+  /// uninstalling the app destroys all local drafts (they're device-local
+  /// only — no server sync, see mobile/CLAUDE.md's decisions log). Mirrors
+  /// `ExportPage._maybeShowOverlay`'s exact pattern
+  /// (`ExportOverlaySeenCubit`) — see `DraftsDisclosureSeenCubit`'s own
+  /// doc comment.
+  Future<void> _maybeShowDisclosure() async {
+    if (!mounted) return;
+    final cubit = context.read<DraftsDisclosureSeenCubit>();
+    if (cubit.state) return;
+    final l10n = AppLocalizations.of(context);
+    await showAppBottomSheet<void>(
+      context,
+      sheet: AppBottomSheet(
+        heading: l10n.draftsDisclosureHeading,
+        body: l10n.draftsDisclosureBody,
+        primaryLabel: l10n.draftsDisclosureAction,
+        onPrimaryPressed: () => Navigator.of(context).pop(),
+      ),
+    );
+    // Marked seen once the sheet closes by any means — same reasoning
+    // `ExportPage._maybeShowOverlay` documents: the disclosure's job is
+    // done the moment it's been shown once, not gated on which exact
+    // dismissal path the user took.
+    cubit.markSeen();
+  }
+
+  Future<bool> _confirmDelete(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) async {
+    final confirmed = await showAppBottomSheet<bool>(
+      context,
+      sheet: AppBottomSheet(
+        heading: l10n.draftsDeleteConfirmHeading,
+        body: l10n.draftsDeleteConfirmBody,
+        primaryLabel: l10n.draftsDeleteConfirmAction,
+        onPrimaryPressed: () => Navigator.of(context).pop(true),
+        secondaryLabel: l10n.cancelLabel,
+        onSecondaryPressed: () => Navigator.of(context).pop(false),
+        isDestructive: true,
+      ),
+    );
+    return confirmed ?? false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final colors = context.colors;
+
+    return Scaffold(
+      backgroundColor: colors.bgCanvas,
+      // AppBar title consistent with the bottom-nav tab it lives under —
+      // same convention BrandKitPage/SettingsPage each follow.
+      appBar: AppBar(title: Text(l10n.navDraftsLabel)),
+      body: BlocConsumer<DraftsListBloc, DraftsListState>(
+        listenWhen: (previous, current) {
+          if (current is! DraftsListLoaded || current.resumedScene == null) {
+            return false;
+          }
+          return previous is! DraftsListLoaded ||
+              previous.resumedScene != current.resumedScene;
+        },
+        listener: (context, state) {
+          final loaded = state as DraftsListLoaded;
+          final scene = loaded.resumedScene!;
+          final draft = loaded.resumedDraft!;
+          // Resuming a draft only ever carries `inputText` forward — the
+          // original AI-generated captions (`GenerationResult.captionEn`/
+          // `captionAm`) are **not** part of PRD §10.5's draft schema, so
+          // they can't be recovered here. A real, known gap: continuing a
+          // draft into `/export` later will show empty captions rather
+          // than the ones that were showing when the draft was saved. See
+          // `CanvasEditorPageArgs`'s doc comment for the same note from
+          // the other side of this thread.
+          context.push(
+            '/canvas-editor',
+            extra: CanvasEditorPageArgs(
+              scene: scene,
+              captionEn: '',
+              captionAm: '',
+              inputText: draft.inputText,
+              brandKitId: draft.brandKitId,
+            ),
+          );
+        },
+        builder: (context, state) {
+          if (state is DraftsListLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final loaded = state as DraftsListLoaded;
+          if (loaded.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.xxl),
+                child: EmptyState(
+                  icon: Icons.drafts_outlined,
+                  heading: l10n.draftsEmptyHeading,
+                  body: l10n.draftsEmptyBody,
+                ),
+              ),
+            );
+          }
+
+          return ListView.separated(
+            key: const Key('drafts_list'),
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            itemCount: loaded.drafts.length,
+            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+            itemBuilder: (context, index) {
+              final draft = loaded.drafts[index];
+              return _DraftCard(
+                key: ValueKey(draft.localId),
+                draft: draft,
+                confirmDelete: () => _confirmDelete(context, l10n),
+                onDismissed: () => context.read<DraftsListBloc>().add(
+                  DraftDeleteRequested(draft.localId),
+                ),
+                onTap: () => context.read<DraftsListBloc>().add(
+                  DraftResumeRequested(draft.localId),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DraftCard extends StatelessWidget {
+  const _DraftCard({
+    required this.draft,
+    required this.confirmDelete,
+    required this.onDismissed,
+    required this.onTap,
+    super.key,
+  });
+
+  final Draft draft;
+  final Future<bool> Function() confirmDelete;
+  final VoidCallback onDismissed;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final colors = context.colors;
+
+    return Dismissible(
+      key: ValueKey('dismissible_${draft.localId}'),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) => confirmDelete(),
+      onDismissed: (_) => onDismissed(),
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: colors.interactiveDestructiveDefault,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        child: Icon(Icons.delete_outline, color: colors.bgSurface),
+      ),
+      child: InkWell(
+        key: Key('draft_card_${draft.localId}'),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: colors.bgSurface,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: colors.borderSubtle),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _snippet(draft.inputText),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.body.copyWith(color: colors.textPrimary),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                _relativeSavedLabel(l10n, draft.lastSavedAt),
+                style: AppTypography.caption.copyWith(
+                  color: colors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

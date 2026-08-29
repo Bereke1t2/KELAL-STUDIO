@@ -106,6 +106,7 @@ class _ComposerViewState extends State<_ComposerView> {
   // comment for why re-reading is unsafe).
   String _pendingGraphicCaptionEn = '';
   String _pendingGraphicCaptionAm = '';
+  String _pendingGraphicInputText = '';
 
   // OQ: `api_contract/openapi.yaml`'s `/generate/text` request schema
   // declares `input_text` as an unbounded `string` — no `maxLength`. A
@@ -186,8 +187,11 @@ class _ComposerViewState extends State<_ComposerView> {
         : _errorMessage(l10n, failure);
   }
 
-  /// Snapshots [result]'s captions into [_pendingGraphicCaptionEn]/
-  /// [_pendingGraphicCaptionAm] **before** dispatching the request —
+  /// Snapshots [result]'s captions (plus the current idea text, into
+  /// [_pendingGraphicInputText] — used only to seed `DraftAutosaveCubit`
+  /// via `CanvasEditorPageArgs.inputText`, PRD §10.5) into
+  /// [_pendingGraphicCaptionEn]/[_pendingGraphicCaptionAm] **before**
+  /// dispatching the request —
   /// deliberately not left to be re-read from `GenerationBloc`'s state
   /// later when `ImageGenerationSuccess` lands. `ImageGenerationBloc`'s
   /// own request/decode span can run for a while (a real network call plus
@@ -205,6 +209,7 @@ class _ComposerViewState extends State<_ComposerView> {
   void _createGraphic(BuildContext context, GenerationResult result) {
     _pendingGraphicCaptionEn = result.captionEn;
     _pendingGraphicCaptionAm = result.captionAm;
+    _pendingGraphicInputText = _ideaController.text.trim();
     context.read<ImageGenerationBloc>().add(
       ImageGenerationRequested(
         captionEn: result.captionEn,
@@ -252,6 +257,7 @@ class _ComposerViewState extends State<_ComposerView> {
                     scene: scene,
                     captionEn: _pendingGraphicCaptionEn,
                     captionAm: _pendingGraphicCaptionAm,
+                    inputText: _pendingGraphicInputText,
                   ),
                 );
               case ImageGenerationBrandKitRequired():

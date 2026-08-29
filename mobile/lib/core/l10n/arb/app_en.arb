@@ -292,5 +292,62 @@
   "exportShareFailedMessage": "We couldn't open the share sheet. Please try again.",
   "@exportShareFailedMessage": {
     "description": "Plain-language copy for ExportFailureType.shareFailed — share_plus's share() call itself threw; not shown for a user simply dismissing the share sheet, which is a normal outcome, not this failure."
+  },
+  "draftsEmptyHeading": "No drafts yet",
+  "@draftsEmptyHeading": {
+    "description": "DraftsPage's EmptyState heading (Figma node 45:13, \"Drafts Library — Empty\") shown when WatchDraftsUseCase's stream returns an empty list."
+  },
+  "draftsEmptyBody": "Drafts save automatically while you edit — come back anytime to pick up where you left off.",
+  "@draftsEmptyBody": {
+    "description": "DraftsPage's EmptyState body copy — explains PRD §10.5's autosave behavior; no CTA needed since there's nothing to tap from here (a draft is created by editing a graphic, not from this screen)."
+  },
+  "draftsDisclosureHeading": "Drafts are stored on this device",
+  "@draftsDisclosureHeading": {
+    "description": "First-run disclosure bottom sheet heading (DraftsDisclosureSeenCubit), shown once the first time the Drafts tab is opened — PRD §6.10."
+  },
+  "draftsDisclosureBody": "Uninstalling the app permanently deletes all local drafts. They aren't backed up anywhere else.",
+  "@draftsDisclosureBody": {
+    "description": "First-run disclosure body — PRD §6.10's required warning that local drafts have no server sync/backup."
+  },
+  "draftsDisclosureAction": "Got it",
+  "@draftsDisclosureAction": {
+    "description": "Single dismiss action on the first-run drafts disclosure — dismissing marks DraftsDisclosureSeenCubit as seen so it isn't shown again."
+  },
+  "draftsDeleteConfirmHeading": "Delete this draft?",
+  "@draftsDeleteConfirmHeading": {
+    "description": "Swipe-to-delete confirm bottom sheet heading on DraftsPage (Figma \"Bottom Sheet — Confirm Delete\", node 42:6)."
+  },
+  "draftsDeleteConfirmBody": "This can't be undone.",
+  "@draftsDeleteConfirmBody": {
+    "description": "Swipe-to-delete confirm body — a single confirm dialog, deliberately not the multi-step flow account_delete_confirm_page.dart uses (that flow's stakes — deleting a whole account — aren't comparable to deleting one local draft)."
+  },
+  "draftsDeleteConfirmAction": "Delete",
+  "@draftsDeleteConfirmAction": {
+    "description": "Destructive primary action on the swipe-to-delete confirm sheet — the secondary/cancel action reuses cancelLabel."
+  },
+  "draftsLastSavedJustNow": "Saved just now",
+  "@draftsLastSavedJustNow": {
+    "description": "DraftsPage card's relative last-saved label when Draft.lastSavedAt is under a minute ago."
+  },
+  "draftsLastSavedMinutesAgo": "Saved {minutes}m ago",
+  "@draftsLastSavedMinutesAgo": {
+    "description": "DraftsPage card's relative last-saved label, 1-59 minutes ago.",
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "draftsLastSavedHoursAgo": "Saved {hours}h ago",
+  "@draftsLastSavedHoursAgo": {
+    "description": "DraftsPage card's relative last-saved label, 1-23 hours ago.",
+    "placeholders": {
+      "hours": { "type": "int" }
+    }
+  },
+  "draftsLastSavedDaysAgo": "Saved {days}d ago",
+  "@draftsLastSavedDaysAgo": {
+    "description": "DraftsPage card's relative last-saved label, 1+ days ago.",
+    "placeholders": {
+      "days": { "type": "int" }
+    }
   }
 }
