@@ -1,38 +1,52 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { BrowserRouter } from 'react-router';
 
-import { FlagsPage } from '../features/admin/FlagsPage';
-import { UsagePage } from '../features/admin/UsagePage';
-import { UsersPage } from '../features/admin/UsersPage';
-import { BrandKitPage } from '../features/brandKit/BrandKitPage';
-import { AppShell } from './AppShell';
+import { useAuth } from '../auth/AuthContext';
+import { Button } from '../ui/Button';
+import { ThemeToggle } from '../ui/ThemeToggle';
 import { ProtectedRoute } from './ProtectedRoute';
 
 /**
  * Portal routes.
  *
- * Scope is Brand Kit + admin (PRD §4, §5.6) — the composer is mobile-only, so
- * there is deliberately no generation route here. That is the portal's whole
- * surface under the descope ladder, and it is complete.
+ * Teardown branch: the old screens are removed and the real ones (i18n shell,
+ * self-serve auth, Brand Kit, admin) land in the branches stacked on top of
+ * this. Scope stays Brand Kit + admin (PRD §4, §5.6) — the composer is
+ * mobile-only, so there is deliberately no generation route here.
  */
 export function AppRouter() {
   return (
     <BrowserRouter>
       <ProtectedRoute>
-        <Routes>
-          {/* Layout route: the shell renders once and persists across
-              navigations, so theme state and focus are not torn down. */}
-          <Route element={<AppShell />}>
-            <Route path="/" element={<Navigate to="/brand-kit" replace />} />
-            <Route path="/brand-kit" element={<BrandKitPage />} />
-            <Route path="/admin/usage" element={<UsagePage />} />
-            <Route path="/admin/flags" element={<FlagsPage />} />
-            <Route path="/admin/users" element={<UsersPage />} />
-            {/* A bad URL is a normal way to arrive; send it somewhere real
-                rather than rendering nothing. */}
-            <Route path="*" element={<Navigate to="/brand-kit" replace />} />
-          </Route>
-        </Routes>
+        <Placeholder />
       </ProtectedRoute>
     </BrowserRouter>
+  );
+}
+
+function Placeholder() {
+  const { claims, logout } = useAuth();
+  return (
+    <div className="min-h-dvh bg-canvas text-ink">
+      <header className="flex flex-wrap items-center gap-4 border-b border-line bg-surface px-6 py-3">
+        <span className="text-title">Kelal Studio</span>
+        <span className="text-body-sm text-ink-tertiary">Portal</span>
+        <div className="ms-auto flex items-center gap-4">
+          <ThemeToggle />
+          {claims?.email ? (
+            <span className="text-body-sm text-ink-secondary">
+              {claims.email}
+            </span>
+          ) : null}
+          <Button variant="tertiary" onClick={logout}>
+            Sign out
+          </Button>
+        </div>
+      </header>
+      <main className="p-6">
+        <p className="text-body text-ink-secondary">
+          The portal screens land in the branches stacked on top of this one.
+        </p>
+      </main>
+    </div>
   );
 }

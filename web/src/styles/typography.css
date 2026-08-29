@@ -1,0 +1,40 @@
+/*
+ * Type scale — Kelal Studio Figma design system, Typography Foundations
+ * (node 12:2). Same values the Flutter app encodes in
+ * mobile/lib/core/theme/app_typography.dart.
+ *
+ * One family, one weight (400). Hierarchy comes from size, spacing, and
+ * colour — never weight. Every style shares line-height 1.55: Latin's ~1.2
+ * default collides Ethiopic marks, the PRD's highest-rated risk (§6.7).
+ *
+ * Never hardcode a px or family in a component — go through a token, then the
+ * Tailwind bridge in theme.css.
+ */
+
+:root {
+  /* Fixed leading for every text style — do not override per-component. */
+  --leading: 1.55;
+
+  /* Font stacks. `sans` leads with Latin and falls to Ethiopic for any Ge'ez
+     codepoint the Latin file lacks; `ethiopic` leads with Ge'ez. Both end in
+     system-ui so a failed woff2 fetch degrades to a system face, never tofu. */
+  --font-family-sans: 'Noto Sans', 'Noto Sans Ethiopic', ui-sans-serif,
+    system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-family-ethiopic: 'Noto Sans Ethiopic', 'Noto Sans', ui-sans-serif,
+    system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  /* Size ramp (px). display 28 / title 20 / body 16 / body-sm 14 /
+     label 13 / caption 12 / button 15. */
+  --font-size-display: 28px;
+  --font-size-title: 20px;
+  --font-size-body: 16px;
+  --font-size-body-sm: 14px;
+  --font-size-label: 13px;
+  --font-size-caption: 12px;
+  --font-size-button: 15px;
+
+  /* Tracking is applied only to small text and the button label. */
+  --tracking-label: 0.1px;
+  --tracking-caption: 0.1px;
+  --tracking-button: 0.3px;
+}

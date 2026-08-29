@@ -6,8 +6,8 @@
  * content, and under the descope ladder (PRD §5.6) it collapses to
  * Admin + Brand Kit only, which is exactly what is built here.
  *
- * This is the foundation branch: routing, auth, and the real screens land in
- * the branches stacked on top of this one.
+ * Providers wrap the router: theme and auth state must outlive any single
+ * screen so they are not torn down on navigation.
  */
 import { AppRouter } from './app/router';
 import { AuthProvider } from './auth/AuthContext';

@@ -4,11 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kelal Studio — Portal</title>
+
+    <!-- Self-hosted, subset. crossorigin is required even same-origin for a
+         font preload to be reused by the CSS @font-face fetch. -->
+    <link
+      rel="preload"
+      href="/fonts/noto-sans-latin-400.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/noto-sans-ethiopic-400.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+
     <script>
-      // Set the theme before first paint. Without this the page renders light
-      // for a frame and then flips, because the React controller cannot run
-      // until after the bundle has parsed. Kept inline and dependency-free for
-      // that reason; ThemeContext.tsx owns the attribute from then on.
+      // Set the theme and language before first paint. Without this the page
+      // renders with the wrong one for a frame and then flips, because the
+      // React controllers cannot run until the bundle has parsed. Kept inline
+      // and dependency-free for that reason; ThemeContext.tsx / I18nContext.tsx
+      // own these attributes from then on.
       (function () {
         try {
           var p = localStorage.getItem('kelal.theme');
@@ -19,6 +38,17 @@
           document.documentElement.dataset.theme = dark ? 'dark' : 'light';
         } catch (e) {
           document.documentElement.dataset.theme = 'light';
+        }
+        try {
+          var l = localStorage.getItem('kelal.lang');
+          if (l !== 'en' && l !== 'am') {
+            l = navigator.language && navigator.language.slice(0, 2) === 'am'
+              ? 'am'
+              : 'en';
+          }
+          document.documentElement.lang = l;
+        } catch (e) {
+          document.documentElement.lang = 'en';
         }
       })();
     </script>

@@ -1,6 +1,6 @@
 /*
  * Base element styles. Tokens only — no literal colors or sizes here.
- * Import order matters: tokens.css must land first.
+ * Import order matters: tokens.css → typography.css → fonts.css land first.
  */
 
 *,
@@ -20,20 +20,13 @@ html {
 }
 
 body {
-  /*
-   * FLAG — web font loading is undecided. Noto Sans / Noto Sans Ethiopic are
-   * the design system's fonts and are BUNDLED on mobile (PRD §6.7, an
-   * explicit requirement: never system-font-dependent, a missing glyph
-   * rendering as a box is prohibited). This portal currently falls back to a
-   * system stack, which does not carry that guarantee for Ethiopic. Fine
-   * while the portal shows only Latin admin copy; must be resolved before any
-   * Amharic string is rendered here.
-   */
-  font-family: 'Noto Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
-    Roboto, Helvetica, Arial, sans-serif;
+  /* Both families are self-hosted (styles/fonts.css), weight 400 only. The
+     stack ends in system-ui so a failed woff2 fetch degrades to a system
+     Ethiopic face, never tofu (PRD §6.7). */
+  font-family: var(--font-family-sans);
   /* Ethiopic needs far more leading than Latin defaults near 1.2 — the
      design system fixes this at 1.55 (PRD §6.7 line-collision risk). */
-  line-height: 1.55;
+  line-height: var(--leading);
   background-color: var(--color-bg-canvas);
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
