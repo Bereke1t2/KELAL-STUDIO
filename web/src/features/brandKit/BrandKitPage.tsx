@@ -53,8 +53,8 @@ export function BrandKitPage() {
       {kit.loading ? (
         <Spinner label={t('state.loading')} />
       ) : (
-        <div className="grid gap-10 lg:grid-cols-[1fr_360px]">
-          <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-10 lg:flex-row lg:items-start">
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
             <BrandKitForm
               draft={kit.draft}
               update={kit.update}
@@ -83,7 +83,7 @@ export function BrandKitPage() {
             </div>
           </div>
 
-          <div className="lg:sticky lg:top-12 lg:self-start">
+          <div className="lg:sticky lg:top-12 lg:w-[360px] lg:shrink-0 lg:self-start">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <span className="text-caption uppercase tracking-[0.12em] text-ink-tertiary">
