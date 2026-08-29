@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kelal_studio/core/di/injection.dart';
 import 'package:kelal_studio/core/error/result.dart';
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
@@ -104,6 +105,23 @@ class _LoginViewState extends State<_LoginView> {
                     label: l10n.signIn,
                     isLoading: isSubmitting,
                     onPressed: _submit,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Align(
+                    child: TextButton(
+                      key: const Key('forgot_password_link'),
+                      onPressed: () => context.push('/reset-password'),
+                      child: Text(l10n.forgotPasswordLink),
+                    ),
+                  ),
+                  Align(
+                    child: TextButton(
+                      key: const Key('create_account_link'),
+                      onPressed: () => context.push('/register'),
+                      child: Text(
+                        '${l10n.dontHaveAccountPrompt} ${l10n.createAccount}',
+                      ),
+                    ),
                   ),
                 ],
               ),

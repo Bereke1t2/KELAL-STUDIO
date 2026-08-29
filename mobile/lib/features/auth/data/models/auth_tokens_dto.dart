@@ -11,6 +11,7 @@ abstract class AuthTokensDto with _$AuthTokensDto {
   const factory AuthTokensDto({
     @JsonKey(name: 'access_token') required String accessToken,
     @JsonKey(name: 'refresh_token') required String refreshToken,
+    @JsonKey(name: 'email_verified') required bool emailVerified,
   }) = _AuthTokensDto;
 
   factory AuthTokensDto.fromJson(Map<String, dynamic> json) =>

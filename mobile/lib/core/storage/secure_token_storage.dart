@@ -18,6 +18,13 @@ class SecureTokenStorage {
   static const _accessTokenKey = 'kelal_access_token';
   static const _refreshTokenKey = 'kelal_refresh_token';
 
+  /// Not a secret — the email-verification bit itself is harmless to an
+  /// attacker with device access, who would already have the tokens above.
+  /// Stored here anyway (rather than `shared_preferences`) purely so it
+  /// lives and clears alongside the session it describes, in one place,
+  /// instead of introducing a second storage mechanism for one boolean.
+  static const _emailVerifiedKey = 'kelal_email_verified';
+
   Future<String?> readAccessToken() => _storage.read(key: _accessTokenKey);
   Future<String?> readRefreshToken() => _storage.read(key: _refreshTokenKey);
 
@@ -29,12 +36,23 @@ class SecureTokenStorage {
     await _storage.write(key: _refreshTokenKey, value: refreshToken);
   }
 
+  /// Fails closed: absent (e.g. no session yet) reads as `false`, matching
+  /// PRD §6.1's "gates content generation until verified" default.
+  Future<bool> readEmailVerified() async {
+    final raw = await _storage.read(key: _emailVerifiedKey);
+    return raw == 'true';
+  }
+
+  Future<void> saveEmailVerified({required bool verified}) =>
+      _storage.write(key: _emailVerifiedKey, value: verified.toString());
+
   /// Called on logout, account deletion, or detected refresh-token reuse
-  /// (compromise signal per PRD §6.1) — always clear both tokens together,
-  /// never just one.
+  /// (compromise signal per PRD §6.1) — always clear all session state
+  /// together, never just the tokens.
   Future<void> clear() async {
     await _storage.delete(key: _accessTokenKey);
     await _storage.delete(key: _refreshTokenKey);
+    await _storage.delete(key: _emailVerifiedKey);
   }
 }
 

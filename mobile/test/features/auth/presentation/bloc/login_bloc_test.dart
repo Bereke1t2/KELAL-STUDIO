@@ -24,7 +24,9 @@ void main() {
     'emits [LoginSubmitting, LoginSuccess] when login succeeds',
     setUp: () {
       when(() => loginUseCase(email: email, password: password)).thenAnswer(
-        (_) async => const Result.ok(AuthSession(isAuthenticated: true)),
+        (_) async => const Result.ok(
+          AuthSession(isAuthenticated: true, emailVerified: true),
+        ),
       );
     },
     build: () => LoginBloc(loginUseCase),
@@ -64,7 +66,9 @@ void main() {
         _,
       ) async {
         await Future<void>.delayed(const Duration(milliseconds: 50));
-        return const Result.ok(AuthSession(isAuthenticated: true));
+        return const Result.ok(
+          AuthSession(isAuthenticated: true, emailVerified: true),
+        );
       });
     },
     build: () => LoginBloc(loginUseCase),

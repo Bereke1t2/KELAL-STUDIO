@@ -37,11 +37,44 @@ abstract final class RenderEngine {
       fit: BoxFit.cover,
     );
 
+    // Compositing order: background -> logo -> text. **Logo below text is
+    // a deliberate UX default, not a PRD-specified requirement** (§6.9/§6.5
+    // don't say which wins if a text layer and the logo overlap) — a brand
+    // logo is conventionally a corner watermark, and if a user-dragged
+    // caption ever does overlap it, keeping the caption legible on top
+    // matters more than keeping the watermark visible underneath, the same
+    // reasoning most social-template tools apply. Flagged here as a
+    // judgment call to revisit if the PRD is ever more specific.
+    if (scene.logo != null) {
+      _paintLogo(canvas, scene.canvasSize, scene.logo!);
+    }
+
     for (final layer in scene.textLayers) {
       _paintTextLayer(canvas, scene.canvasSize, layer);
     }
 
     canvas.restore();
+  }
+
+  static void _paintLogo(Canvas canvas, Size canvasSize, LogoLayer logo) {
+    final width = logo.normalizedWidth * canvasSize.width;
+    // Height derives from the logo image's own aspect ratio (see
+    // LogoLayer.normalizedWidth's doc comment) rather than a second
+    // independently-stored normalized height, so a logo can never be
+    // stretched out of its true proportions.
+    final height = width * (logo.image.height / logo.image.width);
+    final rect = Rect.fromLTWH(
+      logo.normalizedOffset.dx * canvasSize.width,
+      logo.normalizedOffset.dy * canvasSize.height,
+      width,
+      height,
+    );
+    paintImage(
+      canvas: canvas,
+      rect: rect,
+      image: logo.image,
+      fit: BoxFit.contain,
+    );
   }
 
   static void _paintTextLayer(Canvas canvas, Size canvasSize, TextLayer layer) {

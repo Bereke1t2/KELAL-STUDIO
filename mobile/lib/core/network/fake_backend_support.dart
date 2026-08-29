@@ -43,4 +43,24 @@ abstract final class FakeBackendSupport {
     if (rate <= 0) return;
     if (_random.nextDouble() < rate) throw ApiException(failure);
   }
+
+  /// Returns `true` with probability [rate] (0.0-1.0), without throwing —
+  /// use this instead of [maybeFail] when a fake needs to *branch* on a
+  /// simulated backend condition rather than abort the call outright.
+  ///
+  /// Motivating case (PRD §6.2): "on LLM timeout/failure, return a
+  /// pre-cached template response rather than a raw error." A real
+  /// backend's fallback substitution is meant to look like an ordinary
+  /// successful response to the client — so `FakeGenerationRemoteDataSource`
+  /// (`features/generation/data/datasources/`) uses this to decide whether
+  /// a simulated provider hiccup is quietly papered over with fallback
+  /// content or still surfaces as a raw `providerTimeout` [ApiException]
+  /// (see [maybeFail]), the same two outcomes a real backend's own
+  /// fallback path can have. Kept generic (not named after that one case)
+  /// since any fake could reasonably need a plain weighted-coin-flip
+  /// without an accompanying throw.
+  static bool chance({double rate = 0.0}) {
+    if (rate <= 0) return false;
+    return _random.nextDouble() < rate;
+  }
 }

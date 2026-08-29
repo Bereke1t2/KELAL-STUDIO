@@ -15,4 +15,21 @@ abstract class AuthApi {
 
   @POST('/auth/login')
   Future<AuthTokensDto> login(@Body() Map<String, dynamic> body);
+
+  @POST('/auth/register')
+  Future<AuthTokensDto> register(@Body() Map<String, dynamic> body);
+
+  @POST('/auth/refresh')
+  Future<AuthTokensDto> refresh(@Body() Map<String, dynamic> body);
+
+  @POST('/auth/password-reset/request')
+  Future<void> requestPasswordReset(@Body() Map<String, dynamic> body);
+
+  @POST('/auth/password-reset/confirm')
+  Future<void> confirmPasswordReset(@Body() Map<String, dynamic> body);
+
+  /// Body-less, bearer-authenticated DELETE — the token is attached by
+  /// `AuthInterceptor`, nothing extra needed here.
+  @DELETE('/auth/account')
+  Future<void> deleteAccount();
 }

@@ -25,6 +25,9 @@ class AppTextField extends StatelessWidget {
     this.suffixIcon,
     this.onChanged,
     this.textInputAction,
+    this.maxLines = 1,
+    this.minLines,
+    this.maxLength,
     super.key,
   });
 
@@ -45,6 +48,28 @@ class AppTextField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final TextInputAction? textInputAction;
 
+  /// Defaults to the single-line behavior every existing call site
+  /// (login/register/brand-kit fields) relies on. Added for the Idea
+  /// Composer's multi-line free-text input (`features/composer`) — pass a
+  /// value greater than 1 (or `null` for "grow unbounded") to opt into a
+  /// multi-line field; no dedicated Figma "textarea" variant exists to
+  /// pull a different visual from, so this reuses the same themed
+  /// `InputDecorationTheme` and just widens the field vertically.
+  final int? maxLines;
+
+  /// Forwarded to [TextField.minLines]. Left `null` (single visual row
+  /// until the user types more) unless the caller wants a fixed minimum
+  /// height multi-line field.
+  final int? minLines;
+
+  /// Forwarded to [TextField.maxLength]. `null` (the default) leaves the
+  /// field unbounded — most existing fields (email, name, single-line
+  /// values) have no reason to cap length. Added for the Idea Composer's
+  /// free-text input, which needed a client-side ceiling in front of a
+  /// paid, quota-consuming generation call — see `composer_page.dart`'s
+  /// `_maxIdeaLength`.
+  final int? maxLength;
+
   @override
   Widget build(BuildContext context) {
     return TextField(
@@ -54,6 +79,9 @@ class AppTextField extends StatelessWidget {
       enabled: enabled,
       onChanged: onChanged,
       textInputAction: textInputAction,
+      maxLines: maxLines,
+      minLines: minLines,
+      maxLength: maxLength,
       decoration: InputDecoration(
         labelText: label,
         errorText: errorText,
