@@ -17,7 +17,6 @@ import (
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/apperror"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/auth"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/config"
-	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/config"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/httpx/middleware"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider/stub"
@@ -38,26 +37,8 @@ func TestGenerateTextRequiresVerifiedEmail(t *testing.T) {
 		EmailVerified: middleware.EmailVerifiedRequired(),
 	}
 	engine := gin.New()
-	// Only the middleware gate is under test here, so a minimal module suffices:
-	// an empty request body fails binding (400) before the service — and its nil
-	// provider/quota deps — is ever reached. Config must be non-nil (New reads
-	// UseMockData) and a nil DB selects the in-memory repository.
-	mod := New(Deps{Config: &config.Config{}})
-	mod.Handler.RegisterRoutes(engine.Group("/v1"), mw)
-	mod := New(Deps{
-		Config:     &config.Config{UseMockData: true},
-		Logger:     slog.Default(),
-		TextChain:  provider.NewTextChain(30*time.Second, nil, stub.NewText()),
-		Moderation: moderation.NewPermissiveChecker(),
-		Quota:      quota.NewService(quota.NewMockRepository(), quota.Limits{TextDaily: 50, ImageDaily: 20}, slog.Default()),
-		Hashtag:    hashtag.NewBank(),
-		Queue:      queue.NewInProc(3, slog.Default()),
-	})
-	// Only the middleware gate is under test here, so a minimal module suffices:
-	// an empty request body fails binding (400) before the service — and its nil
-	// provider/quota deps — is ever reached. Config must be non-nil (New reads
-	// UseMockData) and a nil DB selects the in-memory repository.
-	mod := New(Deps{Config: &config.Config{}})
+
+	// Minimal module: only need routing and middleware for the gate test.
 	mod := New(Deps{
 		Config:     &config.Config{UseMockData: true},
 		Logger:     slog.Default(),
@@ -82,7 +63,7 @@ func TestGenerateTextRequiresVerifiedEmail(t *testing.T) {
 		return rec
 	}
 
-	// Unverified access token → 403 email_not_verified, before the stub handler.
+	// Unverified access token → 403 email_not_verified, before the handler.
 	unverified, err := mgr.GenerateAccess(uid, auth.RoleUser, false)
 	if err != nil {
 		t.Fatalf("mint unverified token: %v", err)
@@ -91,34 +72,26 @@ func TestGenerateTextRequiresVerifiedEmail(t *testing.T) {
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("unverified: want 403, got %d (%s)", rec.Code, rec.Body.String())
 	}
-	var body struct {
+	var errBody struct {
 		ErrorCode string `json:"error_code"`
 	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+	if err := json.Unmarshal(rec.Body.Bytes(), &errBody); err != nil {
 		t.Fatalf("decode error body: %v", err)
 	}
-	if body.ErrorCode != string(apperror.CodeEmailNotVerified) {
-		t.Fatalf("unverified: want error_code=%q, got %q", apperror.CodeEmailNotVerified, body.ErrorCode)
+	if errBody.ErrorCode != string(apperror.CodeEmailNotVerified) {
+		t.Fatalf("unverified: want error_code=%q, got %q", apperror.CodeEmailNotVerified, errBody.ErrorCode)
 	}
 
-	// Verified token passes the gate; handler runs and returns 200.
-	// Verified token passes the gate and reaches the handler; the empty body then
-	// fails request validation (400 validation_error) — proving the gate let it
-	// through instead of short-circuiting with 403 email_not_verified.
-	// Verified token passes the gate; handler runs and returns 200.
+	// Verified token: gate allows through; stub provider returns generated content -> 200.
 	verified, err := mgr.GenerateAccess(uid, auth.RoleUser, true)
 	if err != nil {
 		t.Fatalf("mint verified token: %v", err)
 	}
 	if rec := call(verified); rec.Code != http.StatusOK {
 		t.Fatalf("verified: want 200 (past the gate), got %d (%s)", rec.Code, rec.Body.String())
-	if rec := call(verified); rec.Code != http.StatusBadRequest {
-		t.Fatalf("verified: want 400 (past the gate, empty body fails validation), got %d (%s)", rec.Code, rec.Body.String())
-	if rec := call(verified); rec.Code != http.StatusOK {
-		t.Fatalf("verified: want 200 (past the gate), got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	// No token at all → 401 from Auth; the gate is never reached.
+	// No token at all -> 401 from Auth.
 	if rec := call(""); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("no token: want 401, got %d", rec.Code)
 	}
