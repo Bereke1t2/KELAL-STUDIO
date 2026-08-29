@@ -40,13 +40,65 @@ export const en = {
   'lang.en': 'English',
   'lang.am': 'አማርኛ',
 
+  // Shared form fields
+  'field.email': 'Email',
+  'field.password': 'Password',
+  'field.newPassword': 'New password',
+  'field.confirmPassword': 'Confirm password',
+  'field.passwordHint': 'At least 8 characters',
+  'field.passwordMismatch': 'Those passwords do not match.',
+
   // Sign in
   'login.title': 'Sign in',
   'login.subtitle': 'Sign in to configure your brand and review activity.',
-  'login.email': 'Email',
-  'login.password': 'Password',
   'login.submit': 'Sign in',
   'login.submitting': 'Signing in…',
+  'login.toRegister': 'New here? Create an account',
+  'login.toForgot': 'Forgot your password?',
+
+  // Register
+  'register.title': 'Create your account',
+  'register.subtitle': 'Set up an account to manage your brand and team activity.',
+  'register.submit': 'Create account',
+  'register.submitting': 'Creating account…',
+  'register.emailExists': 'An account with this email already exists. Try signing in.',
+  'register.done.title': 'Check your email',
+  'register.done.body':
+    'We sent a verification link to {email}. Open it to finish setting up your account, then sign in.',
+  'register.done.resend': 'Resend the link',
+  'register.done.resent': 'If that address still needs verifying, a new link is on its way.',
+  'auth.backToLogin': 'Back to sign in',
+
+  // Verify email
+  'verify.title': 'Verify your email',
+  'verify.verifying': 'Verifying your email…',
+  'verify.success.title': 'Email verified',
+  'verify.success.body': 'Your email is verified. You can sign in now.',
+  'verify.invalid.title': 'This link didn’t work',
+  'verify.invalid.body':
+    'The verification link is invalid or has expired. Enter your email to get a new one.',
+  'verify.needEmail': 'Enter your email and we’ll send a new verification link.',
+  'verify.resend.submit': 'Send verification link',
+  'verify.resend.sent': 'If that address needs verifying, a new link is on its way.',
+
+  // Forgot password
+  'forgot.title': 'Reset your password',
+  'forgot.subtitle': 'Enter your email and we’ll send a reset link.',
+  'forgot.submit': 'Send reset link',
+  'forgot.done.title': 'Check your email',
+  'forgot.done.body':
+    'If an account exists for {email}, a password reset link is on its way.',
+
+  // Reset password
+  'reset.title': 'Choose a new password',
+  'reset.subtitle': 'Enter a new password for your account.',
+  'reset.submit': 'Update password',
+  'reset.submitting': 'Updating…',
+  'reset.success.title': 'Password updated',
+  'reset.success.body': 'Your password is updated. Sign in with your new password.',
+  'reset.noToken.title': 'This reset link is invalid',
+  'reset.noToken.body': 'Request a new password reset link to continue.',
+  'reset.requestNew': 'Request a new link',
 
   // Placeholder screens (removed as each feature branch lands)
   'placeholder.title': 'Coming soon',
@@ -60,5 +112,7 @@ export const en = {
   'error.accountLocked':
     'This account is temporarily locked after too many failed sign-in attempts.',
   'error.rateLimited': 'Too many requests. Wait a moment and try again.',
+  'error.quota': 'Your quota is used up. It resets at {time}.',
+  'error.quotaNoTime': 'Your quota is used up.',
   'error.server': 'Something went wrong on our end. Please try again.',
 } as const;

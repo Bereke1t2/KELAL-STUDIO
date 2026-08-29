@@ -9,9 +9,9 @@ import type { Messages } from './messages';
  * Amharic speaker before public beta — the PRD requires this
  * (`backend/docs/OPEN_QUESTIONS.md`, and mobile follows the same policy).
  *
- * The `: Messages` annotation makes `tsc` fail if this drifts from `en.ts`
- * (missing key, renamed key, extra key). `i18n/__tests__/parity.test.ts` adds
- * a runtime check for empty values and untranslated strings.
+ * The `: Messages` annotation makes `tsc` fail if this drifts from `en.ts`.
+ * `i18n/__tests__/parity.test.ts` adds a runtime check for empty / untranslated
+ * values.
  */
 const am: Messages = {
   // Verified
@@ -44,12 +44,59 @@ const am: Messages = {
   'lang.en': 'English',
   'lang.am': 'አማርኛ',
 
+  'field.email': 'ኢሜይል',
+  'field.password': 'የይለፍ ቃል',
+  'field.newPassword': 'አዲስ የይለፍ ቃል',
+  'field.confirmPassword': 'የይለፍ ቃል ያረጋግጡ',
+  'field.passwordHint': 'ቢያንስ 8 ቁምፊዎች',
+  'field.passwordMismatch': 'የይለፍ ቃላቱ አይዛመዱም።',
+
   'login.title': 'ግባ',
   'login.subtitle': 'ብራንድዎን ለማዋቀር እና እንቅስቃሴን ለመገምገም ይግቡ።',
-  'login.email': 'ኢሜይል',
-  'login.password': 'የይለፍ ቃል',
   'login.submit': 'ግባ',
   'login.submitting': 'በመግባት ላይ…',
+  'login.toRegister': 'እዚህ አዲስ ነዎት? መለያ ይፍጠሩ',
+  'login.toForgot': 'የይለፍ ቃልዎን እረሱት?',
+
+  'register.title': 'መለያዎን ይፍጠሩ',
+  'register.subtitle': 'ብራንድዎን እና የቡድን እንቅስቃሴን ለማስተዳደር መለያ ያዘጋጁ።',
+  'register.submit': 'መለያ ፍጠር',
+  'register.submitting': 'መለያ በመፍጠር ላይ…',
+  'register.emailExists': 'በዚህ ኢሜይል የተመዘገበ መለያ አለ። ለመግባት ይሞክሩ።',
+  'register.done.title': 'ኢሜይልዎን ይመልከቱ',
+  'register.done.body':
+    'የማረጋገጫ አገናኝ ወደ {email} ልከናል። መለያዎን ማዘጋጀት ለማጠናቀቅ ይክፈቱት፣ ከዚያ ይግቡ።',
+  'register.done.resend': 'አገናኙን እንደገና ላክ',
+  'register.done.resent': 'ያ አድራሻ ማረጋገጥ የሚያስፈልገው ከሆነ አዲስ አገናኝ በመንገድ ላይ ነው።',
+  'auth.backToLogin': 'ወደ መግቢያ ተመለስ',
+
+  'verify.title': 'ኢሜይልዎን ያረጋግጡ',
+  'verify.verifying': 'ኢሜይልዎን በማረጋገጥ ላይ…',
+  'verify.success.title': 'ኢሜይል ተረጋግጧል',
+  'verify.success.body': 'ኢሜይልዎ ተረጋግጧል። አሁን መግባት ይችላሉ።',
+  'verify.invalid.title': 'ይህ አገናኝ አልሰራም',
+  'verify.invalid.body':
+    'የማረጋገጫ አገናኙ ልክ ያልሆነ ወይም ጊዜው ያለፈበት ነው። አዲስ ለማግኘት ኢሜይልዎን ያስገቡ።',
+  'verify.needEmail': 'ኢሜይልዎን ያስገቡ፣ አዲስ የማረጋገጫ አገናኝ እንልካለን።',
+  'verify.resend.submit': 'የማረጋገጫ አገናኝ ላክ',
+  'verify.resend.sent': 'ያ አድራሻ ማረጋገጥ የሚያስፈልገው ከሆነ አዲስ አገናኝ በመንገድ ላይ ነው።',
+
+  'forgot.title': 'የይለፍ ቃልዎን ዳግም ያስጀምሩ',
+  'forgot.subtitle': 'ኢሜይልዎን ያስገቡ፣ የዳግም ማስጀመሪያ አገናኝ እንልካለን።',
+  'forgot.submit': 'የዳግም ማስጀመሪያ አገናኝ ላክ',
+  'forgot.done.title': 'ኢሜይልዎን ይመልከቱ',
+  'forgot.done.body':
+    'ለ {email} መለያ ካለ፣ የይለፍ ቃል ዳግም ማስጀመሪያ አገናኝ በመንገድ ላይ ነው።',
+
+  'reset.title': 'አዲስ የይለፍ ቃል ይምረጡ',
+  'reset.subtitle': 'ለመለያዎ አዲስ የይለፍ ቃል ያስገቡ።',
+  'reset.submit': 'የይለፍ ቃል አዘምን',
+  'reset.submitting': 'በማዘመን ላይ…',
+  'reset.success.title': 'የይለፍ ቃል ተዘምኗል',
+  'reset.success.body': 'የይለፍ ቃልዎ ተዘምኗል። በአዲሱ የይለፍ ቃልዎ ይግቡ።',
+  'reset.noToken.title': 'ይህ የዳግም ማስጀመሪያ አገናኝ ልክ አይደለም',
+  'reset.noToken.body': 'ለመቀጠል አዲስ የይለፍ ቃል ዳግም ማስጀመሪያ አገናኝ ይጠይቁ።',
+  'reset.requestNew': 'አዲስ አገናኝ ይጠይቁ',
 
   'placeholder.title': 'በቅርቡ ይመጣል',
   'placeholder.body': 'ይህ ማያ ገጽ ከዚህ በላይ በተደረደረ ቅርንጫፍ ውስጥ ይመጣል።',
@@ -61,6 +108,8 @@ const am: Messages = {
   'error.accountLocked':
     'ይህ መለያ በተደጋጋሚ የተሳሳተ የመግቢያ ሙከራ ምክንያት ለጊዜው ተቆልፏል።',
   'error.rateLimited': 'በጣም ብዙ ጥያቄዎች። ለአፍታ ቆይተው እንደገና ይሞክሩ።',
+  'error.quota': 'ኮታዎ አልቋል። በ {time} ዳግም ይጀምራል።',
+  'error.quotaNoTime': 'ኮታዎ አልቋል።',
   'error.server': 'በእኛ በኩል ስህተት ተፈጥሯል። እባክዎ እንደገና ይሞክሩ።',
 };
 

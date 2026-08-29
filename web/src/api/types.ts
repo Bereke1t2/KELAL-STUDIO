@@ -18,6 +18,10 @@ export interface RegisterResult {
   verification_sent: boolean;
 }
 
+export interface VerifyEmailResult {
+  verified: boolean;
+}
+
 export interface User {
   id: string;
   email: string;

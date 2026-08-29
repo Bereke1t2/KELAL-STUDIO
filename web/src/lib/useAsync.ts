@@ -3,16 +3,16 @@
    literal here and that is the point of the hook. */
 import { useEffect, useState } from 'react';
 
-import { errorMessage } from '../ui/errorMessage';
-
 export interface AsyncState<T> {
   data: T | null;
-  error: string | null;
+  /** The raw thrown value. Format it in the component with
+   *  `errorMessage(err, t)` — this hook stays i18n-agnostic. */
+  error: unknown;
   loading: boolean;
 }
 
 /**
- * Run a fetch on mount, with cancellation and taxonomy-aware error handling.
+ * Run a fetch on mount, with cancellation.
  *
  * `deps` is spread into the effect's dependency list, so callers must pass a
  * stable array — the same discipline any useEffect dependency needs.
@@ -35,8 +35,7 @@ export function useAsync<T>(
         if (!cancelled) setState({ data, error: null, loading: false });
       })
       .catch((err: unknown) => {
-        if (cancelled) return;
-        setState({ data: null, error: errorMessage(err), loading: false });
+        if (!cancelled) setState({ data: null, error: err, loading: false });
       });
     return () => {
       cancelled = true;
