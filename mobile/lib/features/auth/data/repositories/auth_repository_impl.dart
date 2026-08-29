@@ -46,11 +46,18 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Result<Failure, void>> deleteAccount() async {
     try {
-      // Mocking the delete account backend call for now since no remote method exists yet.
-      // Clears local token as a side effect (the user is "deleted" and thus logged out locally).
+      // Mocking the delete account backend call for now since no remote
+      // method exists yet. Clears local token as a side effect (the user
+      // is "deleted" and thus logged out locally).
       await logout();
       return const Result.ok(null);
-    } catch (_) {
+    }
+    // Deliberate catch-all: this is the repository boundary — per
+    // flutter-architecture, nothing above this layer may throw, so any
+    // exception type we didn't anticipate still needs to become a
+    // Result.err rather than propagate.
+    // ignore: avoid_catches_without_on_clauses
+    catch (_) {
       return const Result.err(
         UnexpectedFailure('Something went wrong. Please try again.'),
       );
