@@ -43,8 +43,8 @@ export function AppShell() {
   const { t } = useTranslation();
 
   return (
-    <div className="min-h-dvh bg-canvas text-ink md:grid md:grid-cols-[15rem_1fr]">
-      <aside className="flex flex-col gap-6 border-b border-line bg-surface p-5 md:sticky md:top-0 md:h-dvh md:border-r md:border-b-0">
+    <div className="flex min-h-dvh w-full flex-col bg-canvas text-ink md:flex-row">
+      <aside className="flex flex-col gap-6 border-b border-line bg-surface p-5 md:w-60 md:shrink-0 md:self-start md:border-r md:border-b-0 md:sticky md:top-0 md:h-dvh">
         <NavLink to="/brand-kit" className="rounded-md">
           <Wordmark size="sm" />
         </NavLink>
@@ -100,8 +100,8 @@ export function AppShell() {
         </div>
       </aside>
 
-      <main className="min-w-0 px-5 py-8 md:px-10 md:py-12">
-        <div className="mx-auto max-w-3xl">
+      <main className="min-w-0 flex-1 px-5 py-8 md:px-10 md:py-12">
+        <div className="mx-auto w-full max-w-5xl">
           <Outlet />
         </div>
       </main>
