@@ -224,19 +224,19 @@ func (t *Text) GenerateText(ctx context.Context, req provider.TextRequest) (prov
 func buildUserMessage(req provider.TextRequest) string {
 	var b strings.Builder
 
-	b.WriteString(fmt.Sprintf("Write a social media caption for: %s\n", req.InputText))
+	fmt.Fprintf(&b, "Write a social media caption for: %s\n", req.InputText)
 
 	if req.Platform != "" {
-		b.WriteString(fmt.Sprintf("Platform: %s\n", req.Platform))
+		fmt.Fprintf(&b, "Platform: %s\n", req.Platform)
 	}
 	if req.BrandName != "" {
-		b.WriteString(fmt.Sprintf("Brand: %s\n", req.BrandName))
+		fmt.Fprintf(&b, "Brand: %s\n", req.BrandName)
 	}
 	if req.Tone != "" {
-		b.WriteString(fmt.Sprintf("Tone: %s\n", req.Tone))
+		fmt.Fprintf(&b, "Tone: %s\n", req.Tone)
 	}
 	if req.InputLang != "" && req.InputLang != "auto" {
-		b.WriteString(fmt.Sprintf("Input language: %s\n", req.InputLang))
+		fmt.Fprintf(&b, "Input language: %s\n", req.InputLang)
 	}
 
 	return b.String()
