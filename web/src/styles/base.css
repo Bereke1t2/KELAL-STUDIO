@@ -9,9 +9,11 @@
   box-sizing: border-box;
 }
 
-* {
-  margin: 0;
-}
+/* No blanket `* { margin: 0 }` here: this file is imported AFTER Tailwind, so a
+   universal physical-margin reset would defeat every `mx-auto` / `ms-auto`
+   utility (a later physical `margin-left: 0` beats an earlier logical
+   `margin-inline: auto`). Tailwind's Preflight already zeroes the margins that
+   matter — body, headings, p, lists, figure, blockquote, fieldset. */
 
 html {
   /* Respect the user's browser font-size setting; the PRD's accessibility
