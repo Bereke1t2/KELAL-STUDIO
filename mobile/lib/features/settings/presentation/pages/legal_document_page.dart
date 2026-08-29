@@ -6,9 +6,9 @@ import 'package:kelal_studio/core/theme/app_typography.dart';
 
 class LegalDocumentPage extends StatelessWidget {
   const LegalDocumentPage({
-    super.key,
     required this.title,
     required this.content,
+    super.key,
   });
 
   final String title;

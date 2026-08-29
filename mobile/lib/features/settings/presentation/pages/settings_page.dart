@@ -13,15 +13,15 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: Text(
           'Settings',
           style: AppTypography.display.copyWith(
-            color: Theme.of(context).colorScheme.onBackground,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        backgroundColor: Theme.of(context).colorScheme.background,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
       ),
       body: ListView(
@@ -82,8 +82,8 @@ class SettingsPage extends StatelessWidget {
   Widget _buildListItem(
     BuildContext context, {
     required String title,
-    String? trailingText,
     required VoidCallback onTap,
+    String? trailingText,
   }) {
     return InkWell(
       onTap: onTap,
@@ -95,7 +95,7 @@ class SettingsPage extends StatelessWidget {
             Text(
               title,
               style: AppTypography.body.copyWith(
-                color: Theme.of(context).colorScheme.onBackground,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             if (trailingText != null)
@@ -113,7 +113,7 @@ class SettingsPage extends StatelessWidget {
 
   Widget _buildThemeItem(BuildContext context) {
     final themeMode = context.watch<ThemeCubit>().state;
-    String themeText = 'System';
+    var themeText = 'System';
     if (themeMode == ThemeMode.light) themeText = 'Light';
     if (themeMode == ThemeMode.dark) themeText = 'Dark';
 
@@ -131,7 +131,7 @@ class SettingsPage extends StatelessWidget {
 
   Widget _buildLanguageItem(BuildContext context) {
     final locale = context.watch<LocaleCubit>().state;
-    String langText = 'English';
+    var langText = 'English';
     if (locale?.languageCode == 'am') {
       langText = 'Amharic';
     }
