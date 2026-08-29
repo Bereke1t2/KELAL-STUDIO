@@ -14,4 +14,5 @@ import (
 // RegisterRoutes copies, so cmd/api wires them all uniformly.
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup, mw middleware.Set) {
 	r.POST("/assets", mw.AuthRequired, mw.UserRateLimit, h.upload)
+	r.GET("/assets/:id", mw.AuthRequired, h.serve)
 }

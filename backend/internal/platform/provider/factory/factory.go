@@ -8,22 +8,28 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/config"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider/gemini"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/provider/stub"
 )
 
 // BuildTextChain constructs a text failover chain from an ordered list of
-// provider names. Today only "stub" resolves; any other name is a hard error
-// rather than a silent fallback (OQ-20 — we flag the missing provider instead
-// of pretending it works). An empty order defaults to the stub.
-func BuildTextChain(order []string, timeout time.Duration, telemetry provider.TelemetryFunc) (*provider.TextChain, error) {
+// provider names. Supported providers: "stub", "gemini". An empty order
+// defaults to the stub.
+func BuildTextChain(order []string, timeout time.Duration, telemetry provider.TelemetryFunc, cfg *config.ProviderConfig) (*provider.TextChain, error) {
 	providers := make([]provider.TextProvider, 0, len(order))
 	for _, name := range order {
 		switch name {
 		case "stub":
 			providers = append(providers, stub.NewText())
+		case "gemini":
+			if cfg == nil || cfg.GeminiAPIKey == "" {
+				return nil, fmt.Errorf("factory: text provider %q requires GEMINI_API_KEY to be set", name)
+			}
+			providers = append(providers, gemini.NewText(cfg.GeminiAPIKey))
 		default:
-			return nil, fmt.Errorf("factory: text provider %q is not implemented (OQ-20: only %q ships today)", name, "stub")
+			return nil, fmt.Errorf("factory: text provider %q is not implemented (supported: stub, gemini)", name)
 		}
 	}
 	if len(providers) == 0 {
@@ -32,19 +38,50 @@ func BuildTextChain(order []string, timeout time.Duration, telemetry provider.Te
 	return provider.NewTextChain(timeout, telemetry, providers...), nil
 }
 
-// BuildImageChain is the image-generation analogue of BuildTextChain.
-func BuildImageChain(order []string, timeout time.Duration, telemetry provider.TelemetryFunc) (*provider.ImageChain, error) {
+// BuildImageChain constructs an image failover chain from an ordered list of
+// provider names. Supported providers: "stub", "gemini". An empty order
+// defaults to the stub.
+func BuildImageChain(order []string, timeout time.Duration, telemetry provider.TelemetryFunc, cfg *config.ProviderConfig) (*provider.ImageChain, error) {
 	providers := make([]provider.ImageProvider, 0, len(order))
 	for _, name := range order {
 		switch name {
 		case "stub":
 			providers = append(providers, stub.NewImage())
+		case "gemini":
+			if cfg == nil || cfg.GeminiAPIKey == "" {
+				return nil, fmt.Errorf("factory: image provider %q requires GEMINI_API_KEY to be set", name)
+			}
+			providers = append(providers, gemini.NewImage(cfg.GeminiAPIKey))
 		default:
-			return nil, fmt.Errorf("factory: image provider %q is not implemented (OQ-20: only %q ships today)", name, "stub")
+			return nil, fmt.Errorf("factory: image provider %q is not implemented (supported: stub, gemini)", name)
 		}
 	}
 	if len(providers) == 0 {
 		providers = append(providers, stub.NewImage())
 	}
 	return provider.NewImageChain(timeout, telemetry, providers...), nil
+}
+
+// BuildVideoChain constructs a video failover chain from an ordered list of
+// provider names. Supported providers: "stub", "gemini". An empty order
+// defaults to the stub.
+func BuildVideoChain(order []string, timeout time.Duration, telemetry provider.TelemetryFunc, cfg *config.ProviderConfig) (*provider.VideoChain, error) {
+	providers := make([]provider.VideoProvider, 0, len(order))
+	for _, name := range order {
+		switch name {
+		case "stub":
+			providers = append(providers, stub.NewVideo())
+		case "gemini":
+			if cfg == nil || cfg.GeminiAPIKey == "" {
+				return nil, fmt.Errorf("factory: video provider %q requires GEMINI_API_KEY to be set", name)
+			}
+			providers = append(providers, gemini.NewVideo(cfg.GeminiAPIKey))
+		default:
+			return nil, fmt.Errorf("factory: video provider %q is not implemented (supported: stub, gemini)", name)
+		}
+	}
+	if len(providers) == 0 {
+		providers = append(providers, stub.NewVideo())
+	}
+	return provider.NewVideoChain(timeout, telemetry, providers...), nil
 }

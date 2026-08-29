@@ -185,3 +185,27 @@ func storageKey(id uuid.UUID, ext string) string {
 	h := id.String()
 	return h[0:2] + "/" + h + "." + ext
 }
+
+// Get retrieves an asset record and its bytes from storage. Returns
+// (asset, bytes, error). The caller is responsible for streaming the bytes.
+func (s *Service) Get(ctx context.Context, id uuid.UUID) (*models.Asset, []byte, error) {
+	asset, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	if asset == nil {
+		return nil, nil, nil
+	}
+
+	// Try to read the blob from storage. StorageRef is the key (e.g. "3f/uuid.png").
+	reader, ok := s.store.(storage.Reader)
+	if !ok {
+		return asset, nil, nil // store doesn't support reads
+	}
+
+	bytes, err := reader.Get(ctx, asset.StorageRef)
+	if err != nil {
+		return asset, nil, err
+	}
+	return asset, bytes, nil
+}

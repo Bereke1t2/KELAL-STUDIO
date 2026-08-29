@@ -1,6 +1,7 @@
 package asset
 
 import (
+	"errors"
 	"io"
 	"net/http"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/apperror"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/httpx"
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/httpx/middleware"
+	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/platform/storage"
 )
 
 // multipartOverhead is slack added to the byte cap when bounding the request
@@ -78,6 +80,46 @@ func (h *Handler) upload(c *gin.Context) {
 		return
 	}
 	httpx.Created(c, toResponse(asset))
+}
+
+// serve handles GET /assets/:id — streams the image bytes back to the
+// caller with the correct Content-Type. The route is bearer-authenticated.
+func (h *Handler) serve(c *gin.Context) {
+	ownerID, aerr := callerID(c)
+	if aerr != nil {
+		httpx.Fail(c, aerr)
+		return
+	}
+
+	assetID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		httpx.Fail(c, apperror.Validation("invalid asset id"))
+		return
+	}
+
+	asset, data, svcErr := h.svc.Get(c.Request.Context(), assetID)
+	if svcErr != nil {
+		if errors.Is(svcErr, storage.ErrNotFound) {
+			httpx.Fail(c, apperror.NotFound("asset"))
+			return
+		}
+		httpx.Fail(c, apperror.Internal(svcErr))
+		return
+	}
+	if asset == nil {
+		httpx.Fail(c, apperror.NotFound("asset"))
+		return
+	}
+
+	// Authorization: the caller must own the asset.
+	if asset.OwnerUserID != ownerID {
+		httpx.Fail(c, apperror.NotFound("asset"))
+		return
+	}
+
+	c.Header("Content-Type", asset.MimeType)
+	c.Header("Cache-Control", "private, max-age=86400")
+	c.Data(http.StatusOK, asset.MimeType, data)
 }
 
 // callerID extracts the authenticated user's id from the access token the Auth
