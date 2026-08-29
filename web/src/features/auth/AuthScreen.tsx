@@ -14,8 +14,8 @@ import { Wordmark } from '../../ui/Wordmark';
  */
 export function AuthScreen({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-dvh bg-canvas text-ink">
-      <div className="mx-auto flex min-h-dvh max-w-md flex-col px-4 py-8">
+    <div className="flex min-h-dvh flex-col items-center bg-canvas text-ink">
+      <div className="flex min-h-dvh w-full max-w-md flex-col px-4 py-8">
         <div className="flex items-start justify-between gap-4">
           <Wordmark size="md" />
           <div className="flex flex-col items-end gap-2">

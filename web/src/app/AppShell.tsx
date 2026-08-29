@@ -100,8 +100,8 @@ export function AppShell() {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 px-5 py-8 md:px-10 md:py-12">
-        <div className="mx-auto w-full max-w-5xl">
+      <main className="flex min-w-0 flex-1 flex-col items-center px-5 py-8 md:px-10 md:py-12">
+        <div className="w-full max-w-5xl">
           <Outlet />
         </div>
       </main>
