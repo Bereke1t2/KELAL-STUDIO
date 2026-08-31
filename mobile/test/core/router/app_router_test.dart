@@ -26,11 +26,8 @@ import 'package:kelal_studio/features/drafts/domain/usecases/resume_draft_usecas
 import 'package:kelal_studio/features/drafts/domain/usecases/watch_drafts_usecase.dart';
 import 'package:kelal_studio/features/drafts/presentation/bloc/drafts_list_bloc.dart';
 import 'package:kelal_studio/features/drafts/presentation/cubit/drafts_disclosure_seen_cubit.dart';
-import 'package:kelal_studio/features/generation/domain/usecases/decode_generated_image_usecase.dart';
-import 'package:kelal_studio/features/generation/domain/usecases/generate_image_usecase.dart';
 import 'package:kelal_studio/features/generation/domain/usecases/generate_text_usecase.dart';
 import 'package:kelal_studio/features/generation/presentation/bloc/generation_bloc.dart';
-import 'package:kelal_studio/features/generation/presentation/bloc/image_generation_bloc.dart';
 import 'package:kelal_studio/features/quota/domain/entities/quota.dart';
 import 'package:kelal_studio/features/quota/domain/usecases/get_quota_usecase.dart';
 import 'package:kelal_studio/features/quota/presentation/bloc/quota_bloc.dart';
@@ -51,11 +48,6 @@ class MockUploadBrandLogoUseCase extends Mock
 class MockGetQuotaUseCase extends Mock implements GetQuotaUseCase {}
 
 class MockGenerateTextUseCase extends Mock implements GenerateTextUseCase {}
-
-class MockGenerateImageUseCase extends Mock implements GenerateImageUseCase {}
-
-class MockDecodeGeneratedImageUseCase extends Mock
-    implements DecodeGeneratedImageUseCase {}
 
 class MockWatchDraftsUseCase extends Mock implements WatchDraftsUseCase {}
 
@@ -255,19 +247,6 @@ void main() {
             composerGetBrandKitUseCase,
           ),
         )
-        // ComposerPage also resolves ImageGenerationBloc via getIt
-        // (feat/render-engine-canvas-editor) — same reasoning as
-        // GenerationBloc above: needed purely so ComposerPage's
-        // MultiBlocProvider doesn't throw a "not registered" error on
-        // build, these navigation tests never trigger an actual image
-        // generation call.
-        ..registerFactory<ImageGenerationBloc>(
-          () => ImageGenerationBloc(
-            MockGenerateImageUseCase(),
-            composerGetBrandKitUseCase,
-            MockDecodeGeneratedImageUseCase(),
-          ),
-        )
         ..registerFactory<DraftsListBloc>(
           () => DraftsListBloc(
             watchDraftsUseCase,
@@ -400,6 +379,25 @@ void main() {
         await tester.pumpAndSettle();
 
         router.config.go('/export');
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(find.widgetWithText(AppBar, 'Compose'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'landing on /generation-result without a GenerationResultPageArgs '
+      'extra redirects to Compose instead of crashing on the unguarded '
+      'cast — same process-death `extra`-drop guard as /canvas-editor',
+      (tester) async {
+        final router = AppRouter(authRepository);
+        await tester.pumpWidget(wrap(router));
+
+        authController.add(true);
+        await tester.pumpAndSettle();
+
+        router.config.go('/generation-result');
         await tester.pumpAndSettle();
 
         expect(tester.takeException(), isNull);

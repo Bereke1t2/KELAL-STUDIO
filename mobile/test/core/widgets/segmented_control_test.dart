@@ -48,4 +48,37 @@ void main() {
 
     expect(tappedIndex, 1);
   });
+
+  testWidgets('an icon renders before each label when icons is provided', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        AppSegmentedControl(
+          labels: const ['Post', 'Story'],
+          icons: const [Icons.image_outlined, Icons.auto_stories_outlined],
+          selectedIndex: 0,
+          onChanged: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.image_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.auto_stories_outlined), findsOneWidget);
+  });
+
+  testWidgets('omitting icons renders exactly as before this parameter '
+      'existed — text-only, no icon in the tree', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        AppSegmentedControl(
+          labels: const ['Post', 'Story'],
+          selectedIndex: 0,
+          onChanged: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.byType(Icon), findsNothing);
+  });
 }

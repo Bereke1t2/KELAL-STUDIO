@@ -24,6 +24,7 @@ class ErrorBanner extends StatelessWidget {
   const ErrorBanner({
     required this.message,
     this.title,
+    this.icon,
     this.onDismiss,
     this.dismissSemanticLabel,
     super.key,
@@ -33,6 +34,13 @@ class ErrorBanner extends StatelessWidget {
   /// [message] is shown.
   final String? title;
   final String message;
+
+  /// Optional leading glyph, shown to the left of [title]/[message]. `null`
+  /// (the default) renders exactly as before this was added — the
+  /// composer's generic generation-error banner has no natural icon and
+  /// keeps its current text-only look; `EmailVerificationGate` opts in with
+  /// a mail glyph since that banner names a specific, recognizable state.
+  final IconData? icon;
 
   /// When non-null, a dismiss (×) affordance is shown and invokes this.
   final VoidCallback? onDismiss;
@@ -57,6 +65,10 @@ class ErrorBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (icon != null) ...[
+            Icon(icon, color: colors.errorText, size: 20),
+            const SizedBox(width: AppSpacing.md),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

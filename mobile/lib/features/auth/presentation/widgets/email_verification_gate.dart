@@ -77,6 +77,7 @@ class _EmailVerificationGateState extends State<EmailVerificationGate> {
               ),
               child: ErrorBanner(
                 key: const Key('email_verification_gate_banner'),
+                icon: Icons.mark_email_unread_outlined,
                 title: l10n.emailVerificationGateTitle,
                 message: l10n.emailVerificationGateMessage,
                 onDismiss: () => setState(() => _dismissed = true),
