@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:kelal_studio/core/theme/app_theme.dart';
+
 /// The app's primary call-to-action button — Figma `Components / Button`,
 /// node `14:2` ("Style=Primary, State=Default"). Visual styling (fill
 /// color, radius, min tap target, label typography) already lives on
@@ -26,6 +28,7 @@ class PrimaryButton extends StatelessWidget {
     required this.onPressed,
     this.isLoading = false,
     this.loadingValue,
+    this.icon,
     super.key,
   });
 
@@ -46,6 +49,12 @@ class PrimaryButton extends StatelessWidget {
   /// — see the equivalent note on `LoadingIndicator`.
   final double? loadingValue;
 
+  /// Optional leading icon, shown before [label] when not [isLoading].
+  /// `null` (the default) renders exactly as before this was added — every
+  /// existing call site (login, register, brand-kit save, etc.) keeps its
+  /// current text-only look unless it opts in.
+  final IconData? icon;
+
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
@@ -59,7 +68,17 @@ class PrimaryButton extends StatelessWidget {
                 value: loadingValue,
               ),
             )
-          : Text(label),
+          : icon == null
+          ? Text(label)
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 18),
+                const SizedBox(width: AppSpacing.sm),
+                Text(label),
+              ],
+            ),
     );
   }
 }

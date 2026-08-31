@@ -166,6 +166,10 @@
   "@quotaExceededDialogAction": {
     "description": "showQuotaExceededDialog's single dismiss action label."
   },
+  "composerTagline": "Turn your idea into ready-to-post content",
+  "@composerTagline": {
+    "description": "Short subtitle under the Compose route's AppBar title — sets expectations for what this screen does before the user reads any field label."
+  },
   "composerIdeaLabel": "What's the idea?",
   "@composerIdeaLabel": {
     "description": "Floating label on the Idea Composer's multi-line free-text input (ComposerPage)."
@@ -222,6 +226,10 @@
   "generationErrorUnknown": "Something went wrong. Please try again.",
   "@generationErrorUnknown": {
     "description": "App-interface-localized fallback copy for ApiErrorType.unknown on a /generate/text failure."
+  },
+  "generationResultTitle": "Your content",
+  "@generationResultTitle": {
+    "description": "AppBar title on GenerationResultPage — the routed screen GenerationBloc's GenerationSuccess navigates to from Compose (see ComposerPage's BlocListener)."
   },
   "generationCaptionEnLabel": "English caption",
   "generationCaptionAmLabel": "Amharic caption",
@@ -409,5 +417,38 @@
   "remindersPermissionDeniedMessage": "Enable notifications for Kelal Studio in your device settings to get reminders.",
   "@remindersPermissionDeniedMessage": {
     "description": "Error snack bar shown when ReminderRepositoryImpl.schedule returns ReminderPermissionDeniedFailure — the OS-level notification permission is off."
-  }
+  },
+  "settingsTagline": "Manage your account and preferences",
+  "@settingsTagline": {
+    "description": "Short subtitle under the Settings route's AppBar title, same slot/pattern as ComposerPage's composerTagline (see ComposeAppBar)."
+  },
+  "settingsSectionAccount": "ACCOUNT",
+  "settingsAccountItem": "Account",
+  "settingsBrandKitItem": "Brand Kit",
+  "settingsNotificationsItem": "Notifications & Reminders",
+  "settingsSectionPreferences": "PREFERENCES",
+  "settingsThemeItem": "Theme",
+  "settingsThemeSystem": "System",
+  "settingsThemeLight": "Light",
+  "settingsThemeDark": "Dark",
+  "@settingsThemeSystem": {
+    "description": "SettingsPage's Theme row trailing value when ThemeCubit.state is ThemeMode.system — settingsThemeLight/settingsThemeDark are the other two states, cycled by tapping the row (see _cycleTheme)."
+  },
+  "settingsLanguageItem": "Language & Region",
+  "settingsLanguageEnglish": "English",
+  "settingsLanguageAmharic": "Amharic",
+  "@settingsLanguageEnglish": {
+    "description": "SettingsPage's Language row trailing value when LocaleCubit.state resolves to English — settingsLanguageAmharic is the other, toggled by tapping the row."
+  },
+  "settingsQuotaItem": "Quota & Usage",
+  "settingsQuotaTrailingPlaceholder": "{count} left today",
+  "@settingsQuotaTrailingPlaceholder": {
+    "description": "Pre-existing gap, not introduced by this pass: this row's trailing value is a hardcoded placeholder number (48), not backed by QuotaBloc/GetQuotaUseCase the way QuotaStatusBadge on the Compose screen is — flagged here rather than silently treated as real data.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "settingsSectionAbout": "ABOUT",
+  "settingsLegalItem": "Legal",
+  "settingsSignOutItem": "Sign Out"
 }

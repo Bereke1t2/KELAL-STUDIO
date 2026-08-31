@@ -5,26 +5,19 @@ import 'package:go_router/go_router.dart';
 import 'package:kelal_studio/core/di/injection.dart';
 import 'package:kelal_studio/core/error/result.dart';
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
-import 'package:kelal_studio/core/router/app_page_transitions.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
 import 'package:kelal_studio/core/widgets/app_text_field.dart';
 import 'package:kelal_studio/core/widgets/error_banner.dart';
-import 'package:kelal_studio/core/widgets/error_snack_bar.dart';
 import 'package:kelal_studio/core/widgets/primary_button.dart';
 import 'package:kelal_studio/core/widgets/quota_exceeded_dialog.dart';
 import 'package:kelal_studio/core/widgets/segmented_control.dart';
-import 'package:kelal_studio/features/canvas_editor/presentation/pages/canvas_editor_page.dart';
-import 'package:kelal_studio/features/generation/domain/entities/aspect_ratio.dart';
+import 'package:kelal_studio/core/widgets/soft_card.dart';
 import 'package:kelal_studio/features/generation/domain/entities/content_platform.dart';
-import 'package:kelal_studio/features/generation/domain/entities/generation_result.dart';
 import 'package:kelal_studio/features/generation/domain/entities/input_language.dart';
 import 'package:kelal_studio/features/generation/presentation/bloc/generation_bloc.dart';
 import 'package:kelal_studio/features/generation/presentation/bloc/generation_event.dart';
 import 'package:kelal_studio/features/generation/presentation/bloc/generation_state.dart';
-import 'package:kelal_studio/features/generation/presentation/bloc/image_generation_bloc.dart';
-import 'package:kelal_studio/features/generation/presentation/bloc/image_generation_event.dart';
-import 'package:kelal_studio/features/generation/presentation/bloc/image_generation_state.dart';
-import 'package:kelal_studio/features/generation/presentation/widgets/generation_result_view.dart';
+import 'package:kelal_studio/features/generation/presentation/pages/generation_result_page.dart';
 
 /// The Idea Composer — PRD §6.2. Intended as `EmailVerificationGate`'s
 /// `child` at the `/compose` route (see `core/router/app_router.dart`),
@@ -35,32 +28,25 @@ import 'package:kelal_studio/features/generation/presentation/widgets/generation
 /// **Deliberately owns `GenerationBloc` directly**, even though
 /// "composer" and "generation" are two separate features in
 /// `lib/features/`. Composer's only reason to exist is to feed a
-/// generation request (see this branch's task: "composer's submit
-/// actually delegates to generation") and this branch adds no separate
-/// `/generate` route to host a standalone generation screen — so rather
-/// than inventing a second screen with no route of its own, this page is
-/// the single place both the composer form (local `StatefulWidget`
-/// state — free text, language/platform toggles) and the generation
-/// result (`GenerationBloc`-driven) live together. If a later branch adds
-/// a reason to view/re-run a generation independently of composing a new
-/// idea, that would be the point to split this into two routed screens.
+/// generation request, and there's no separate route hosting a
+/// standalone "just submit an idea" screen — so rather than inventing a
+/// second screen for that, this page is the one place the composer form
+/// (local `StatefulWidget` state — free text, language/platform toggles)
+/// lives.
 ///
-/// Also owns `ImageGenerationBloc` (feat/render-engine-canvas-editor) for
-/// the same reason: turning a successful text result into a graphic is a
-/// composer-initiated action ("Create graphic" under `GenerationResultView`),
-/// not a screen of its own — the real destination for that flow is
-/// `CanvasEditorPage`, pushed at `/canvas-editor` once
-/// `ImageGenerationSuccess` lands.
+/// A completed result, on the other hand, **does** get its own screen —
+/// `GenerationResultPage`, pushed at `/generation-result` once
+/// `GenerationBloc` emits `GenerationSuccess` (see the `BlocListener`
+/// below). That page owns `ImageGenerationBloc` and the "Create graphic"
+/// action itself; this page doesn't hold a result once one exists, only
+/// the state needed to request one.
 class ComposerPage extends StatelessWidget {
   const ComposerPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(create: (_) => getIt<GenerationBloc>()),
-        BlocProvider(create: (_) => getIt<ImageGenerationBloc>()),
-      ],
+    return BlocProvider(
+      create: (_) => getIt<GenerationBloc>(),
       child: const _ComposerView(),
     );
   }
@@ -101,13 +87,20 @@ class _ComposerViewState extends State<_ComposerView> {
 
   String? _ideaError;
 
-  // Snapshotted in `_createGraphic` at the moment "Create graphic" is
-  // tapped, not re-read from `GenerationBloc`'s state when
-  // `ImageGenerationSuccess` later lands (see `_createGraphic`'s doc
-  // comment for why re-reading is unsafe).
-  String _pendingGraphicCaptionEn = '';
-  String _pendingGraphicCaptionAm = '';
-  String _pendingGraphicInputText = '';
+  // Drives a one-shot fade/slide-in on first build — purely decorative
+  // (see build()'s AnimatedOpacity/AnimatedSlide), so a plain bool flipped
+  // one frame after initState is enough; no AnimationController needed
+  // since nothing here ever needs to reverse, replay, or be driven by
+  // gesture/scroll.
+  bool _entered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _entered = true);
+    });
+  }
 
   // OQ: `api_contract/openapi.yaml`'s `/generate/text` request schema
   // declares `input_text` as an unbounded `string` — no `maxLength`. A
@@ -176,217 +169,208 @@ class _ComposerViewState extends State<_ComposerView> {
     };
   }
 
-  /// Same mapping as [_errorMessage] except `validationError`, which needs
-  /// distinct copy here: by the time `/generate/image` can return that
-  /// error, the idea text has already passed [GenerationBloc]'s own
-  /// validation — `_errorMessage`'s "check your idea" copy would point at
-  /// a field that isn't even the problem (see
-  /// `generationErrorImageValidationError`'s ARB description).
-  String _imageErrorMessage(AppLocalizations l10n, ApiFailure failure) {
-    return failure.type == ApiErrorType.validationError
-        ? l10n.generationErrorImageValidationError
-        : _errorMessage(l10n, failure);
-  }
-
-  /// Snapshots [result]'s captions (plus the current idea text, into
-  /// [_pendingGraphicInputText] — used only to seed `DraftAutosaveCubit`
-  /// via `CanvasEditorPageArgs.inputText`, PRD §10.5) into
-  /// [_pendingGraphicCaptionEn]/[_pendingGraphicCaptionAm] **before**
-  /// dispatching the request —
-  /// deliberately not left to be re-read from `GenerationBloc`'s state
-  /// later when `ImageGenerationSuccess` lands. `ImageGenerationBloc`'s
-  /// own request/decode span can run for a while (a real network call plus
-  /// an image fetch+decode), and nothing prevents the user from firing a
-  /// *second*, unrelated `GenerationRequested` (re-generating the idea
-  /// text) on `GenerationBloc` while that's in flight — the "Create
-  /// graphic" button's own disabled-while-`ImageGenerationInProgress`
-  /// guard only stops a second *image* request, not a concurrent text one.
-  /// If this method instead re-read `context.read<GenerationBloc>().state`
-  /// inside the `ImageGenerationSuccess` listener, a text re-generation
-  /// landing in that window would silently pair the *new* idea's captions
-  /// with the graphic actually rendered from *this* one. Snapshotting here
-  /// ties the captions to the specific tap that triggered this graphic,
-  /// immune to whatever `GenerationBloc` does afterward.
-  void _createGraphic(BuildContext context, GenerationResult result) {
-    _pendingGraphicCaptionEn = result.captionEn;
-    _pendingGraphicCaptionAm = result.captionAm;
-    _pendingGraphicInputText = _ideaController.text.trim();
-    context.read<ImageGenerationBloc>().add(
-      ImageGenerationRequested(
-        captionEn: result.captionEn,
-        // Defaults to 1:1 — CanvasEditorPage owns the real ratio selector
-        // (AppSegmentedControl, `CanvasEditorAspectRatioChanged`) once
-        // inside the editor; this is only the seed ratio for the initial
-        // `/generate/image` call, not a user-facing choice made here.
-        aspectRatio: GenerationAspectRatio.oneToOne,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = context.colors;
 
-    return MultiBlocListener(
-      listeners: [
-        BlocListener<GenerationBloc, GenerationState>(
-          listenWhen: (previous, current) =>
-              current is GenerationFailure &&
-              current.failure.type == ApiErrorType.quotaExceeded,
-          listener: (context, state) => showQuotaExceededDialog(
-            context,
-            (state as GenerationFailure).failure,
-          ),
-        ),
-        BlocListener<ImageGenerationBloc, ImageGenerationState>(
-          listener: (context, state) {
-            switch (state) {
-              case ImageGenerationSuccess(:final scene):
-                // GenerationResult itself was never carried into
-                // ImageGenerationBloc (only its English caption was — see
-                // `_createGraphic` above), so both captions come from
-                // `_pendingGraphicCaptionEn`/`_pendingGraphicCaptionAm`
-                // instead — snapshotted in `_createGraphic` at the moment
-                // this graphic's request was dispatched, not re-read from
-                // `GenerationBloc`'s (possibly since-changed) current state
-                // here. See `_createGraphic`'s doc comment for the race
-                // this avoids.
-                context.push(
-                  '/canvas-editor',
-                  extra: CanvasEditorPageArgs(
-                    scene: scene,
-                    captionEn: _pendingGraphicCaptionEn,
-                    captionAm: _pendingGraphicCaptionAm,
-                    inputText: _pendingGraphicInputText,
-                  ),
-                );
-              case ImageGenerationBrandKitRequired():
-                showErrorSnackBar(
-                  context,
-                  l10n.composerImageGenerationBrandKitRequired,
-                );
-              case ImageGenerationFailure(:final failure)
-                  when failure.type == ApiErrorType.quotaExceeded:
-                showQuotaExceededDialog(context, failure);
-              case ImageGenerationFailure(:final failure):
-                showErrorSnackBar(context, _imageErrorMessage(l10n, failure));
-              case ImageGenerationInitial():
-              case ImageGenerationInProgress():
-                break;
-            }
-          },
+    return BlocListener<GenerationBloc, GenerationState>(
+      listener: (context, state) {
+        switch (state) {
+          case GenerationSuccess(:final result):
+            // Pushed rather than rendered inline — see this page's own
+            // doc comment for why a completed result gets its own screen
+            // now. `context.read` (not the `result` destructured above
+            // alone) isn't needed here since `_ideaController` is local
+            // state, not Bloc state — snapshotting the idea text at the
+            // moment of this specific success, same as before this page
+            // existed, still matters: the user could keep typing while
+            // this push is in flight (unlikely, but the snapshot costs
+            // nothing and removes the question).
+            context.push(
+              '/generation-result',
+              extra: GenerationResultPageArgs(
+                result: result,
+                inputText: _ideaController.text.trim(),
+              ),
+            );
+          case GenerationFailure(:final failure)
+              when failure.type == ApiErrorType.quotaExceeded:
+            showQuotaExceededDialog(context, failure);
+          case GenerationInitial():
+          case GenerationInProgress():
+          case GenerationFailure():
+            break;
+        }
+      },
+      child: Builder(
+        builder: (context) {
+          // A one-shot, respectful entrance: skipped entirely (duration
+          // zero) when the platform/OS asks for reduced motion, rather
+          // than every screen deciding this independently — see
+          // `flutter-review-checklist`'s edge-case guidance and this app's
+          // established "delight without a new dependency" pattern from
+          // branch 13's motion-polish pass (Hero/AnimatedAlign/CustomPainter,
+          // no animation package).
+          final reduceMotion = MediaQuery.of(context).disableAnimations;
+          final entranceDuration = Duration(
+            milliseconds: reduceMotion ? 0 : 320,
+          );
+          return AnimatedSlide(
+            duration: entranceDuration,
+            curve: Curves.easeOutCubic,
+            offset: _entered ? Offset.zero : const Offset(0, 0.03),
+            child: AnimatedOpacity(
+              duration: entranceDuration,
+              curve: Curves.easeOut,
+              opacity: _entered ? 1 : 0,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.xxl,
+                  AppSpacing.xl,
+                  AppSpacing.xxl,
+                  AppSpacing.xxxl,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SoftCard(
+                      child: AppTextField(
+                        key: const Key('composer_idea_field'),
+                        controller: _ideaController,
+                        label: l10n.composerIdeaLabel,
+                        maxLines: 5,
+                        minLines: 3,
+                        maxLength: _maxIdeaLength,
+                        errorText: _ideaError,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    SoftCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _SectionHeader(
+                            icon: Icons.translate_outlined,
+                            label: l10n.composerLanguageSectionLabel,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          AppSegmentedControl(
+                            key: const Key('composer_language_toggle'),
+                            labels: [
+                              l10n.composerLanguageEnOption,
+                              l10n.composerLanguageAmOption,
+                              l10n.composerLanguageAutoOption,
+                            ],
+                            selectedIndex: _languageIndex,
+                            onChanged: (index) =>
+                                setState(() => _languageIndex = index),
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          Divider(color: colors.borderSubtle, height: 1),
+                          const SizedBox(height: AppSpacing.lg),
+                          _SectionHeader(
+                            icon: Icons.share_outlined,
+                            label: l10n.composerPlatformSectionLabel,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          AppSegmentedControl(
+                            key: const Key('composer_platform_toggle'),
+                            labels: [
+                              l10n.composerPlatformInstagramOption,
+                              l10n.composerPlatformTiktokOption,
+                              l10n.composerPlatformTelegramOption,
+                            ],
+                            icons: const [
+                              Icons.camera_alt_outlined,
+                              Icons.music_note_outlined,
+                              Icons.send_outlined,
+                            ],
+                            selectedIndex: _platformIndex,
+                            onChanged: (index) =>
+                                setState(() => _platformIndex = index),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    BlocBuilder<GenerationBloc, GenerationState>(
+                      builder: (context, state) {
+                        final isGenerating = state is GenerationInProgress;
+                        return PrimaryButton(
+                          key: const Key('composer_generate_button'),
+                          label: l10n.composerGenerateButton,
+                          icon: Icons.auto_awesome,
+                          isLoading: isGenerating,
+                          onPressed: isGenerating
+                              ? null
+                              : () => _submit(context),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    // A completed result no longer renders here — it
+                    // navigates to GenerationResultPage instead (see the
+                    // BlocListener above), so GenerationSuccess is handled
+                    // there, not in this switch. Only a failure worth
+                    // seeing *on this page* — where retrying is the
+                    // obvious next action — stays inline;
+                    // quotaExceeded is surfaced via the dialog in the
+                    // listener above instead, not this banner, since
+                    // showing both would be redundant.
+                    BlocBuilder<GenerationBloc, GenerationState>(
+                      builder: (context, state) {
+                        return switch (state) {
+                          GenerationInitial() ||
+                          GenerationInProgress() ||
+                          GenerationSuccess() => const SizedBox.shrink(),
+                          GenerationFailure(:final failure)
+                              when failure.type == ApiErrorType.quotaExceeded =>
+                            const SizedBox.shrink(),
+                          GenerationFailure(:final failure) => ErrorBanner(
+                            key: const Key('composer_generation_error_banner'),
+                            message: _errorMessage(l10n, failure),
+                          ),
+                        };
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Small icon + label eyebrow above a [SoftCard] section — "Language"/
+/// "Platform" are genuinely two different settings, not decoration, so a
+/// distinguishing icon per header is meaningful, not merely decorative
+/// (see the "structure is information" guidance this app's other design
+/// docs point at). Kept private/composer-local rather than promoted to
+/// `core/widgets` — this exact icon+label-in-a-Row shape isn't reused
+/// anywhere else in the app yet (unlike the card container itself, see
+/// `SoftCard`'s own doc comment for why that one was promoted).
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: colors.primaryDefault),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          label,
+          style: AppTypography.label.copyWith(color: colors.textSecondary),
         ),
       ],
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.xxl),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppTextField(
-              key: const Key('composer_idea_field'),
-              controller: _ideaController,
-              label: l10n.composerIdeaLabel,
-              maxLines: 5,
-              minLines: 3,
-              maxLength: _maxIdeaLength,
-              errorText: _ideaError,
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            Text(
-              l10n.composerLanguageSectionLabel,
-              style: AppTypography.label.copyWith(color: colors.textSecondary),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            AppSegmentedControl(
-              key: const Key('composer_language_toggle'),
-              labels: [
-                l10n.composerLanguageEnOption,
-                l10n.composerLanguageAmOption,
-                l10n.composerLanguageAutoOption,
-              ],
-              selectedIndex: _languageIndex,
-              onChanged: (index) => setState(() => _languageIndex = index),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            Text(
-              l10n.composerPlatformSectionLabel,
-              style: AppTypography.label.copyWith(color: colors.textSecondary),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            AppSegmentedControl(
-              key: const Key('composer_platform_toggle'),
-              labels: [
-                l10n.composerPlatformInstagramOption,
-                l10n.composerPlatformTiktokOption,
-                l10n.composerPlatformTelegramOption,
-              ],
-              selectedIndex: _platformIndex,
-              onChanged: (index) => setState(() => _platformIndex = index),
-            ),
-            const SizedBox(height: AppSpacing.xxl),
-            BlocBuilder<GenerationBloc, GenerationState>(
-              builder: (context, state) {
-                final isGenerating = state is GenerationInProgress;
-                return PrimaryButton(
-                  key: const Key('composer_generate_button'),
-                  label: l10n.composerGenerateButton,
-                  isLoading: isGenerating,
-                  onPressed: isGenerating ? null : () => _submit(context),
-                );
-              },
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            BlocBuilder<GenerationBloc, GenerationState>(
-              builder: (context, state) {
-                return switch (state) {
-                  GenerationInitial() ||
-                  GenerationInProgress() => const SizedBox.shrink(),
-                  GenerationSuccess(:final result) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      GenerationResultView(result: result),
-                      const SizedBox(height: AppSpacing.xl),
-                      BlocBuilder<ImageGenerationBloc, ImageGenerationState>(
-                        builder: (context, imageState) {
-                          final isGenerating =
-                              imageState is ImageGenerationInProgress;
-                          // Hero flight into CanvasEditorPage's AppBar
-                          // title, tag shared via `heroCreateGraphicTag` —
-                          // see its doc comment. Only meaningful mid-flight
-                          // (while `ImageGenerationSuccess` is navigating
-                          // away); harmless as a no-op wrapper the rest of
-                          // the time.
-                          return Hero(
-                            tag: heroCreateGraphicTag,
-                            child: PrimaryButton(
-                              key: const Key('composer_create_graphic_button'),
-                              label: l10n.composerCreateGraphicButton,
-                              isLoading: isGenerating,
-                              onPressed: isGenerating
-                                  ? null
-                                  : () => _createGraphic(context, result),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  // quotaExceeded is surfaced via the dialog above, not an
-                  // inline banner — showing both would be redundant.
-                  GenerationFailure(:final failure)
-                      when failure.type == ApiErrorType.quotaExceeded =>
-                    const SizedBox.shrink(),
-                  GenerationFailure(:final failure) => ErrorBanner(
-                    key: const Key('composer_generation_error_banner'),
-                    message: _errorMessage(l10n, failure),
-                  ),
-                };
-              },
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

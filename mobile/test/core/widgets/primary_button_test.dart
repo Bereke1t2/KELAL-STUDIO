@@ -61,4 +61,47 @@ void main() {
     final button = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
     expect(button.onPressed, isNull);
   });
+
+  testWidgets('an icon renders before the label when provided', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PrimaryButton(
+          label: 'Generate',
+          icon: Icons.auto_awesome,
+          onPressed: () {},
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.auto_awesome), findsOneWidget);
+    expect(find.text('Generate'), findsOneWidget);
+  });
+
+  testWidgets('omitting icon renders exactly as before this parameter '
+      'existed — text-only, no icon in the tree', (tester) async {
+    await tester.pumpWidget(
+      _wrap(PrimaryButton(label: 'Sign in', onPressed: () {})),
+    );
+
+    expect(find.byType(Icon), findsNothing);
+    expect(find.text('Sign in'), findsOneWidget);
+  });
+
+  testWidgets('isLoading hides the icon too, same as it hides the label', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        PrimaryButton(
+          label: 'Generate',
+          icon: Icons.auto_awesome,
+          isLoading: true,
+          onPressed: () {},
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.auto_awesome), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
 }

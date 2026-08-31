@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:injectable/injectable.dart';
 
-import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/core/router/app_page_transitions.dart';
 import 'package:kelal_studio/core/router/app_shell.dart';
 import 'package:kelal_studio/core/router/go_router_refresh_stream.dart';
@@ -17,8 +16,10 @@ import 'package:kelal_studio/features/auth/presentation/widgets/email_verificati
 import 'package:kelal_studio/features/brand_kit/presentation/pages/brand_kit_page.dart';
 import 'package:kelal_studio/features/canvas_editor/presentation/pages/canvas_editor_page.dart';
 import 'package:kelal_studio/features/composer/presentation/pages/composer_page.dart';
+import 'package:kelal_studio/features/composer/presentation/widgets/compose_app_bar.dart';
 import 'package:kelal_studio/features/drafts/presentation/pages/drafts_page.dart';
 import 'package:kelal_studio/features/export/presentation/pages/export_page.dart';
+import 'package:kelal_studio/features/generation/presentation/pages/generation_result_page.dart';
 import 'package:kelal_studio/features/quota/presentation/widgets/quota_status_badge.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_confirm_page.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_consequence_page.dart';
@@ -62,7 +63,17 @@ class AppRouter {
   /// survives go_router state restoration after process death.
   static const verifyEmailLocation = '/verify-email';
 
-  /// Pushed on top of the shell from `ComposerPage` once
+  /// Pushed from `ComposerPage` once `GenerationBloc` emits
+  /// `GenerationSuccess` — not a `StatefulShellBranch` tab (nothing in the
+  /// bottom nav points here directly), same top-level pattern as
+  /// `registerLocation`/`resetPasswordRequestLocation`. `extra`-only for
+  /// the same reason [canvasEditorLocation] is: consistency with its
+  /// siblings, even though `GenerationResultPageArgs` itself is plain
+  /// strings/lists that could in principle round-trip through a URL — see
+  /// that class's own doc comment.
+  static const generationResultLocation = '/generation-result';
+
+  /// Pushed on top of the shell from `GenerationResultPage` once
   /// `ImageGenerationSuccess` lands — not a `StatefulShellBranch` tab
   /// (nothing in the bottom nav points here directly), same top-level
   /// pattern as `registerLocation`/`resetPasswordRequestLocation`. Reached
@@ -110,6 +121,22 @@ class AppRouter {
         path: verifyEmailLocation,
         builder: (context, state) =>
             CheckYourEmailPage(email: state.uri.queryParameters['email'] ?? ''),
+      ),
+      GoRoute(
+        path: generationResultLocation,
+        // Same process-death `extra`-drop guard as [canvasEditorLocation]
+        // below, same reasoning — bounce to Compose rather than crash on
+        // the cast below; a result worth viewing is only ever one Generate
+        // tap away.
+        redirect: (context, state) =>
+            state.extra is GenerationResultPageArgs ? null : homeLocation,
+        pageBuilder: (context, state) => buildFadeThroughPage(
+          context: context,
+          state: state,
+          child: GenerationResultPage(
+            args: state.extra! as GenerationResultPageArgs,
+          ),
+        ),
       ),
       GoRoute(
         path: canvasEditorLocation,
@@ -201,17 +228,15 @@ class AppRouter {
                 // the placeholder "Coming soon" text that used to fill
                 // EmailVerificationGate's child slot — both wrappers
                 // above it are unchanged from the quota branch.
-                builder: (context, state) => Scaffold(
-                  appBar: AppBar(
-                    title: Text(AppLocalizations.of(context).navComposeLabel),
-                  ),
-                  body: const Column(
+                builder: (context, state) => const Scaffold(
+                  appBar: ComposeAppBar(),
+                  body: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Padding(
                         padding: EdgeInsets.fromLTRB(
                           AppSpacing.lg,
-                          AppSpacing.lg,
+                          AppSpacing.md,
                           AppSpacing.lg,
                           0,
                         ),
