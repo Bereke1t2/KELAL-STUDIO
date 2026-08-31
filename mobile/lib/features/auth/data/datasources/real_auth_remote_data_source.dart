@@ -6,6 +6,7 @@ import 'package:kelal_studio/features/auth/data/datasources/auth_remote_data_sou
 import 'package:kelal_studio/features/auth/data/datasources/fake_auth_remote_data_source.dart'
     show FakeAuthRemoteDataSource;
 import 'package:kelal_studio/features/auth/data/models/auth_tokens_dto.dart';
+import 'package:kelal_studio/features/auth/data/models/registration_result_dto.dart';
 
 /// Wraps the generated [AuthApi], translating every [DioException] into an
 /// [ApiException] at the boundary so nothing above `data/datasources` ever
@@ -30,12 +31,31 @@ class RealAuthRemoteDataSource implements AuthRemoteDataSource {
   }
 
   @override
-  Future<AuthTokensDto> register({
+  Future<RegistrationResultDto> register({
     required String email,
     required String password,
   }) async {
     try {
       return await _api.register({'email': email, 'password': password});
+    } catch (error) {
+      throw ApiException(_mapper.map(error));
+    }
+  }
+
+  @override
+  Future<bool> verifyEmail({required String token}) async {
+    try {
+      final result = await _api.verifyEmail({'token': token});
+      return result.verified;
+    } catch (error) {
+      throw ApiException(_mapper.map(error));
+    }
+  }
+
+  @override
+  Future<void> resendVerification({required String email}) async {
+    try {
+      await _api.resendVerification({'email': email});
     } catch (error) {
       throw ApiException(_mapper.map(error));
     }

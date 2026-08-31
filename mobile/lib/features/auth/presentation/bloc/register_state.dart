@@ -16,8 +16,17 @@ final class RegisterSubmitting extends RegisterState {
   const RegisterSubmitting();
 }
 
+/// Registration succeeded — but, unlike before (PRD §11,
+/// register-verification), does NOT mean the user is signed in. [email] is
+/// carried through so `RegisterPage` can navigate to `CheckYourEmailPage`
+/// and show/resend-to the right address without re-reading the (possibly
+/// since-cleared) text field.
 final class RegisterSuccess extends RegisterState {
-  const RegisterSuccess();
+  const RegisterSuccess(this.email);
+  final String email;
+
+  @override
+  List<Object?> get props => [email];
 }
 
 /// Unlike `LoginFailure`, register errors (e.g. "email already

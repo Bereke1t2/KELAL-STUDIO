@@ -8,18 +8,19 @@ import 'package:kelal_studio/core/storage/secure_token_storage.dart';
 import 'package:kelal_studio/features/auth/domain/repositories/auth_repository.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// PRD-mandated critical flow: sign-up -> login (see
+/// PRD-mandated critical flow: sign-up -> verify -> login (see
 /// mobile/.claude/skills/flutter-testing/SKILL.md's Integration/E2E
 /// section). Runs against the mock API (`Env.useMockApi` defaults to
 /// `true`, no extra `--dart-define` needed) — see mobile/CLAUDE.md.
 ///
-/// This branch's `FakeAuthRemoteDataSource` starts every freshly-registered
-/// account unverified (PRD §6.1), and there is no resend/deep-link
-/// verification flow built yet (see `EmailVerificationGate`'s doc comment
-/// and this branch's report) — so both halves of this test assert on
-/// landing at the Compose screen *with the email-verification gate
-/// showing*, which is what the current plumbing actually produces, rather
-/// than asserting a clean unblocked landing.
+/// Registration no longer establishes a session (PRD §11,
+/// register-verification) — this test walks the real flow: register lands
+/// on `CheckYourEmailPage`, which is verified via the manual paste-in
+/// token field (`FakeAuthRemoteDataSource`'s deterministic
+/// `fake-verify-token-for-<email>` — see `CheckYourEmailPage`'s doc
+/// comment for why this is a manual field rather than a real deep link),
+/// then logs in for real and reaches Compose with no verification-gate
+/// banner showing (unlike before verification).
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -40,65 +41,82 @@ void main() {
     await getIt<SecureTokenStorage>().clear();
   });
 
-  testWidgets('register a new account -> lands on Compose behind the '
-      'email-verification gate, then logging in again with the same '
-      'credentials reaches the same gated screen', (tester) async {
-    await tester.pumpWidget(const KelalStudioApp());
-    await tester.pumpAndSettle();
+  testWidgets(
+    'register a new account -> verify via the pasted-in code -> log in '
+    'reaches Compose with no verification-gate banner showing',
+    (tester) async {
+      await tester.pumpWidget(const KelalStudioApp());
+      await tester.pumpAndSettle();
 
-    // Starts on /login.
-    expect(find.byKey(const Key('login_email_field')), findsOneWidget);
+      // Starts on /login.
+      expect(find.byKey(const Key('login_email_field')), findsOneWidget);
 
-    // Navigate to Register.
-    await tester.tap(find.byKey(const Key('create_account_link')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('register_email_field')), findsOneWidget);
+      // Navigate to Register.
+      await tester.tap(find.byKey(const Key('create_account_link')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('register_email_field')), findsOneWidget);
 
-    final email =
-        'integration-test-${DateTime.now().microsecondsSinceEpoch}'
-        '@kelalstudio.app';
-    const password = 'StrongPassw0rd!';
+      final email =
+          'integration-test-${DateTime.now().microsecondsSinceEpoch}'
+          '@kelalstudio.app';
+      const password = 'StrongPassw0rd!';
 
-    await tester.enterText(
-      find.byKey(const Key('register_email_field')),
-      email,
-    );
-    await tester.enterText(
-      find.byKey(const Key('register_password_field')),
-      password,
-    );
-    await tester.tap(find.byKey(const Key('register_submit_button')));
-    await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('register_email_field')),
+        email,
+      );
+      await tester.enterText(
+        find.byKey(const Key('register_password_field')),
+        password,
+      );
+      await tester.tap(find.byKey(const Key('register_submit_button')));
+      await tester.pumpAndSettle();
 
-    // AppRouter's redirect: reacts to the auth-state stream emitting
-    // `true` and navigates into the shell automatically — no manual
-    // navigation here, same as the existing login flow.
-    expect(find.text('Coming soon'), findsOneWidget);
-    expect(
-      find.byKey(const Key('email_verification_gate_banner')),
-      findsOneWidget,
-    );
+      // Register no longer signs the user in — it navigates itself to
+      // Check Your Email, naming the address it just registered.
+      expect(find.byKey(const Key('check_your_email_body')), findsOneWidget);
 
-    // Log out through the repository (not by clearing storage directly)
-    // so `watchIsAuthenticated()` actually emits `false` and AppRouter's
-    // redirect: sends the app back to /login, exactly like a real
-    // logout button press would.
-    await getIt<AuthRepository>().logout();
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('login_email_field')), findsOneWidget);
+      // Paste the deterministic fake verification token and confirm.
+      await tester.enterText(
+        find.byKey(const Key('check_your_email_token_field')),
+        'fake-verify-token-for-$email',
+      );
+      await tester.tap(find.byKey(const Key('check_your_email_verify_button')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('check_your_email_verified_message')),
+        findsOneWidget,
+      );
 
-    await tester.enterText(find.byKey(const Key('login_email_field')), email);
-    await tester.enterText(
-      find.byKey(const Key('login_password_field')),
-      password,
-    );
-    await tester.tap(find.byKey(const Key('login_submit_button')));
-    await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('check_your_email_verified_sign_in')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('login_email_field')), findsOneWidget);
 
-    expect(find.text('Coming soon'), findsOneWidget);
-    expect(
-      find.byKey(const Key('email_verification_gate_banner')),
-      findsOneWidget,
-    );
-  });
+      await tester.enterText(find.byKey(const Key('login_email_field')), email);
+      await tester.enterText(
+        find.byKey(const Key('login_password_field')),
+        password,
+      );
+      await tester.tap(find.byKey(const Key('login_submit_button')));
+      await tester.pumpAndSettle();
+
+      // Verified this time — the composer field shows, and the
+      // verification-gate banner does NOT.
+      expect(find.byKey(const Key('composer_idea_field')), findsOneWidget);
+      expect(
+        find.byKey(const Key('email_verification_gate_banner')),
+        findsNothing,
+      );
+
+      // Log out through the repository (not by clearing storage directly)
+      // so watchIsAuthenticated() actually emits false and AppRouter's
+      // redirect: sends the app back to /login, exactly like a real
+      // logout button press would.
+      await getIt<AuthRepository>().logout();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('login_email_field')), findsOneWidget);
+    },
+  );
 }

@@ -1,5 +1,6 @@
 import 'package:kelal_studio/core/error/result.dart';
 import 'package:kelal_studio/features/auth/domain/entities/auth_session.dart';
+import 'package:kelal_studio/features/auth/domain/entities/registration_outcome.dart';
 
 /// Interface only — no `dio`, no `retrofit` import here. The concrete
 /// implementation (`data/repositories/auth_repository_impl.dart`) picks a
@@ -12,9 +13,25 @@ abstract class AuthRepository {
     required String password,
   });
 
-  Future<Result<Failure, AuthSession>> register({
+  /// Does NOT establish a session — see [RegistrationOutcome]'s doc
+  /// comment. The caller must [verifyEmail] then [login] separately.
+  Future<Result<Failure, RegistrationOutcome>> register({
     required String email,
     required String password,
+  });
+
+  /// Consumes a purpose-bound verification token (from the account's
+  /// verification email). Returns `true` once the account is verified —
+  /// idempotent, so a second call for an already-verified account still
+  /// returns `true` rather than erroring.
+  Future<Result<Failure, bool>> verifyEmail({required String token});
+
+  /// Always succeeds from the caller's point of view unless a genuine
+  /// transport/network failure occurs — same anti-enumeration contract as
+  /// [requestPasswordReset]: never reveals whether [email] belongs to an
+  /// existing or already-verified account.
+  Future<Result<Failure, void>> resendVerificationEmail({
+    required String email,
   });
 
   /// Always succeeds from the caller's point of view unless a genuine

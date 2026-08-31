@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kelal_studio/core/di/injection.dart';
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
@@ -50,6 +51,20 @@ class _RegisterViewState extends State<_RegisterView> {
           listener: (context, state) {
             if (state is RegisterFailure) {
               showErrorSnackBar(context, state.message);
+            }
+            // Registration no longer signs the user in (PRD §11,
+            // register-verification), so AppRouter's auth-state redirect
+            // never fires here the way it used to — this screen must
+            // navigate itself. `go` (not `push`) so Check Your Email
+            // replaces Register in history; backing out of it should
+            // reach Login, not a stale, already-submitted register form.
+            if (state is RegisterSuccess) {
+              context.go(
+                Uri(
+                  path: '/verify-email',
+                  queryParameters: {'email': state.email},
+                ).toString(),
+              );
             }
           },
           builder: (context, state) {

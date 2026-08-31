@@ -29,7 +29,7 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
     );
     emit(
       result.when(
-        ok: (_) => const RegisterSuccess(),
+        ok: (_) => RegisterSuccess(event.email),
         err: (failure) => RegisterFailure(
           failure.message,
           failure is ApiFailure ? failure.type : ApiErrorType.unknown,

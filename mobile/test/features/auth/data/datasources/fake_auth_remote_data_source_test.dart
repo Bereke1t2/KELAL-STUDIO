@@ -11,13 +11,29 @@ void main() {
   });
 
   group('register', () {
-    test('a freshly-registered account starts unverified', () async {
-      final tokens = await dataSource.register(
-        email: 'new@kelalstudio.app',
-        password: 'password123',
-      );
-      expect(tokens.emailVerified, isFalse);
-    });
+    test(
+      'does not establish a session, and the account starts unverified',
+      () async {
+        const email = 'new@kelalstudio.app';
+        final result = await dataSource.register(
+          email: email,
+          password: 'password123',
+        );
+        expect(result.userId, isNotEmpty);
+        expect(result.verificationSent, isTrue);
+
+        // No tokens were issued by register() itself — the only way to
+        // observe verification state from this fake is via login(),
+        // which the seeded account can already do (register doesn't
+        // gate login on verification — that's EmailVerificationGate's
+        // job, downstream of a real session).
+        final tokens = await dataSource.login(
+          email: email,
+          password: 'password123',
+        );
+        expect(tokens.emailVerified, isFalse);
+      },
+    );
 
     test(
       'registering an already-used email throws a validation ApiException',
@@ -41,6 +57,74 @@ void main() {
         );
       },
     );
+  });
+
+  group('verifyEmail', () {
+    test('a valid token from register() verifies the account, and is '
+        'single-use', () async {
+      const email = 'verify-me@kelalstudio.app';
+      await dataSource.register(email: email, password: 'password123');
+      const token = 'fake-verify-token-for-$email';
+
+      final verified = await dataSource.verifyEmail(token: token);
+      expect(verified, isTrue);
+
+      final tokens = await dataSource.login(
+        email: email,
+        password: 'password123',
+      );
+      expect(tokens.emailVerified, isTrue);
+
+      // The token was consumed — presenting it again is now unknown.
+      expect(
+        () => dataSource.verifyEmail(token: token),
+        throwsA(isA<ApiException>()),
+      );
+    });
+
+    test('an unknown/invalid token throws a validation ApiException', () {
+      expect(
+        () => dataSource.verifyEmail(token: 'not-a-real-token'),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.failure.type,
+            'type',
+            ApiErrorType.validationError,
+          ),
+        ),
+      );
+    });
+  });
+
+  group('resendVerification', () {
+    test(
+      'issues a fresh, usable token for an existing unverified account',
+      () async {
+        const email = 'resend-me@kelalstudio.app';
+        await dataSource.register(email: email, password: 'password123');
+
+        // Simulate the original token having been lost/expired by
+        // consuming it, then confirm resend issues a working replacement
+        // at the same deterministic address.
+        await dataSource.verifyEmail(token: 'fake-verify-token-for-$email');
+
+        const anotherEmail = 'resend-me-2@kelalstudio.app';
+        await dataSource.register(email: anotherEmail, password: 'password123');
+        await dataSource.resendVerification(email: anotherEmail);
+        final verified = await dataSource.verifyEmail(
+          token: 'fake-verify-token-for-$anotherEmail',
+        );
+        expect(verified, isTrue);
+      },
+    );
+
+    test('resolves identically (no exception) for an email that does not '
+        'exist — anti-enumeration', () async {
+      await expectLater(
+        dataSource.resendVerification(email: 'nobody@kelalstudio.app'),
+        completes,
+      );
+    });
   });
 
   group('login', () {

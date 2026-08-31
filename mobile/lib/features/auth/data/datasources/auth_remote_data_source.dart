@@ -10,6 +10,7 @@ import 'package:kelal_studio/features/auth/data/datasources/fake_auth_remote_dat
     show FakeAuthRemoteDataSource;
 
 import 'package:kelal_studio/features/auth/data/models/auth_tokens_dto.dart';
+import 'package:kelal_studio/features/auth/data/models/registration_result_dto.dart';
 
 /// Implemented by both [AuthApi]-backed real data source and
 /// [FakeAuthRemoteDataSource]. The repository depends only on this
@@ -24,10 +25,23 @@ abstract class AuthRemoteDataSource {
     required String password,
   });
 
-  Future<AuthTokensDto> register({
+  /// Does NOT establish a session — see [RegistrationResultDto]'s doc
+  /// comment. The caller must [verifyEmail] then [login] separately.
+  Future<RegistrationResultDto> register({
     required String email,
     required String password,
   });
+
+  /// Consumes a purpose-bound verification token (from the account's
+  /// verification email — see [resendVerification]) and returns whether
+  /// the account is now verified. Idempotent: verifying an already-
+  /// verified account still succeeds.
+  Future<bool> verifyEmail({required String token});
+
+  /// Always resolves regardless of whether [email] belongs to an existing
+  /// or already-verified account (anti-enumeration, mirrors
+  /// [requestPasswordReset]) — never throws to signal either.
+  Future<void> resendVerification({required String email});
 
   /// Refresh tokens rotate on use (PRD §6.1): a successful call returns a
   /// freshly-issued access/refresh pair, and [refreshToken] itself must

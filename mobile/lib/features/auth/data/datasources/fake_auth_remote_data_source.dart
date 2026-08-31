@@ -2,11 +2,17 @@ import 'package:kelal_studio/core/error/result.dart';
 import 'package:kelal_studio/core/network/fake_backend_support.dart';
 import 'package:kelal_studio/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:kelal_studio/features/auth/data/models/auth_tokens_dto.dart';
+import 'package:kelal_studio/features/auth/data/models/registration_result_dto.dart';
 
 /// A seeded in-memory user record. Kept private — nothing outside this file
 /// should reach into fake "backend" state directly.
 class _FakeUser {
-  _FakeUser({required this.password, required this.emailVerified});
+  _FakeUser({
+    required this.userId,
+    required this.password,
+    required this.emailVerified,
+  });
+  final String userId;
   String password;
   bool emailVerified;
 }
@@ -26,6 +32,7 @@ class _FakeUser {
 class FakeAuthRemoteDataSource implements AuthRemoteDataSource {
   final Map<String, _FakeUser> _seededUsers = {
     'demo@kelalstudio.app': _FakeUser(
+      userId: 'demo-user-0001',
       password: 'password123',
       // The seeded demo account is pre-verified so existing login-flow
       // manual testing/dev work isn't blocked by the new gate; freshly
@@ -33,6 +40,15 @@ class FakeAuthRemoteDataSource implements AuthRemoteDataSource {
       emailVerified: true,
     ),
   };
+
+  int _registeredUserCounter = 0;
+
+  /// Verification token -> owning email, for tokens issued by [register]/
+  /// [resendVerification] and not yet consumed by [verifyEmail]. Same
+  /// deterministic-derivation reasoning as `_passwordResetTokens` below —
+  /// a real backend would mail an unguessable token the client never sees
+  /// directly, but this fake *is* the only "backend" in mock mode.
+  final Map<String, String> _verificationTokens = {};
 
   /// Refresh token -> owning email, for tokens that are still valid (i.e.
   /// issued but not yet consumed by a [refresh] call).
@@ -80,7 +96,7 @@ class FakeAuthRemoteDataSource implements AuthRemoteDataSource {
   }
 
   @override
-  Future<AuthTokensDto> register({
+  Future<RegistrationResultDto> register({
     required String email,
     required String password,
   }) async {
@@ -95,10 +111,60 @@ class FakeAuthRemoteDataSource implements AuthRemoteDataSource {
       );
     }
 
-    // Freshly-registered accounts start unverified — the
-    // EmailVerificationGate exists precisely to be exercised by this.
-    _seededUsers[email] = _FakeUser(password: password, emailVerified: false);
-    return _issueTokens(email);
+    // Freshly-registered accounts start unverified — verifyEmail is what
+    // flips this, not register itself (PRD §6.1, register-verification —
+    // see RegistrationOutcome's doc comment). No session is established
+    // here; the old fake issued tokens directly, matching the mobile-local
+    // mock contract this codebase was originally built against.
+    _registeredUserCounter++;
+    final userId = 'fake-user-$_registeredUserCounter';
+    _seededUsers[email] = _FakeUser(
+      userId: userId,
+      password: password,
+      emailVerified: false,
+    );
+    _issueVerificationToken(email);
+    return RegistrationResultDto(userId: userId, verificationSent: true);
+  }
+
+  /// Deterministic (see `_verificationTokens`'s doc comment for why that's
+  /// safe here) — shared by [register] and [resendVerification], both of
+  /// which need to (re)issue one for the same email.
+  void _issueVerificationToken(String email) {
+    final token = 'fake-verify-token-for-$email';
+    _verificationTokens[token] = email;
+  }
+
+  @override
+  Future<bool> verifyEmail({required String token}) async {
+    await FakeBackendSupport.latency();
+
+    final email = _verificationTokens.remove(token);
+    if (email == null) {
+      throw ApiException(
+        const ApiFailure(
+          type: ApiErrorType.validationError,
+          message: 'This verification link is invalid or has expired.',
+        ),
+      );
+    }
+
+    _seededUsers[email]!.emailVerified = true;
+    return true;
+  }
+
+  @override
+  Future<void> resendVerification({required String email}) async {
+    await FakeBackendSupport.latency();
+
+    // Anti-enumeration, same shape as requestPasswordReset below — always
+    // resolves identically regardless of whether [email] is a real,
+    // unverified account. The side effect (issuing a fresh token) only
+    // happens for one.
+    final user = _seededUsers[email];
+    if (user != null && !user.emailVerified) {
+      _issueVerificationToken(email);
+    }
   }
 
   @override

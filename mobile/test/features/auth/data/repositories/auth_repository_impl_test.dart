@@ -4,6 +4,7 @@ import 'package:kelal_studio/core/network/fake_backend_support.dart';
 import 'package:kelal_studio/core/storage/secure_token_storage.dart';
 import 'package:kelal_studio/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:kelal_studio/features/auth/data/models/auth_tokens_dto.dart';
+import 'package:kelal_studio/features/auth/data/models/registration_result_dto.dart';
 import 'package:kelal_studio/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -131,38 +132,87 @@ void main() {
     expect(firstStates, [false, true]);
   });
 
-  test('watchEmailVerified seeds from storage, then re-emits on register() '
-      "with the freshly-registered account's (unverified) status", () async {
+  test('register() does not establish a session — no tokens/email-verified '
+      'state is persisted, and watchIsAuthenticated/watchEmailVerified never '
+      'emit as a side effect of it (PRD §11, register-verification)', () async {
+    when(() => tokenStorage.readAccessToken()).thenAnswer((_) async => null);
     when(() => tokenStorage.readEmailVerified()).thenAnswer((_) async => false);
     when(() => remote.register(email: email, password: password)).thenAnswer(
-      (_) async => const AuthTokensDto(
-        accessToken: 'access-token',
-        refreshToken: 'refresh-token',
-        emailVerified: false,
-      ),
+      (_) async =>
+          const RegistrationResultDto(userId: 'user-1', verificationSent: true),
     );
-    when(
-      () => tokenStorage.saveTokens(
-        accessToken: 'access-token',
-        refreshToken: 'refresh-token',
-      ),
-    ).thenAnswer((_) async {});
-    when(
-      () => tokenStorage.saveEmailVerified(verified: any(named: 'verified')),
-    ).thenAnswer((_) async {});
 
-    final states = <bool>[];
-    final subscription = repository.watchEmailVerified().listen(states.add);
-    addTearDown(subscription.cancel);
+    final authStates = <bool>[];
+    final authSub = repository.watchIsAuthenticated().listen(authStates.add);
+    addTearDown(authSub.cancel);
+    final verifiedStates = <bool>[];
+    final verifiedSub = repository.watchEmailVerified().listen(
+      verifiedStates.add,
+    );
+    addTearDown(verifiedSub.cancel);
     await pumpEventQueue();
-    expect(states, [false]);
 
     final result = await repository.register(email: email, password: password);
     await pumpEventQueue();
 
-    expect(states, [false, false]);
     expect(result.isOk, isTrue);
-    verify(() => tokenStorage.saveEmailVerified(verified: false)).called(1);
+    result.when(
+      ok: (outcome) {
+        expect(outcome.userId, 'user-1');
+        expect(outcome.verificationSent, isTrue);
+      },
+      err: (_) => fail('expected success'),
+    );
+    // Only the initial seed — no second emission from register().
+    expect(authStates, [false]);
+    expect(verifiedStates, [false]);
+    verifyNever(
+      () => tokenStorage.saveTokens(
+        accessToken: any(named: 'accessToken'),
+        refreshToken: any(named: 'refreshToken'),
+      ),
+    );
+    verifyNever(
+      () => tokenStorage.saveEmailVerified(verified: any(named: 'verified')),
+    );
+  });
+
+  test('verifyEmail delegates to the remote data source and maps the '
+      'verified flag through', () async {
+    when(
+      () => remote.verifyEmail(token: 'a-token'),
+    ).thenAnswer((_) async => true);
+
+    final result = await repository.verifyEmail(token: 'a-token');
+
+    expect(result.isOk, isTrue);
+    expect(result.valueOrNull, isTrue);
+  });
+
+  test('verifyEmail maps an ApiException to a Result.err', () async {
+    when(() => remote.verifyEmail(token: 'bad-token')).thenThrow(
+      ApiException(
+        const ApiFailure(
+          type: ApiErrorType.validationError,
+          message: 'This verification link is invalid or has expired.',
+        ),
+      ),
+    );
+
+    final result = await repository.verifyEmail(token: 'bad-token');
+
+    expect(result.isErr, isTrue);
+  });
+
+  test('resendVerificationEmail always resolves ok() unless a genuine '
+      'transport failure occurs — anti-enumeration', () async {
+    when(
+      () => remote.resendVerification(email: email),
+    ).thenAnswer((_) async {});
+
+    final result = await repository.resendVerificationEmail(email: email);
+
+    expect(result.isOk, isTrue);
   });
 
   test('deleteAccount clears local session and emits logged-out only after '
