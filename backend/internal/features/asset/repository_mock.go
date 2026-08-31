@@ -34,3 +34,13 @@ func (m *mockRepository) Create(_ context.Context, a *models.Asset) error {
 	m.assets[a.ID] = *a
 	return nil
 }
+
+func (m *mockRepository) FindByID(_ context.Context, id uuid.UUID) (*models.Asset, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	a, ok := m.assets[id]
+	if !ok {
+		return nil, nil
+	}
+	return &a, nil
+}

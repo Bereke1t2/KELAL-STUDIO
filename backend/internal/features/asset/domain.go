@@ -26,6 +26,8 @@ package asset
 import (
 	"context"
 
+	"github.com/google/uuid"
+
 	"github.com/Bereke1t2/KELAL-STUDIO/backend/internal/models"
 )
 
@@ -39,4 +41,6 @@ type Repository interface {
 	// there is no not-found or duplicate case to model here; a driver error is
 	// returned verbatim for the service to wrap as an internal error.
 	Create(ctx context.Context, a *models.Asset) error
+	// FindByID returns the asset with the given ID, or nil if none exists.
+	FindByID(ctx context.Context, id uuid.UUID) (*models.Asset, error)
 }

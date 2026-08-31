@@ -18,8 +18,8 @@ void main() {
     expect(find.text('Third-Party Font Licenses'), findsOneWidget);
     expect(
       find.text(
-        'Noto Sans Ethiopic is licensed under the '
-        'SIL Open Font License, version 1.1.',
+        'Noto Sans Ethiopic is licensed under the SIL Open Font License, '
+        'version 1.1.',
       ),
       findsOneWidget,
     );

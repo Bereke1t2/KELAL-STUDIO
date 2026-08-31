@@ -117,10 +117,12 @@ type ModerationConfig struct {
 // ProviderConfig configures the Provider Abstraction Layer: the failover order
 // per modality, the per-provider timeout, and request logging (off by default).
 type ProviderConfig struct {
-	TextOrder   []string // failover order, e.g. ["nemotron","gemini"]; ["stub"] by default
-	ImageOrder  []string
-	Timeout     time.Duration
-	LogRequests bool // OQ-13/OQ-19: OFF until confidentiality/residency are resolved
+	TextOrder    []string // failover order, e.g. ["nemotron","gemini"]; ["stub"] by default
+	ImageOrder   []string
+	VideoOrder   []string
+	Timeout      time.Duration
+	LogRequests  bool   // OQ-13/OQ-19: OFF until confidentiality/residency are resolved
+	GeminiAPIKey string // required when "gemini" is in TextOrder, ImageOrder, or VideoOrder
 }
 
 // QueueConfig configures the async job queue (PRD §10.3).
@@ -203,10 +205,12 @@ func Load() (*Config, error) {
 			APIKey:   getStr("OPENAI_API_KEY", ""),
 		},
 		Provider: ProviderConfig{
-			TextOrder:   getCSV("TEXT_PROVIDER_ORDER", []string{"stub"}),
-			ImageOrder:  getCSV("IMAGE_PROVIDER_ORDER", []string{"stub"}),
-			Timeout:     getDuration("PROVIDER_TIMEOUT", 20*time.Second),
-			LogRequests: getBool("PROVIDER_LOG_REQUESTS", false),
+			TextOrder:    getCSV("TEXT_PROVIDER_ORDER", []string{"stub"}),
+			ImageOrder:   getCSV("IMAGE_PROVIDER_ORDER", []string{"stub"}),
+			VideoOrder:   getCSV("VIDEO_PROVIDER_ORDER", []string{"stub"}),
+			Timeout:      getDuration("PROVIDER_TIMEOUT", 20*time.Second),
+			LogRequests:  getBool("PROVIDER_LOG_REQUESTS", false),
+			GeminiAPIKey: getStr("GEMINI_API_KEY", ""),
 		},
 		Queue: QueueConfig{
 			Driver:           getStr("QUEUE_DRIVER", "inproc"),

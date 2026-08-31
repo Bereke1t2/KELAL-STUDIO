@@ -20,9 +20,8 @@ class AccountDeletedPage extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: context.colors.bgDisabled.withValues(
-                    alpha: 0.3,
-                  ), // Make it very light like the mockup
+                  // Make it very light like the mockup.
+                  color: context.colors.bgDisabled.withValues(alpha: 0.3),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -38,8 +37,8 @@ class AccountDeletedPage extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 child: Text(
-                  'Everything on this device tied to Kelal Studio '
-                  'has been removed. Thank you for trying it.',
+                  'Everything on this device tied to Kelal Studio has been '
+                  'removed. Thank you for trying it.',
                   style: AppTypography.bodySmall.copyWith(
                     color: context.colors.textSecondary,
                     height: 1.6,

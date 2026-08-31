@@ -75,6 +75,28 @@ type ImageProvider interface {
 	GenerateImage(ctx context.Context, req ImageRequest) (ImageResult, error)
 }
 
+// VideoRequest is a normalized video-generation request (PRD §6.5).
+type VideoRequest struct {
+	StoryboardText string // the user's scene description
+	AspectRatio    string // "9:16" (portrait) or "16:9" (landscape)
+	BrandName      string // flattened brand context (optional)
+}
+
+// VideoResult is the normalized video output. Providers return raw MP4 bytes.
+type VideoResult struct {
+	VideoBytes []byte
+	MimeType   string // "video/mp4"
+	Width      int
+	Height     int
+}
+
+// VideoProvider is one video-generation backend.
+type VideoProvider interface {
+	Name() string
+	Model() (model, version string)
+	GenerateVideo(ctx context.Context, req VideoRequest) (VideoResult, error)
+}
+
 // ── Telemetry ────────────────────────────────────────────────────────────────
 
 // Usage is emitted once per provider CALL (success or failure) — the raw

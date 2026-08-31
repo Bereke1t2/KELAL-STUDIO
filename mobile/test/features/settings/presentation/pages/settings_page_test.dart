@@ -90,8 +90,8 @@ void main() {
     await tester.tap(find.text('Theme'));
     await tester.pumpAndSettle();
 
-    // The theme text should change (to Dark or Light depending on platform
-    // brightness, mocked to light usually)
+    // The theme text should change (to Dark or Light depending on
+    // platform brightness, mocked to light usually)
     expect(find.text('Dark'), findsOneWidget);
   });
 

@@ -116,7 +116,9 @@ void main() {
         // observed by the test, even though it's genuinely shown to users
         // against any real (non-instant) network call.
         await Future<void>.delayed(const Duration(milliseconds: 20));
-        return const Result.ok(AuthSession(isAuthenticated: true));
+        return const Result.ok(
+          AuthSession(isAuthenticated: true, emailVerified: true),
+        );
       });
 
       await tester.pumpWidget(wrap());
