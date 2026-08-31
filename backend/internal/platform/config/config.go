@@ -160,7 +160,7 @@ func Load() (*Config, error) {
 		UseMockData:   getBool("USE_MOCK_DATA", false),
 		PublicBaseURL: strings.TrimRight(getStr("PUBLIC_BASE_URL", "http://localhost:8080"), "/"),
 		DB: DBConfig{
-			URL:             getStr("DATABASE_URL", ""),
+			URL:             getFirstStr([]string{"DATABASE_URL", "POSTGRES_URL", "POSTGRESQL_URL", "NEON_DATABASE_URL", "NEON_URL", "DB_URL"}, ""),
 			Host:            getStr("DB_HOST", "localhost"),
 			Port:            getStr("DB_PORT", "5432"),
 			User:            getStr("DB_USER", "kelal"),
@@ -280,9 +280,22 @@ func (c *Config) validateAsset() error {
 
 // ── env readers ──────────────────────────────────────────────────────────────
 
+func getFirstStr(keys []string, def string) string {
+	for _, k := range keys {
+		if v := getStr(k, ""); v != "" {
+			return v
+		}
+	}
+	return def
+}
+
 func getStr(key, def string) string {
-	if v, ok := os.LookupEnv(key); ok && v != "" {
-		return v
+	if v, ok := os.LookupEnv(key); ok {
+		v = strings.TrimSpace(v)
+		v = strings.Trim(v, `"'`)
+		if v != "" {
+			return v
+		}
 	}
 	return def
 }
