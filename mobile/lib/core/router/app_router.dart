@@ -26,7 +26,6 @@ import 'package:kelal_studio/features/settings/presentation/pages/legal_document
 import 'package:kelal_studio/features/settings/presentation/pages/legal_page.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/settings_page.dart';
 
-
 /// Central route table. Kept as a plain [GoRouter] (string paths) for now —
 /// adopt `go_router_builder` codegen once the navigation model stabilizes
 /// past the first couple of features (see mobile/CLAUDE.md decisions log).
