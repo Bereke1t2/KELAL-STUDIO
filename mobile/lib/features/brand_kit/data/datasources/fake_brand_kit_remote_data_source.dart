@@ -2,8 +2,8 @@ import 'dart:typed_data';
 
 import 'package:kelal_studio/core/network/fake_backend_support.dart';
 import 'package:kelal_studio/features/brand_kit/data/datasources/brand_kit_remote_data_source.dart';
+import 'package:kelal_studio/features/brand_kit/data/models/asset_dto.dart';
 import 'package:kelal_studio/features/brand_kit/data/models/brand_kit_dto.dart';
-import 'package:kelal_studio/features/brand_kit/data/models/upload_asset_response_dto.dart';
 
 /// Professional fake: realistic latency (via [FakeBackendSupport.latency])
 /// and one seeded brand kit for the demo user — see
@@ -44,18 +44,23 @@ class FakeBrandKitRemoteDataSource implements BrandKitRemoteDataSource {
   }
 
   @override
-  Future<UploadAssetResponseDto> uploadAsset({
+  Future<AssetDto> uploadAsset({
     required Uint8List bytes,
     required String filename,
     required String mimeType,
   }) async {
     await FakeBackendSupport.latency();
     _uploadCounter++;
-    // Deterministic, distinguishable fake ids/refs — enough for widget/bloc
-    // tests to assert on without needing a real storage backend.
-    return UploadAssetResponseDto(
-      assetId: 'fake-asset-$_uploadCounter',
-      storageRef: 'fake://brand-logos/$_uploadCounter-$filename',
+    // Deterministic, distinguishable fake id — enough for widget/bloc
+    // tests to assert on without needing a real storage backend. Width/
+    // height are placeholders (this fake never actually decodes [bytes]);
+    // nothing in this codebase reads them from an upload response today.
+    return AssetDto(
+      id: 'fake-asset-$_uploadCounter',
+      width: 512,
+      height: 512,
+      mimeType: mimeType,
+      createdAt: DateTime.now().toUtc(),
     );
   }
 }

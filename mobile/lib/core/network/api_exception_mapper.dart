@@ -96,6 +96,22 @@ class ApiExceptionMapper {
           type: ApiErrorType.validationError,
           message: 'Please check your input and try again.',
         );
+      case 'not_found':
+        return const ApiFailure(
+          type: ApiErrorType.notFound,
+          message: "That couldn't be found.",
+        );
+      case 'email_not_verified':
+        return const ApiFailure(
+          type: ApiErrorType.emailNotVerified,
+          message: 'Please verify your email to continue.',
+        );
+      case 'account_locked':
+        return const ApiFailure(
+          type: ApiErrorType.accountLocked,
+          message:
+              'Too many failed sign-in attempts. Please try again shortly.',
+        );
       default:
         return const ApiFailure(
           type: ApiErrorType.unknown,

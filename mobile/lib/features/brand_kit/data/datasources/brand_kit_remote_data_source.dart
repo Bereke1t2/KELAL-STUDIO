@@ -9,8 +9,8 @@ import 'package:kelal_studio/features/brand_kit/data/datasources/brand_kit_api.d
 import 'package:kelal_studio/features/brand_kit/data/datasources/fake_brand_kit_remote_data_source.dart'
     show FakeBrandKitRemoteDataSource;
 
+import 'package:kelal_studio/features/brand_kit/data/models/asset_dto.dart';
 import 'package:kelal_studio/features/brand_kit/data/models/brand_kit_dto.dart';
-import 'package:kelal_studio/features/brand_kit/data/models/upload_asset_response_dto.dart';
 
 /// Implemented by both [BrandKitApi]-backed real data source and
 /// [FakeBrandKitRemoteDataSource]. The repository depends only on this
@@ -22,16 +22,16 @@ import 'package:kelal_studio/features/brand_kit/data/models/upload_asset_respons
 ///
 /// Deliberately id-less, unlike the raw `/brand-kits/{id}` REST path it's
 /// backed by — resolving "which brand kit" is this data source's own
-/// concern (trivial for the fake: one seeded kit; genuinely unresolved for
-/// the real implementation — see the flagged gap on
-/// `RealBrandKitRemoteDataSource`), not something `domain/`/`presentation/`
-/// should ever need to know about.
+/// concern (trivial for the fake: one seeded kit; a real, once-per-session-
+/// generated id for the real implementation — see
+/// `RealBrandKitRemoteDataSource`'s doc comment), not something
+/// `domain/`/`presentation/` should ever need to know about.
 abstract class BrandKitRemoteDataSource {
   Future<BrandKitDto> getBrandKit();
 
   Future<BrandKitDto> updateBrandKit(BrandKitDto brandKit);
 
-  Future<UploadAssetResponseDto> uploadAsset({
+  Future<AssetDto> uploadAsset({
     required Uint8List bytes,
     required String filename,
     required String mimeType,

@@ -1,15 +1,16 @@
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart' show DioException, DioMediaType, MultipartFile;
-
 import 'package:kelal_studio/core/network/api_exception_mapper.dart';
 import 'package:kelal_studio/core/network/fake_backend_support.dart';
+import 'package:kelal_studio/core/storage/secure_token_storage.dart';
 import 'package:kelal_studio/features/brand_kit/data/datasources/brand_kit_api.dart';
 import 'package:kelal_studio/features/brand_kit/data/datasources/brand_kit_remote_data_source.dart';
 import 'package:kelal_studio/features/brand_kit/data/datasources/fake_brand_kit_remote_data_source.dart'
     show FakeBrandKitRemoteDataSource;
+import 'package:kelal_studio/features/brand_kit/data/models/asset_dto.dart';
 import 'package:kelal_studio/features/brand_kit/data/models/brand_kit_dto.dart';
-import 'package:kelal_studio/features/brand_kit/data/models/upload_asset_response_dto.dart';
+import 'package:uuid/uuid.dart';
 
 /// Wraps the generated [BrandKitApi], translating every [DioException] into
 /// an [ApiException] at the boundary — same shape as
@@ -17,39 +18,39 @@ import 'package:kelal_studio/features/brand_kit/data/models/upload_asset_respons
 /// Selected instead of [FakeBrandKitRemoteDataSource] by
 /// `brand_kit_datasource_module.dart` when `Env.useMockApi` is false.
 ///
-/// **KNOWN CONTRACT GAP — flagged, not silently resolved** (per
-/// mobile/.claude/skills/flutter-architecture/SKILL.md's standing "flag,
-/// don't silently assume" rule, and mobile/CLAUDE.md's equivalent). The
-/// real `/brand-kits/{id}` endpoint requires a UUID path parameter, but
-/// nothing in mobile/api_contract/openapi.yaml lets the mobile client learn
-/// its own brand kit's id: neither `AuthTokens` nor `User` carries a user
-/// id in the login/register response, and there's no `/brand-kits/me` (or
-/// equivalent "list my brand kits") endpoint. This branch was scoped to add
-/// only the `/assets` upload endpoint to the contract (see this branch's
-/// task), not to redesign brand-kit id resolution — so rather than
-/// inventing new, unrequested API surface, this data source falls back to
-/// a nil-UUID placeholder below.
-///
-/// **This makes every method on this class non-functional against any real
-/// backend today.** That's harmless in practice — `Env.useMockApi` defaults
-/// `true` and no real backend exists yet anywhere in this repo (see
-/// mobile/CLAUDE.md) — but it is a real gap, not a cosmetic one: whoever
-/// adds a real backend must add an id-resolution mechanism to the contract
-/// (e.g. a `/brand-kits/me` alias, or a user id returned from
-/// `/auth/login`) before this class can work, and should replace
-/// [_placeholderBrandKitId] with the resolved value at that point.
+/// **Id resolution (fixed; was a real, documented gap — see
+/// `SecureTokenStorage._brandKitIdKey`'s doc comment for the full story
+/// and its known remaining limitation)**: `/brand-kits/{id}` needs a real
+/// UUID, and the contract gives the client no way to learn one for its own
+/// account — no `/brand-kits/me`, no user id anywhere in the auth
+/// response. Since backend's `PUT` is a deliberate owner-scoped upsert
+/// (docs/OPEN_QUESTIONS.md → brandkit-creation: creates at the
+/// client-supplied id if none exists), the client generating its own id on
+/// first use and always addressing that id is the correct way to use this
+/// contract as designed — not a workaround. [_resolveBrandKitId] does
+/// exactly that, persisting the chosen id via [SecureTokenStorage] so the
+/// same id is reused for the rest of the session.
 class RealBrandKitRemoteDataSource implements BrandKitRemoteDataSource {
-  RealBrandKitRemoteDataSource(this._api);
+  RealBrandKitRemoteDataSource(this._api, this._tokenStorage);
 
   final BrandKitApi _api;
+  final SecureTokenStorage _tokenStorage;
   static const _mapper = ApiExceptionMapper();
+  static const _uuid = Uuid();
 
-  static const _placeholderBrandKitId = '00000000-0000-0000-0000-000000000000';
+  Future<String> _resolveBrandKitId() async {
+    final existing = await _tokenStorage.readBrandKitId();
+    if (existing != null) return existing;
+    final generated = _uuid.v4();
+    await _tokenStorage.saveBrandKitId(generated);
+    return generated;
+  }
 
   @override
   Future<BrandKitDto> getBrandKit() async {
     try {
-      return await _api.getBrandKit(_placeholderBrandKitId);
+      final id = await _resolveBrandKitId();
+      return await _api.getBrandKit(id);
     } catch (error) {
       throw ApiException(_mapper.map(error));
     }
@@ -58,7 +59,8 @@ class RealBrandKitRemoteDataSource implements BrandKitRemoteDataSource {
   @override
   Future<BrandKitDto> updateBrandKit(BrandKitDto brandKit) async {
     try {
-      return await _api.updateBrandKit(_placeholderBrandKitId, {
+      final id = await _resolveBrandKitId();
+      return await _api.updateBrandKit(id, {
         'id': brandKit.id,
         'brand_name': brandKit.brandName,
         'logo_asset_id': brandKit.logoAssetId,
@@ -74,7 +76,7 @@ class RealBrandKitRemoteDataSource implements BrandKitRemoteDataSource {
   }
 
   @override
-  Future<UploadAssetResponseDto> uploadAsset({
+  Future<AssetDto> uploadAsset({
     required Uint8List bytes,
     required String filename,
     required String mimeType,

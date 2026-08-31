@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart' hide Headers;
+import 'package:kelal_studio/features/brand_kit/data/models/asset_dto.dart';
 import 'package:kelal_studio/features/brand_kit/data/models/brand_kit_dto.dart';
-import 'package:kelal_studio/features/brand_kit/data/models/upload_asset_response_dto.dart';
 import 'package:retrofit/retrofit.dart';
 
 part 'brand_kit_api.g.dart';
@@ -30,7 +30,5 @@ abstract class BrandKitApi {
   /// primitive-only `BrandKitRepository.uploadLogo` signature.
   @POST('/assets')
   @MultiPart()
-  Future<UploadAssetResponseDto> uploadAsset(
-    @Part(name: 'file') MultipartFile file,
-  );
+  Future<AssetDto> uploadAsset(@Part(name: 'file') MultipartFile file);
 }
