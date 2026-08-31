@@ -74,18 +74,50 @@ class BottomNavBar extends StatelessWidget {
           BoxShadow(color: _shadowColor, blurRadius: 10, offset: Offset(0, 6)),
         ],
       ),
-      child: Row(
+      child: Stack(
         children: [
-          for (var i = 0; i < items.length; i++)
-            Expanded(
-              child: i == prominentIndex
-                  ? _ProminentTab(item: items[i], onTap: () => onTap(i))
-                  : _Tab(
-                      item: items[i],
-                      selected: i == selectedIndex,
-                      onTap: () => onTap(i),
-                    ),
+          // The sliding indicator — a separate widget behind the Row of
+          // tabs, positioned via AnimatedAlign rather than each _Tab
+          // painting its own instant background swap. Skipped entirely
+          // when the selected tab is the raised prominentIndex action: a
+          // pill sliding under a circular raised button would look wrong,
+          // and nothing in this app currently sets prominentIndex anyway
+          // (see AppShell's doc comment), so this is a defensive no-op
+          // today, not dead code for a hypothetical.
+          if (selectedIndex != prominentIndex)
+            AnimatedAlign(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment(
+                items.length > 1
+                    ? -1 + 2 * selectedIndex / (items.length - 1)
+                    : 0,
+                0,
+              ),
+              child: FractionallySizedBox(
+                widthFactor: 1 / items.length,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: colors.bgBrandSubtle,
+                    borderRadius: BorderRadius.circular(AppRadius.full),
+                  ),
+                ),
+              ),
             ),
+          Row(
+            children: [
+              for (var i = 0; i < items.length; i++)
+                Expanded(
+                  child: i == prominentIndex
+                      ? _ProminentTab(item: items[i], onTap: () => onTap(i))
+                      : _Tab(
+                          item: items[i],
+                          selected: i == selectedIndex,
+                          onTap: () => onTap(i),
+                        ),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -119,10 +151,11 @@ class _Tab extends StatelessWidget {
           horizontal: AppSpacing.sm,
           vertical: AppSpacing.xxs,
         ),
-        decoration: BoxDecoration(
-          color: selected ? colors.bgBrandSubtle : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadius.full),
-        ),
+        // No background color painted here — the shared, animated pill in
+        // BottomNavBar's Stack (behind this Row) is the sole visual
+        // indicator now; painting a second, instantly-snapping pill here
+        // too would hide the slide animation the moment a tab becomes
+        // selected.
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

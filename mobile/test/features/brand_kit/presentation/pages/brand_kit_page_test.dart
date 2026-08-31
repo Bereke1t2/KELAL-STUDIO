@@ -5,6 +5,7 @@ import 'package:kelal_studio/core/di/injection.dart';
 import 'package:kelal_studio/core/error/result.dart';
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
+import 'package:kelal_studio/core/widgets/skeleton_loader.dart';
 import 'package:kelal_studio/features/brand_kit/domain/entities/brand_kit.dart';
 import 'package:kelal_studio/features/brand_kit/domain/usecases/get_brand_kit_usecase.dart';
 import 'package:kelal_studio/features/brand_kit/domain/usecases/update_brand_kit_usecase.dart';
@@ -71,21 +72,22 @@ void main() {
     );
   }
 
-  testWidgets('shows a loading indicator while the brand kit is loading', (
-    tester,
-  ) async {
-    when(getBrandKitUseCase.call).thenAnswer((_) async {
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      return Result.ok(brandKit);
-    });
+  testWidgets(
+    'shows a skeleton placeholder form while the brand kit is loading',
+    (tester) async {
+      when(getBrandKitUseCase.call).thenAnswer((_) async {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        return Result.ok(brandKit);
+      });
 
-    await tester.pumpWidget(wrap());
-    await tester.pump();
+      await tester.pumpWidget(wrap());
+      await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(SkeletonBox), findsWidgets);
 
-    await tester.pumpAndSettle();
-  });
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets(
     'once loaded, shows the form pre-filled with the brand kit fields',

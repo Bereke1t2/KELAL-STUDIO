@@ -11,8 +11,9 @@ import 'package:kelal_studio/core/widgets/app_text_field.dart';
 import 'package:kelal_studio/core/widgets/authenticated_network_image.dart';
 import 'package:kelal_studio/core/widgets/brand_avatar.dart';
 import 'package:kelal_studio/core/widgets/error_snack_bar.dart';
-import 'package:kelal_studio/core/widgets/loading_indicator.dart';
 import 'package:kelal_studio/core/widgets/primary_button.dart';
+import 'package:kelal_studio/core/widgets/skeleton_loader.dart';
+import 'package:kelal_studio/core/widgets/tilt_card.dart';
 import 'package:kelal_studio/features/brand_kit/domain/entities/brand_kit.dart';
 import 'package:kelal_studio/features/brand_kit/presentation/bloc/brand_kit_bloc.dart';
 import 'package:kelal_studio/features/brand_kit/presentation/bloc/brand_kit_event.dart';
@@ -243,9 +244,8 @@ class _BrandKitViewState extends State<_BrandKitView> {
           child: BlocBuilder<BrandKitBloc, BrandKitState>(
             builder: (context, state) {
               return switch (state) {
-                BrandKitInitial() || BrandKitLoadInProgress() => const Center(
-                  child: LoadingIndicator(),
-                ),
+                BrandKitInitial() ||
+                BrandKitLoadInProgress() => const _BrandKitFormSkeleton(),
                 BrandKitLoadFailure(:final message) => _LoadErrorView(
                   message: message,
                   onRetry: () => context.read<BrandKitBloc>().add(
@@ -269,6 +269,46 @@ class _BrandKitViewState extends State<_BrandKitView> {
             },
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// `BrandKitInitial`/`BrandKitLoadInProgress`'s placeholder — a skeleton
+/// shaped like [_BrandKitForm]'s real layout (logo tile, then field-height
+/// bars) rather than a bare centered spinner, per this branch's task
+/// ("skeleton loaders for async screens"). `GET /brand-kits/{id}`'s actual
+/// latency is real (see `FakeBackendSupport.latency`), unlike
+/// `DraftsListLoading`'s near-instant local-DB case, so this state is
+/// worth a more legible placeholder.
+class _BrandKitFormSkeleton extends StatelessWidget {
+  const _BrandKitFormSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SingleChildScrollView(
+      padding: EdgeInsets.all(AppSpacing.xxl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: SkeletonBox(
+              width: 72,
+              height: 72,
+              borderRadius: AppRadius.md,
+            ),
+          ),
+          SizedBox(height: AppSpacing.xl),
+          SkeletonBox(height: 48),
+          SizedBox(height: AppSpacing.lg),
+          SkeletonBox(height: 48),
+          SizedBox(height: AppSpacing.lg),
+          SkeletonBox(height: 48),
+          SizedBox(height: AppSpacing.xl),
+          SkeletonBox(height: 48),
+          SizedBox(height: AppSpacing.lg),
+          SkeletonBox(height: 48),
+        ],
       ),
     );
   }
@@ -373,7 +413,7 @@ class _BrandKitForm extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Center(
-            child: GestureDetector(
+            child: TiltCard(
               key: const Key('brand_kit_logo_picker'),
               onTap: isBusy ? null : onPickLogo,
               child: BrandAvatar(

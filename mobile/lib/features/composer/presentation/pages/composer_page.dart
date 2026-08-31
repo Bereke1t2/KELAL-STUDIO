@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kelal_studio/core/di/injection.dart';
 import 'package:kelal_studio/core/error/result.dart';
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
+import 'package:kelal_studio/core/router/app_page_transitions.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
 import 'package:kelal_studio/core/widgets/app_text_field.dart';
 import 'package:kelal_studio/core/widgets/error_banner.dart';
@@ -350,13 +351,22 @@ class _ComposerViewState extends State<_ComposerView> {
                         builder: (context, imageState) {
                           final isGenerating =
                               imageState is ImageGenerationInProgress;
-                          return PrimaryButton(
-                            key: const Key('composer_create_graphic_button'),
-                            label: l10n.composerCreateGraphicButton,
-                            isLoading: isGenerating,
-                            onPressed: isGenerating
-                                ? null
-                                : () => _createGraphic(context, result),
+                          // Hero flight into CanvasEditorPage's AppBar
+                          // title, tag shared via `heroCreateGraphicTag` —
+                          // see its doc comment. Only meaningful mid-flight
+                          // (while `ImageGenerationSuccess` is navigating
+                          // away); harmless as a no-op wrapper the rest of
+                          // the time.
+                          return Hero(
+                            tag: heroCreateGraphicTag,
+                            child: PrimaryButton(
+                              key: const Key('composer_create_graphic_button'),
+                              label: l10n.composerCreateGraphicButton,
+                              isLoading: isGenerating,
+                              onPressed: isGenerating
+                                  ? null
+                                  : () => _createGraphic(context, result),
+                            ),
                           );
                         },
                       ),
