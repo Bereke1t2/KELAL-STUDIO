@@ -1,102 +1,95 @@
 import { useState, type FormEvent } from 'react';
 
 import { adminApi } from '../../api/endpoints/admin';
-import { ApiError } from '../../api/errors';
+import type { SetUserLimitsRequest } from '../../api/types';
+import { useTranslation } from '../../i18n/I18nContext';
 import { Alert } from '../../ui/Alert';
 import { Button } from '../../ui/Button';
-import { errorMessage } from '../../ui/errorMessage';
 import { Field } from '../../ui/Field';
-import { NotBuilt } from './NotBuilt';
+import { PageHeader } from '../../ui/PageHeader';
+import { AdminError } from './AdminError';
+import { MissingRosterNote } from './MissingRosterNote';
+import { QuotaField } from './QuotaField';
 
 /**
- * Per-user quota limits (PRD §6.13, §6.14, acceptance criterion 16).
+ * Per-user daily generation caps (PRD §6.13, §6.14).
  *
- * FLAG — there is no list-users endpoint. backend/api/openapi.yaml exposes
- * PUT /admin/users/{id}/limits and nothing that enumerates users, so this
- * screen cannot show a roster and asks for an account id instead. That is a
- * gap in the admin surface, not a UX preference: add GET /admin/users when
- * the Admin slice is built and replace this input with a real list.
- *
- * Quota is a financial control, not a preference — provider rate limits are
- * enforced per ACCOUNT globally, so one user can drain the whole beta
- * population's daily budget (§12). Raising a limit here spends shared
- * capacity, which is why the form states it rather than presenting the
- * numbers as neutral settings.
+ * Raising a cap spends the beta's *shared* provider budget — this is a
+ * financial control, not a neutral preference, and the copy says so.
  */
 export function UsersPage() {
+  const { t } = useTranslation();
   const [userId, setUserId] = useState('');
-  const [textLimit, setTextLimit] = useState('');
-  const [imageLimit, setImageLimit] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [notBuilt, setNotBuilt] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [text, setText] = useState<number | null>(null);
+  const [image, setImage] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [savedFor, setSavedFor] = useState<string | null>(null);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
-    if (saving) return;
+    if (saving || !userId.trim()) return;
     setSaving(true);
     setError(null);
-    setNotBuilt(false);
-    setSaved(false);
+    setSavedFor(null);
+    const body: SetUserLimitsRequest = {
+      daily_text_quota: text,
+      daily_image_quota: image,
+    };
     try {
-      await adminApi.setUserLimits(userId.trim(), {
-        text_calls_limit: Number(textLimit),
-        image_calls_limit: Number(imageLimit),
-      });
-      setSaved(true);
+      const result = await adminApi.setUserLimits(userId.trim(), body);
+      setSavedFor(result.user_id ?? userId.trim());
     } catch (err) {
-      if (err instanceof ApiError && err.isNotImplemented) setNotBuilt(true);
-      else setError(errorMessage(err));
+      setError(err);
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <section className="flex max-w-xl flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl">User limits</h1>
-        <p className="text-sm text-ink-secondary">
-          Daily generation caps. These spend a shared provider budget — raising
-          one user’s limit reduces what remains for everyone else.
-        </p>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        eyebrow={t('nav.group.oversight')}
+        title={t('nav.users')}
+        description={t('admin.limits.description')}
+      />
 
-      {notBuilt ? <NotBuilt slice="Admin user limits" /> : null}
-      {error ? <Alert tone="error">{error}</Alert> : null}
-      {saved ? <Alert tone="success">Limits updated.</Alert> : null}
+      <MissingRosterNote />
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
         <Field
-          label="Account id"
+          label={t('admin.limits.userId')}
           value={userId}
-          required
-          placeholder="UUID — no user list endpoint exists yet"
           onChange={(e) => setUserId(e.target.value)}
-        />
-        <Field
-          label="Text generations per day"
-          type="number"
-          min={0}
-          value={textLimit}
+          placeholder="00000000-0000-0000-0000-000000000000"
+          className="font-mono"
           required
-          onChange={(e) => setTextLimit(e.target.value)}
         />
-        <Field
-          label="Image generations per day"
-          type="number"
-          min={0}
-          value={imageLimit}
-          required
-          onChange={(e) => setImageLimit(e.target.value)}
+
+        <QuotaField
+          label={t('admin.limits.textCap')}
+          value={text}
+          onChange={setText}
         />
-        <div>
-          <Button type="submit" disabled={saving}>
-            {saving ? 'Saving…' : 'Update limits'}
+        <QuotaField
+          label={t('admin.limits.imageCap')}
+          value={image}
+          onChange={setImage}
+        />
+
+        {error ? <AdminError error={error} /> : null}
+        {savedFor ? (
+          <Alert tone="success">
+            {t('admin.limits.saved', { id: savedFor })}
+          </Alert>
+        ) : null}
+
+        <div className="border-t border-line-subtle pt-4">
+          <Button type="submit" disabled={saving || !userId.trim()}>
+            {saving ? t('action.saving') : t('admin.limits.apply')}
           </Button>
         </div>
       </form>
-    </section>
+    </div>
   );
 }

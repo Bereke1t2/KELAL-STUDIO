@@ -1,69 +1,59 @@
-import { useCallback } from 'react';
-
-import { adminApi } from '../../api/endpoints/admin';
-import { useAsync } from '../../lib/useAsync';
-import { Alert } from '../../ui/Alert';
-import { NotBuilt } from './NotBuilt';
+import { useTranslation } from '../../i18n/I18nContext';
+import type { MessageKey } from '../../i18n/messages';
+import type { AdminUsage } from '../../api/types';
+import { Card } from '../../ui/Card';
+import { PageHeader } from '../../ui/PageHeader';
+import { Spinner } from '../../ui/Spinner';
+import { AdminError } from './AdminError';
+import { useAdminUsage } from './useAdminData';
 
 /**
- * Usage & telemetry (PRD §6.13, acceptance criterion 8).
+ * Whole-population usage counts (PRD §6.13).
  *
- * These are single magnitudes, so they are stat tiles — not charts. There is
- * no series to distinguish and nothing to plot over time yet.
- *
- * Tiles are deliberately NOT threshold-coloured. PRD §2.3 names the metrics to
- * collect but sets no numeric target for any of them, and "activated user" is
- * undefined — so painting an error rate red would invent a pass/fail bar the
- * product has not set. Once targets exist (§14), add status colour with an
- * icon and label, never colour alone.
+ * Every tile looks the same — no threshold colours, no "good/bad". The PRD
+ * (§2.3) sets no numeric target for any metric yet, so a coloured tile would be
+ * asserting a judgement the product has not made. When targets exist, add
+ * status with an icon + label, never colour alone.
  */
-function Tile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-line bg-surface p-4">
-      <div className="text-sm text-ink-tertiary">{label}</div>
-      {/* tabular-nums so figures do not jitter as they refresh */}
-      <div className="mt-1 text-2xl tabular-nums text-ink">{value}</div>
-    </div>
-  );
-}
-
-const NONE = '—';
-
-const fmtInt = (n: number | undefined): string =>
-  n === undefined ? NONE : n.toLocaleString();
-
-const fmtMs = (n: number | undefined): string =>
-  n === undefined ? NONE : `${n.toLocaleString()} ms`;
-
-const fmtRate = (n: number | undefined): string =>
-  n === undefined ? NONE : `${(n * 100).toFixed(1)}%`;
+const TILES: ReadonlyArray<{ key: keyof AdminUsage; label: MessageKey }> = [
+  { key: 'total_users', label: 'admin.usage.totalUsers' },
+  { key: 'total_generations', label: 'admin.usage.totalGenerations' },
+  { key: 'text_generations', label: 'admin.usage.textGenerations' },
+  { key: 'image_generations', label: 'admin.usage.imageGenerations' },
+  { key: 'video_generations', label: 'admin.usage.videoGenerations' },
+  { key: 'total_flags', label: 'admin.usage.totalFlags' },
+  { key: 'pending_flags', label: 'admin.usage.pendingFlags' },
+];
 
 export function UsagePage() {
-  const fetcher = useCallback(() => adminApi.usage(), []);
-  const { data, error, notBuilt, loading } = useAsync(fetcher, [fetcher]);
+  const { t, formatNumber } = useTranslation();
+  const { data, error, loading, reload } = useAdminUsage();
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl">Usage</h1>
-        <p className="text-sm text-ink-secondary">
-          Live generation counts, latency, and queue health.
-        </p>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        eyebrow={t('nav.group.oversight')}
+        title={t('nav.usage')}
+        description={t('admin.usage.description')}
+      />
 
-      {loading ? <p className="text-ink-tertiary">Loading usage…</p> : null}
-      {notBuilt ? <NotBuilt slice="Admin usage" /> : null}
-      {error ? <Alert tone="error">{error}</Alert> : null}
+      {error ? <AdminError error={error} onRetry={reload} /> : null}
+      {loading ? <Spinner label={t('state.loading')} /> : null}
 
       {data ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Tile label="Generations" value={fmtInt(data.generations_total)} />
-          <Tile label="Error rate" value={fmtRate(data.error_rate)} />
-          <Tile label="Latency P50" value={fmtMs(data.latency_p50_ms)} />
-          <Tile label="Latency P95" value={fmtMs(data.latency_p95_ms)} />
-          <Tile label="Queue depth" value={fmtInt(data.queue_depth)} />
+          {TILES.map((tile) => (
+            <Card key={tile.key} pad="md" className="flex flex-col gap-1">
+              <span className="text-caption uppercase tracking-[0.12em] text-ink-tertiary">
+                {t(tile.label)}
+              </span>
+              <span className="text-display text-ink">
+                {formatNumber(data[tile.key] ?? 0)}
+              </span>
+            </Card>
+          ))}
         </div>
       ) : null}
-    </section>
+    </div>
   );
 }

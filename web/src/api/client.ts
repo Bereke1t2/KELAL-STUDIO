@@ -7,7 +7,11 @@ const BASE = '/v1';
 
 interface RequestOptions {
   method?: string;
+  /** JSON body — serialized, `content-type: application/json` set. */
   body?: unknown;
+  /** Multipart body — passed through untouched; the browser sets the
+   *  `content-type` with its boundary. Mutually exclusive with `body`. */
+  form?: FormData;
   /** Skip the bearer header and the refresh-retry (login, register, reset). */
   anonymous?: boolean;
 }
@@ -65,10 +69,13 @@ async function send(path: string, opts: RequestOptions): Promise<Response> {
   const access = tokens.getAccess();
   if (!opts.anonymous && access) headers.authorization = `Bearer ${access}`;
 
+  const body: BodyInit | undefined =
+    opts.form ?? (opts.body !== undefined ? JSON.stringify(opts.body) : undefined);
+
   return fetch(`${BASE}${path}`, {
     method: opts.method ?? 'GET',
     headers,
-    ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
+    ...(body !== undefined ? { body } : {}),
   });
 }
 

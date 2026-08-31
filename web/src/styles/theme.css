@@ -66,4 +66,24 @@
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
   --radius-xl: var(--radius-xl);
+
+  /* Typography (typography.css). Bridged here so `text-title`, `tracking-button`,
+     `leading-body`, `font-ethiopic` etc. exist as utilities. Same one-to-one,
+     mechanical mapping as the colours above — typography.css owns the values. */
+  --text-display: var(--font-size-display);
+  --text-title: var(--font-size-title);
+  --text-body: var(--font-size-body);
+  --text-body-sm: var(--font-size-body-sm);
+  --text-label: var(--font-size-label);
+  --text-caption: var(--font-size-caption);
+  --text-button: var(--font-size-button);
+
+  --tracking-label: var(--tracking-label);
+  --tracking-caption: var(--tracking-caption);
+  --tracking-button: var(--tracking-button);
+
+  --leading-body: var(--leading);
+
+  --font-sans: var(--font-family-sans);
+  --font-ethiopic: var(--font-family-ethiopic);
 }

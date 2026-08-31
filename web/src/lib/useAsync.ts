@@ -1,22 +1,18 @@
+/* oxlint-disable react-hooks/exhaustive-deps -- `deps` is a caller-provided
+   dependency list, spread into the effect by contract; it cannot be an array
+   literal here and that is the point of the hook. */
 import { useEffect, useState } from 'react';
-
-import { ApiError } from '../api/errors';
-import { errorMessage } from '../ui/errorMessage';
 
 export interface AsyncState<T> {
   data: T | null;
-  error: string | null;
-  /** True when the route exists but is not implemented server-side (501). */
-  notBuilt: boolean;
+  /** The raw thrown value. Format it in the component with
+   *  `errorMessage(err, t)` — this hook stays i18n-agnostic. */
+  error: unknown;
   loading: boolean;
 }
 
 /**
- * Run a fetch on mount, with cancellation and taxonomy-aware error handling.
- *
- * `notBuilt` is split out from `error` deliberately: every /admin/* route
- * currently returns not_implemented, and that is a normal, expected state of
- * this codebase rather than a failure the operator should see styled as one.
+ * Run a fetch on mount, with cancellation.
  *
  * `deps` is spread into the effect's dependency list, so callers must pass a
  * stable array — the same discipline any useEffect dependency needs.
@@ -28,7 +24,6 @@ export function useAsync<T>(
   const [state, setState] = useState<AsyncState<T>>({
     data: null,
     error: null,
-    notBuilt: false,
     loading: true,
   });
 
@@ -37,24 +32,14 @@ export function useAsync<T>(
     setState((s) => ({ ...s, loading: true }));
     fetcher()
       .then((data) => {
-        if (!cancelled) {
-          setState({ data, error: null, notBuilt: false, loading: false });
-        }
+        if (!cancelled) setState({ data, error: null, loading: false });
       })
       .catch((err: unknown) => {
-        if (cancelled) return;
-        const notBuilt = err instanceof ApiError && err.isNotImplemented;
-        setState({
-          data: null,
-          error: notBuilt ? null : errorMessage(err),
-          notBuilt,
-          loading: false,
-        });
+        if (!cancelled) setState({ data: null, error: err, loading: false });
       });
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
   return state;

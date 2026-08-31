@@ -18,6 +18,10 @@ export interface RegisterResult {
   verification_sent: boolean;
 }
 
+export interface VerifyEmailResult {
+  verified: boolean;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -51,34 +55,51 @@ export interface Quota {
   resets_at?: string;
 }
 
-/*
- * FLAG — admin response shapes are NOT in the contract.
+/**
+ * Admin surface — transcribed from backend/api/openapi.yaml (all `implemented`).
  *
- * All four /admin/* operations are declared `x-implementation-status: stub`
- * with a bare `'200': { description: OK }` and no schema, so there is no
- * server-side shape to transcribe. The interfaces below are this client's
- * PROPOSAL, derived from PRD §6.13 (user limits, usage analytics,
- * flagged-prompt audit log, queue health) — not an agreed contract.
- *
- * Do not treat them as settled: when the Admin slice is built, reconcile
- * these against whatever the backend actually returns and update
- * backend/api/openapi.yaml at the same time.
+ * V1 analytics is intentionally coarse: whole-population counts only, no
+ * time-buckets, no error rate, no latency, no queue depth. There is also no
+ * list-users endpoint — user limits are set by pasting a user id.
  */
-
 export interface AdminUsage {
-  generations_total?: number;
-  error_rate?: number;
-  latency_p50_ms?: number;
-  latency_p95_ms?: number;
-  queue_depth?: number;
+  total_users?: number;
+  total_generations?: number;
+  text_generations?: number;
+  image_generations?: number;
+  video_generations?: number;
+  total_flags?: number;
+  pending_flags?: number;
 }
 
 export interface ModerationFlag {
   id?: string;
   user_id?: string;
-  input_text?: string;
-  input_lang?: string;
+  /** The raw text that tripped the filter. Admin-only; confidential (PRD §7.9).
+   *  Render as plain text only. */
+  input_snapshot?: string;
   reason?: string;
-  reviewed?: boolean;
+  reviewed_by_admin_id?: string | null;
+  reviewed_at?: string | null;
   created_at?: string;
+}
+
+export interface ModerationFlagList {
+  flags?: ModerationFlag[];
+}
+
+/**
+ * Per-user daily caps. Each field is tri-state: `null` clears the override
+ * (global default applies), `0` blocks all, a positive number sets a cap.
+ * Negatives are rejected server-side (400).
+ */
+export interface SetUserLimitsRequest {
+  daily_text_quota: number | null;
+  daily_image_quota: number | null;
+}
+
+export interface UserLimits {
+  user_id?: string;
+  daily_text_quota?: number | null;
+  daily_image_quota?: number | null;
 }

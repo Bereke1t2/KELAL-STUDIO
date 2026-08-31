@@ -1,6 +1,10 @@
 import { request } from '../client';
 import { tokens } from '../tokens';
-import type { AuthTokens, RegisterResult } from '../types';
+import type {
+  AuthTokens,
+  RegisterResult,
+  VerifyEmailResult,
+} from '../types';
 
 /**
  * Auth operations (PRD §6.1). All are anonymous except account deletion.
@@ -27,8 +31,9 @@ export const authApi = {
       anonymous: true,
     }),
 
-  verifyEmail: (token: string): Promise<void> =>
-    request<void>('/auth/verify-email', {
+  /** Idempotent server-side: verifying an already-verified account succeeds. */
+  verifyEmail: (token: string): Promise<VerifyEmailResult> =>
+    request<VerifyEmailResult>('/auth/verify-email', {
       method: 'POST',
       body: { token },
       anonymous: true,
@@ -50,10 +55,13 @@ export const authApi = {
       anonymous: true,
     }),
 
-  confirmPasswordReset: (resetToken: string, newPassword: string): Promise<void> =>
+  /** Single-use server-side: a replayed token is rejected (PRD §6.1). The body
+   *  key is `token` per backend/api/openapi.yaml — an earlier draft of this
+   *  client sent `reset_token`, which the endpoint ignored. */
+  confirmPasswordReset: (token: string, newPassword: string): Promise<void> =>
     request<void>('/auth/password-reset/confirm', {
       method: 'POST',
-      body: { reset_token: resetToken, new_password: newPassword },
+      body: { token, new_password: newPassword },
       anonymous: true,
     }),
 
