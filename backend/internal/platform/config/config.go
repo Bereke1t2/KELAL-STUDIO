@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/joho/godotenv"
 )
@@ -57,7 +58,7 @@ type DBConfig struct {
 // DSN returns the connection string, preferring an explicit URL.
 func (d DBConfig) DSN() string {
 	if d.URL != "" {
-		return d.URL
+		return cleanConnectionString(d.URL)
 	}
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
@@ -160,7 +161,7 @@ func Load() (*Config, error) {
 		UseMockData:   getBool("USE_MOCK_DATA", false),
 		PublicBaseURL: strings.TrimRight(getStr("PUBLIC_BASE_URL", "http://localhost:8080"), "/"),
 		DB: DBConfig{
-			URL:             getFirstStr([]string{"DATABASE_URL", "POSTGRES_URL", "POSTGRESQL_URL", "NEON_DATABASE_URL", "NEON_URL", "DB_URL"}, ""),
+			URL:             cleanConnectionString(getFirstStr([]string{"DATABASE_URL", "POSTGRES_URL", "POSTGRESQL_URL", "NEON_DATABASE_URL", "NEON_URL", "DB_URL"}, "")),
 			Host:            getStr("DB_HOST", "localhost"),
 			Port:            getStr("DB_PORT", "5432"),
 			User:            getStr("DB_USER", "kelal"),
@@ -279,6 +280,21 @@ func (c *Config) validateAsset() error {
 }
 
 // ── env readers ──────────────────────────────────────────────────────────────
+
+func cleanConnectionString(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.Trim(s, `"'`)
+	if s == "" {
+		return ""
+	}
+	var b strings.Builder
+	for _, r := range s {
+		if !unicode.IsControl(r) && !unicode.IsSpace(r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
 
 func getFirstStr(keys []string, def string) string {
 	for _, k := range keys {
