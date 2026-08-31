@@ -62,6 +62,19 @@ abstract class Failure {
 /// (PRD §11): the mobile client must branch UI messaging on this typed
 /// field, never on HTTP status alone. Every remote data source maps
 /// transport/parsing errors into one of these before they reach a repository.
+///
+/// The first eight values are the original PRD-documented taxonomy.
+/// [notFound]/[emailNotVerified]/[accountLocked] were added once a real
+/// backend existed and turned out to emit its own infrastructure error
+/// codes beyond the PRD's five-value closed set (see
+/// `backend/docs/OPEN_QUESTIONS.md` → `error-code-enum`) — these three are
+/// the ones that are actually load-bearing for a screen this app already
+/// has (Brand Kit's cold-start 404, the email-verification gate, login's
+/// brute-force lockout). The backend's other infra codes (`forbidden`,
+/// `conflict`, `rate_limited`, `internal`, `not_implemented`) still
+/// collapse to [unknown] — a deliberate, smaller scope than mapping every
+/// code the backend can emit, since none of them are reachable from a
+/// button this app currently has in a way that needs distinguishing.
 enum ApiErrorType {
   quotaExceeded,
   providerTimeout,
@@ -71,6 +84,9 @@ enum ApiErrorType {
   network,
   unauthorized,
   unknown,
+  notFound,
+  emailNotVerified,
+  accountLocked,
 }
 
 class ApiFailure extends Failure {

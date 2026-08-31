@@ -6,8 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kelal_studio/core/error/result.dart';
 import 'package:kelal_studio/core/network/fake_backend_support.dart';
 import 'package:kelal_studio/features/brand_kit/data/datasources/brand_kit_remote_data_source.dart';
+import 'package:kelal_studio/features/brand_kit/data/models/asset_dto.dart';
 import 'package:kelal_studio/features/brand_kit/data/models/brand_kit_dto.dart';
-import 'package:kelal_studio/features/brand_kit/data/models/upload_asset_response_dto.dart';
 import 'package:kelal_studio/features/brand_kit/data/repositories/brand_kit_repository_impl.dart';
 import 'package:kelal_studio/features/brand_kit/domain/entities/brand_kit.dart';
 import 'package:kelal_studio/features/brand_kit/domain/entities/logo_validation_failure.dart';
@@ -176,9 +176,12 @@ void main() {
           mimeType: any(named: 'mimeType'),
         ),
       ).thenAnswer(
-        (_) async => const UploadAssetResponseDto(
-          assetId: 'asset-1',
-          storageRef: 'fake://brand-logos/1',
+        (_) async => AssetDto(
+          id: 'asset-1',
+          width: 512,
+          height: 512,
+          mimeType: 'image/png',
+          createdAt: DateTime.utc(2026),
         ),
       );
 

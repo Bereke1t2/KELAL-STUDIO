@@ -89,6 +89,28 @@ void main() {
         ),
       ],
     );
+
+    blocTest<BrandKitBloc, BrandKitState>(
+      'a notFound failure — the real backend\'s "no kit yet" signal for '
+      'this account — emits an empty, ready-to-fill-in Loaded state '
+      'instead of LoadFailure',
+      setUp: () {
+        when(getBrandKitUseCase.call).thenAnswer(
+          (_) async => const Result.err(
+            ApiFailure(type: ApiErrorType.notFound, message: 'not found'),
+          ),
+        );
+      },
+      build: buildBloc,
+      act: (bloc) => bloc.add(const BrandKitLoadRequested()),
+      expect: () => [
+        const BrandKitLoadInProgress(),
+        isA<BrandKitLoaded>()
+            .having((s) => s.brandKit.brandName, 'brandName', '')
+            .having((s) => s.brandKit.logoAssetId, 'logoAssetId', isNull)
+            .having((s) => s.brandKit.id, 'id', isNotEmpty),
+      ],
+    );
   });
 
   group('BrandKitSaveRequested', () {

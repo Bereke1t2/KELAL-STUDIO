@@ -159,6 +159,17 @@ class _ComposerViewState extends State<_ComposerView> {
       ApiErrorType.unauthorized => l10n.generationErrorUnauthorized,
       ApiErrorType.moderationRefused => failure.message,
       ApiErrorType.quotaExceeded => failure.message,
+      // `/generate/*` gates on a verified email before any provider work
+      // (PRD §6.1) — ApiExceptionMapper already produces plain, actionable
+      // copy for this ("Please verify your email to continue."), same
+      // reasoning as moderationRefused/quotaExceeded passing `.message`
+      // straight through above.
+      ApiErrorType.emailNotVerified => failure.message,
+      // Not actually reachable from `/generate/*` today (notFound has no
+      // meaning here; accountLocked is a login-only lockout) — handled for
+      // exhaustiveness, not because either is expected.
+      ApiErrorType.notFound => l10n.generationErrorUnknown,
+      ApiErrorType.accountLocked => l10n.generationErrorUnknown,
       ApiErrorType.unknown => l10n.generationErrorUnknown,
     };
   }

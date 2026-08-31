@@ -1,12 +1,14 @@
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
-
+import 'package:kelal_studio/core/error/result.dart';
+import 'package:kelal_studio/features/brand_kit/domain/entities/brand_kit.dart';
 import 'package:kelal_studio/features/brand_kit/domain/usecases/get_brand_kit_usecase.dart';
 import 'package:kelal_studio/features/brand_kit/domain/usecases/update_brand_kit_usecase.dart';
 import 'package:kelal_studio/features/brand_kit/domain/usecases/upload_brand_logo_usecase.dart';
 import 'package:kelal_studio/features/brand_kit/presentation/bloc/brand_kit_event.dart';
 import 'package:kelal_studio/features/brand_kit/presentation/bloc/brand_kit_state.dart';
+import 'package:uuid/uuid.dart';
 
 /// Every handler here uses `droppable()`, deliberately — see
 /// mobile/.claude/skills/flutter-state-management/SKILL.md's transformer
@@ -60,10 +62,41 @@ class BrandKitBloc extends Bloc<BrandKitEvent, BrandKitState> {
     emit(
       result.when(
         ok: BrandKitLoaded.new,
-        err: (failure) => BrandKitLoadFailure(failure.message),
+        err: (failure) {
+          // A 404 here means "no kit yet, this account has never saved
+          // one" — backend's `PUT /brand-kits/{id}` is a deliberate
+          // owner-scoped upsert specifically for this case (see
+          // `RealBrandKitRemoteDataSource`'s doc comment), so the correct
+          // response is an empty, ready-to-fill-in form, not a dead-end
+          // error screen. Every real first-time user hits this exact path
+          // — it was previously indistinguishable from a genuine failure,
+          // with a Retry button that would 404 forever.
+          if (failure is ApiFailure && failure.type == ApiErrorType.notFound) {
+            return BrandKitLoaded(_emptyDraft());
+          }
+          return BrandKitLoadFailure(failure.message);
+        },
       ),
     );
   }
+
+  /// A blank draft for the cold-start "no kit yet" case — see
+  /// `_onLoadRequested`. [BrandKit.id] here is cosmetic: the real backend
+  /// ignores the request body's `id` field entirely (the path segment,
+  /// resolved by `RealBrandKitRemoteDataSource`, is what actually
+  /// addresses the upsert) — this never reaches the fake data source at
+  /// all, since it always resolves `getBrandKit()` against one seeded kit
+  /// and never 404s.
+  static BrandKit _emptyDraft() => BrandKit(
+    id: const Uuid().v4(),
+    brandName: '',
+    logoAssetId: null,
+    primaryColorHex: '',
+    secondaryColorHex: '',
+    toneOfVoice: '',
+    contactInfo: '',
+    updatedAt: DateTime.now().toUtc(),
+  );
 
   Future<void> _onSaveRequested(
     BrandKitSaveRequested event,

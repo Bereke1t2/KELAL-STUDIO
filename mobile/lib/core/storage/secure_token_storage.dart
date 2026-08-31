@@ -25,6 +25,23 @@ class SecureTokenStorage {
   /// instead of introducing a second storage mechanism for one boolean.
   static const _emailVerifiedKey = 'kelal_email_verified';
 
+  /// Not a secret either — same reasoning as [_emailVerifiedKey] above.
+  /// The real backend has no id-resolution endpoint for "my brand kit"
+  /// (no `/brand-kits/me`, no user id in the login/register response — see
+  /// `RealBrandKitRemoteDataSource`'s doc comment for the full contract-gap
+  /// story), so the client generates its own id on first use and treats
+  /// `PUT /brand-kits/{id}`'s owner-scoped upsert as "create mine here."
+  /// Stored per-session (cleared alongside the tokens) rather than
+  /// per-install: a **known, flagged limitation** this implies is that
+  /// logging out and back in as the same user re-generates a fresh id,
+  /// orphaning whatever kit the previous session created — there is no
+  /// way to look it back up without a real id-resolution endpoint. Scoping
+  /// this to the session (not persisting across logout) was still the
+  /// better of two flawed options: the alternative (persist forever, keyed
+  /// by nothing) would let a second account on the same device silently
+  /// collide with the first account's kit id.
+  static const _brandKitIdKey = 'kelal_brand_kit_id';
+
   Future<String?> readAccessToken() => _storage.read(key: _accessTokenKey);
   Future<String?> readRefreshToken() => _storage.read(key: _refreshTokenKey);
 
@@ -46,6 +63,11 @@ class SecureTokenStorage {
   Future<void> saveEmailVerified({required bool verified}) =>
       _storage.write(key: _emailVerifiedKey, value: verified.toString());
 
+  Future<String?> readBrandKitId() => _storage.read(key: _brandKitIdKey);
+
+  Future<void> saveBrandKitId(String id) =>
+      _storage.write(key: _brandKitIdKey, value: id);
+
   /// Called on logout, account deletion, or detected refresh-token reuse
   /// (compromise signal per PRD §6.1) — always clear all session state
   /// together, never just the tokens.
@@ -53,6 +75,7 @@ class SecureTokenStorage {
     await _storage.delete(key: _accessTokenKey);
     await _storage.delete(key: _refreshTokenKey);
     await _storage.delete(key: _emailVerifiedKey);
+    await _storage.delete(key: _brandKitIdKey);
   }
 }
 

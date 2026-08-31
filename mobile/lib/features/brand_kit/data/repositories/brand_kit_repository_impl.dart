@@ -105,7 +105,7 @@ class BrandKitRepositoryImpl implements BrandKitRepository {
             filename: pngFilename,
             mimeType: 'image/png',
           );
-          return Result.ok(response.assetId);
+          return Result.ok(response.id);
         } on ApiException catch (e) {
           return Result.err(e.failure);
         }

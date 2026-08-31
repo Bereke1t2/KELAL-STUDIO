@@ -8,6 +8,7 @@ import 'package:kelal_studio/core/di/injection.dart';
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
 import 'package:kelal_studio/core/widgets/app_text_field.dart';
+import 'package:kelal_studio/core/widgets/authenticated_network_image.dart';
 import 'package:kelal_studio/core/widgets/brand_avatar.dart';
 import 'package:kelal_studio/core/widgets/error_snack_bar.dart';
 import 'package:kelal_studio/core/widgets/loading_indicator.dart';
@@ -30,15 +31,16 @@ import 'package:kelal_studio/features/brand_kit/presentation/widgets/color_swatc
 /// mirrors how `features/auth` is this codebase's reference vertical
 /// slice.
 ///
-/// **Known real limitation, also flagged rather than glossed over**: the
-/// `BrandKit` schema in mobile/api_contract/openapi.yaml exposes
-/// `logo_asset_id` only, never a display URL for the uploaded image. This
-/// screen can therefore only preview a logo actually picked *in the
-/// current session* (kept in memory — see
-/// `_BrandKitViewState._confirmedLogoPreviewBytes`); a `logoAssetId`
-/// inherited from a previous session/save renders as a generic icon
-/// placeholder rather than the real image, since there's nothing to fetch
-/// it from.
+/// **A previously-flagged limitation, now fixed**: the mobile-local
+/// contract's `BrandKit` schema exposes `logo_asset_id` only, never a
+/// display URL — this screen used to only preview a logo actually picked
+/// *in the current session* (kept in memory, see
+/// `_BrandKitViewState._confirmedLogoPreviewBytes`), falling back to a
+/// generic icon for a `logoAssetId` inherited from a previous session.
+/// The real backend's `GET /assets/{id}` (bearer-authenticated,
+/// owner-checked) resolves that gap — see `AuthenticatedNetworkImage` and
+/// its use below for a `logoPreviewBytes == null` kit that already has a
+/// `logoAssetId`.
 class BrandKitPage extends StatelessWidget {
   const BrandKitPage({super.key});
 
@@ -382,11 +384,19 @@ class _BrandKitForm extends StatelessWidget {
                     : null,
                 logo: avatarStatus == BrandAvatarStatus.hasLogo
                     ? (logoPreviewBytes != null
+                          // Picked in this session — already in memory,
+                          // no fetch needed.
                           ? Image.memory(logoPreviewBytes!, fit: BoxFit.cover)
-                          // No display URL exists for a logoAssetId
-                          // inherited from a previous session — see this
-                          // screen's class doc comment.
-                          : Icon(Icons.image, color: colors.textTertiary))
+                          // Inherited from a previous session/save: fetch
+                          // it by id — see this screen's class doc
+                          // comment and AuthenticatedNetworkImage's own.
+                          : AuthenticatedNetworkImage(
+                              url: '/v1/assets/${state.brandKit.logoAssetId}',
+                              fallback: Icon(
+                                Icons.image,
+                                color: colors.textTertiary,
+                              ),
+                            ))
                     : null,
               ),
             ),
