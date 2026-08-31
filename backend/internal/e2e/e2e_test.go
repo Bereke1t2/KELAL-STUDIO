@@ -297,13 +297,17 @@ func setupE2EApp(t *testing.T) *testApp {
 	brandkit.New(brandkit.Deps{DB: nil, Config: cfg, Logger: log}).RegisterRoutes(v1, mw)
 	asset.New(asset.Deps{DB: nil, Config: cfg, Logger: log, Store: assetStore}).RegisterRoutes(v1, mw)
 
-	textChain, err := factory.BuildTextChain(cfg.Provider.TextOrder, cfg.Provider.Timeout, nil)
+	textChain, err := factory.BuildTextChain(cfg.Provider.TextOrder, cfg.Provider.Timeout, nil, &cfg.Provider)
 	if err != nil {
 		t.Fatalf("build text chain: %v", err)
 	}
-	imageChain, err := factory.BuildImageChain(cfg.Provider.ImageOrder, cfg.Provider.Timeout, nil)
+	imageChain, err := factory.BuildImageChain(cfg.Provider.ImageOrder, cfg.Provider.Timeout, nil, &cfg.Provider)
 	if err != nil {
 		t.Fatalf("build image chain: %v", err)
+	}
+	videoChain, err := factory.BuildVideoChain(cfg.Provider.VideoOrder, cfg.Provider.Timeout, nil, &cfg.Provider)
+	if err != nil {
+		t.Fatalf("build video chain: %v", err)
 	}
 
 	modChecker := moderation.NewPermissiveChecker()
@@ -319,10 +323,12 @@ func setupE2EApp(t *testing.T) *testApp {
 		Logger:     log,
 		TextChain:  textChain,
 		ImageChain: imageChain,
+		VideoChain: videoChain,
 		Moderation: modChecker,
 		Quota:      quotaSvc,
 		Hashtag:    hashBank,
 		Queue:      jobQueue,
+		Store:      assetStore,
 	})
 	genMod.Handler.RegisterRoutes(v1, mw)
 

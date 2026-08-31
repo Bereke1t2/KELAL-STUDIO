@@ -155,7 +155,7 @@ func Load() (*Config, error) {
 
 	cfg := &Config{
 		Env:           getStr("APP_ENV", "development"),
-		HTTPPort:      getStr("HTTP_PORT", "8080"),
+		HTTPPort:      getStr("HTTP_PORT", getStr("PORT", "8080")),
 		LogLevel:      getStr("LOG_LEVEL", "info"),
 		UseMockData:   getBool("USE_MOCK_DATA", false),
 		PublicBaseURL: strings.TrimRight(getStr("PUBLIC_BASE_URL", "http://localhost:8080"), "/"),
