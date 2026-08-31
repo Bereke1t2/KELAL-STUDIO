@@ -40,7 +40,7 @@ dependencies:
   hydrated_bloc: 10.1.1
   image_picker: 1.2.3
   injectable: 2.7.1+4
-  intl: 0.20.3
+  intl: 0.20.2
   json_annotation: 4.12.0
   path_provider: 2.1.6
   pretty_dio_logger: 1.4.0
