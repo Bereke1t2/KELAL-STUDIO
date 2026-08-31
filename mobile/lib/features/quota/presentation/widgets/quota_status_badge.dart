@@ -70,7 +70,21 @@ class _QuotaStatusBadgeView extends StatelessWidget {
               ),
               quota.textCallsLimit,
             ),
+            textRemainingShortLabel: l10n.quotaBadgeTextRemainingShort(
+              (quota.textCallsLimit - quota.textCallsUsed).clamp(
+                0,
+                quota.textCallsLimit,
+              ),
+              quota.textCallsLimit,
+            ),
             imageRemainingLabel: l10n.quotaBadgeImageRemaining(
+              (quota.imageCallsLimit - quota.imageCallsUsed).clamp(
+                0,
+                quota.imageCallsLimit,
+              ),
+              quota.imageCallsLimit,
+            ),
+            imageRemainingShortLabel: l10n.quotaBadgeImageRemainingShort(
               (quota.imageCallsLimit - quota.imageCallsUsed).clamp(
                 0,
                 quota.imageCallsLimit,

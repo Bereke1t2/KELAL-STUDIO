@@ -26,15 +26,32 @@ import 'package:kelal_studio/features/auth/domain/repositories/auth_repository.d
 /// the gate until the real value is known, rather than flashing it on
 /// briefly for an already-verified user.
 ///
-/// **Flagged gap, not silently built**: this only shows a static banner.
-/// It does not include a resend-verification-email flow or deep-link
-/// handling for a verification email's tap-through — both are real
-/// follow-up work for a future branch (see the auth-complete branch
-/// report), out of scope for "just the state plumbing + gate UI" here.
-class EmailVerificationGate extends StatelessWidget {
+/// **Flagged gap, not silently built**: this only shows a banner — it
+/// doesn't itself deep-link into the real resend/verify flow
+/// (`CheckYourEmailPage`, `/verify-email`) that `feat/email-verification-flow`
+/// later built, since wiring that up needs the signed-in user's email
+/// somewhere `AuthSession`/`SecureTokenStorage` doesn't carry today. Real
+/// follow-up work for a future branch, out of scope for "just the state
+/// plumbing + gate UI" here.
+class EmailVerificationGate extends StatefulWidget {
   const EmailVerificationGate({required this.child, super.key});
 
   final Widget child;
+
+  @override
+  State<EmailVerificationGate> createState() => _EmailVerificationGateState();
+}
+
+class _EmailVerificationGateState extends State<EmailVerificationGate> {
+  // Session-local only, deliberately not a HydratedCubit like
+  // ExportOverlaySeenCubit/DraftsDisclosureSeenCubit's "seen once, never
+  // again" dismissals — this banner represents a still-true fact (the
+  // account isn't verified yet), so it's meant to reappear on the next
+  // app launch rather than being silenced forever by one dismiss tap. This
+  // only lets the user get it out of the way of *this* screen visit,
+  // matching the "static banner, scroll doesn't affect it" fix rather
+  // than becoming a permanent opt-out.
+  bool _dismissed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +63,7 @@ class EmailVerificationGate extends StatelessWidget {
         // this check — i.e. don't show the gate — matching the `null`
         // handling note above.
         final isVerified = snapshot.data ?? true;
-        if (isVerified) return child;
+        if (isVerified || _dismissed) return widget.child;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -54,7 +71,7 @@ class EmailVerificationGate extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.lg,
-                AppSpacing.lg,
+                AppSpacing.md,
                 AppSpacing.lg,
                 0,
               ),
@@ -62,9 +79,11 @@ class EmailVerificationGate extends StatelessWidget {
                 key: const Key('email_verification_gate_banner'),
                 title: l10n.emailVerificationGateTitle,
                 message: l10n.emailVerificationGateMessage,
+                onDismiss: () => setState(() => _dismissed = true),
+                dismissSemanticLabel: l10n.emailVerificationGateDismissLabel,
               ),
             ),
-            Expanded(child: child),
+            Expanded(child: widget.child),
           ],
         );
       },
