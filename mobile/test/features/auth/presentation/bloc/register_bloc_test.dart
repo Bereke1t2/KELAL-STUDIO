@@ -1,7 +1,7 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kelal_studio/core/error/result.dart';
-import 'package:kelal_studio/features/auth/domain/entities/auth_session.dart';
+import 'package:kelal_studio/features/auth/domain/entities/registration_outcome.dart';
 import 'package:kelal_studio/features/auth/domain/usecases/register_usecase.dart';
 import 'package:kelal_studio/features/auth/presentation/bloc/register_bloc.dart';
 import 'package:kelal_studio/features/auth/presentation/bloc/register_event.dart';
@@ -26,14 +26,14 @@ void main() {
     setUp: () {
       when(() => registerUseCase(email: email, password: password)).thenAnswer(
         (_) async => const Result.ok(
-          AuthSession(isAuthenticated: true, emailVerified: false),
+          RegistrationOutcome(userId: 'user-1', verificationSent: true),
         ),
       );
     },
     build: () => RegisterBloc(registerUseCase),
     act: (bloc) =>
         bloc.add(const RegisterSubmitted(email: email, password: password)),
-    expect: () => const [RegisterSubmitting(), RegisterSuccess()],
+    expect: () => const [RegisterSubmitting(), RegisterSuccess(email)],
   );
 
   blocTest<RegisterBloc, RegisterState>(
@@ -70,7 +70,7 @@ void main() {
       ) async {
         await Future<void>.delayed(const Duration(milliseconds: 50));
         return const Result.ok(
-          AuthSession(isAuthenticated: true, emailVerified: false),
+          RegistrationOutcome(userId: 'user-1', verificationSent: true),
         );
       });
     },
@@ -81,7 +81,7 @@ void main() {
         ..add(const RegisterSubmitted(email: email, password: password));
     },
     wait: const Duration(milliseconds: 100),
-    expect: () => const [RegisterSubmitting(), RegisterSuccess()],
+    expect: () => const [RegisterSubmitting(), RegisterSuccess(email)],
     verify: (_) {
       verify(() => registerUseCase(email: email, password: password)).called(1);
     },

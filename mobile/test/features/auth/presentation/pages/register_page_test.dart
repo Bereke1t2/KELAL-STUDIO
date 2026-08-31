@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kelal_studio/core/di/injection.dart';
 import 'package:kelal_studio/core/error/result.dart';
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/core/l10n/locale_cubit.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
-import 'package:kelal_studio/features/auth/domain/entities/auth_session.dart';
+import 'package:kelal_studio/features/auth/domain/entities/registration_outcome.dart';
 import 'package:kelal_studio/features/auth/domain/usecases/register_usecase.dart';
 import 'package:kelal_studio/features/auth/presentation/bloc/register_bloc.dart';
 import 'package:kelal_studio/features/auth/presentation/pages/register_page.dart';
@@ -26,8 +27,28 @@ void main() {
     await getIt.reset();
   });
 
+  // Registration navigates itself on success now (RegisterPage no longer
+  // relies on AppRouter's auth-state redirect — see RegisterPage's
+  // listener doc comment), so this needs a real GoRouter ancestor, unlike
+  // before. A minimal two-route router (not the full AppRouter) is enough
+  // to prove *that* navigation happened, with the right query param.
   Widget wrap() {
-    return MaterialApp(
+    final router = GoRouter(
+      initialLocation: '/register',
+      routes: [
+        GoRoute(
+          path: '/register',
+          builder: (context, state) => const RegisterPage(),
+        ),
+        GoRoute(
+          path: '/verify-email',
+          builder: (context, state) => Scaffold(
+            body: Text('verify-email:${state.uri.queryParameters['email']}'),
+          ),
+        ),
+      ],
+    );
+    return MaterialApp.router(
       theme: AppTheme.light(),
       supportedLocales: LocaleCubit.supportedLocales,
       localizationsDelegates: const [
@@ -36,7 +57,7 @@ void main() {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const RegisterPage(),
+      routerConfig: router,
     );
   }
 
@@ -51,7 +72,8 @@ void main() {
   });
 
   testWidgets(
-    'submitting valid details shows a loading indicator then succeeds',
+    'submitting valid details shows a loading indicator, then navigates '
+    'to Check Your Email with the registered address',
     (tester) async {
       when(
         () => registerUseCase(
@@ -61,7 +83,7 @@ void main() {
       ).thenAnswer((_) async {
         await Future<void>.delayed(const Duration(milliseconds: 20));
         return const Result.ok(
-          AuthSession(isAuthenticated: true, emailVerified: false),
+          RegistrationOutcome(userId: 'user-1', verificationSent: true),
         );
       });
 
@@ -81,7 +103,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.text('verify-email:new@kelalstudio.app'), findsOneWidget);
     },
   );
 

@@ -7,6 +7,7 @@ import 'package:kelal_studio/core/storage/secure_token_storage.dart';
 import 'package:kelal_studio/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:kelal_studio/features/auth/data/models/auth_tokens_dto.dart';
 import 'package:kelal_studio/features/auth/domain/entities/auth_session.dart';
+import 'package:kelal_studio/features/auth/domain/entities/registration_outcome.dart';
 import 'package:kelal_studio/features/auth/domain/repositories/auth_repository.dart';
 
 @LazySingleton(as: AuthRepository)
@@ -106,14 +107,63 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Result<Failure, AuthSession>> register({
+  Future<Result<Failure, RegistrationOutcome>> register({
     required String email,
     required String password,
   }) async {
     try {
-      final tokens = await _remote.register(email: email, password: password);
-      return Result.ok(await _persistAndEmit(tokens));
+      // Deliberately does NOT call _persistAndEmit — registration no
+      // longer establishes a session (see RegistrationOutcome's doc
+      // comment). No tokens exist yet to persist, and _authStateController/
+      // _emailVerifiedController are left exactly as they were.
+      final result = await _remote.register(email: email, password: password);
+      return Result.ok(
+        RegistrationOutcome(
+          userId: result.userId,
+          verificationSent: result.verificationSent,
+        ),
+      );
     } on ApiException catch (e) {
+      return Result.err(e.failure);
+    }
+    // Deliberate catch-all: repository boundary, same reasoning as login()
+    // above — any unanticipated exception still becomes a Result.err.
+    // ignore: avoid_catches_without_on_clauses
+    catch (_) {
+      return const Result.err(
+        UnexpectedFailure('Something went wrong. Please try again.'),
+      );
+    }
+  }
+
+  @override
+  Future<Result<Failure, bool>> verifyEmail({required String token}) async {
+    try {
+      final verified = await _remote.verifyEmail(token: token);
+      return Result.ok(verified);
+    } on ApiException catch (e) {
+      return Result.err(e.failure);
+    }
+    // Deliberate catch-all: repository boundary, same reasoning as login()
+    // above — any unanticipated exception still becomes a Result.err.
+    // ignore: avoid_catches_without_on_clauses
+    catch (_) {
+      return const Result.err(
+        UnexpectedFailure('Something went wrong. Please try again.'),
+      );
+    }
+  }
+
+  @override
+  Future<Result<Failure, void>> resendVerificationEmail({
+    required String email,
+  }) async {
+    try {
+      await _remote.resendVerification(email: email);
+      return const Result.ok(null);
+    } on ApiException catch (e) {
+      // Only reached for a genuine transport failure — same anti-
+      // enumeration contract as requestPasswordReset above.
       return Result.err(e.failure);
     }
     // Deliberate catch-all: repository boundary, same reasoning as login()

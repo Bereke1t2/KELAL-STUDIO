@@ -57,6 +57,26 @@
   "resetPasswordConfirmButton": "Reset password",
   "resetPasswordConfirmSuccessMessage": "Your password has been reset. You can now sign in.",
   "backToSignIn": "Back to sign in",
+  "checkYourEmailTitle": "Check your email",
+  "@checkYourEmailTitle": {
+    "description": "AppBar title for CheckYourEmailPage, reached right after a successful register (PRD §11, register-verification — register no longer signs the user in)."
+  },
+  "checkYourEmailHeading": "Verify your email to continue",
+  "checkYourEmailBody": "We sent a verification link to {email}. Enter the code from that email below, or tap the link itself.",
+  "@checkYourEmailBody": {
+    "description": "Body copy on CheckYourEmailPage, naming the address a verification email was just sent to.",
+    "placeholders": {
+      "email": { "type": "String" }
+    }
+  },
+  "checkYourEmailResendButton": "Resend email",
+  "checkYourEmailResendSuccessMessage": "Verification email sent.",
+  "checkYourEmailTokenLabel": "Verification code",
+  "@checkYourEmailTokenLabel": {
+    "description": "Manual paste-in field for the verification token/code — mirrors resetPasswordConfirmTokenLabel's same flagged gap: this branch does not implement deep-link handling for a tap-through from the verification email, so the user must copy/paste the code themselves."
+  },
+  "checkYourEmailVerifyButton": "Verify",
+  "checkYourEmailVerifiedMessage": "Your email has been verified. You can now sign in.",
   "deleteAccountButton": "Delete account",
   "deleteAccountConfirmTitle": "Delete your account?",
   "deleteAccountConfirmBody": "This permanently deletes your account and all of its data. This can't be undone.",

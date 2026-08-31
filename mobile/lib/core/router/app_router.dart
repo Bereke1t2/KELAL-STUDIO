@@ -8,6 +8,7 @@ import 'package:kelal_studio/core/router/go_router_refresh_stream.dart';
 import 'package:kelal_studio/core/router/placeholder_page.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
 import 'package:kelal_studio/features/auth/domain/repositories/auth_repository.dart';
+import 'package:kelal_studio/features/auth/presentation/pages/check_your_email_page.dart';
 import 'package:kelal_studio/features/auth/presentation/pages/login_page.dart';
 import 'package:kelal_studio/features/auth/presentation/pages/register_page.dart';
 import 'package:kelal_studio/features/auth/presentation/pages/reset_password_confirm_page.dart';
@@ -52,6 +53,14 @@ class AppRouter {
   static const resetPasswordRequestLocation = '/reset-password';
   static const resetPasswordConfirmLocation = '/reset-password/confirm';
 
+  /// Reached from `RegisterPage` on a successful submit — see
+  /// `CheckYourEmailPage`'s doc comment for why registration lands here
+  /// instead of Compose now. `email` travels as a query parameter (not
+  /// `extra`) deliberately: it's a plain string with nothing that can't
+  /// round-trip through a URL, and a query parameter (unlike `extra`)
+  /// survives go_router state restoration after process death.
+  static const verifyEmailLocation = '/verify-email';
+
   /// Pushed on top of the shell from `ComposerPage` once
   /// `ImageGenerationSuccess` lands — not a `StatefulShellBranch` tab
   /// (nothing in the bottom nav points here directly), same top-level
@@ -95,6 +104,11 @@ class AppRouter {
       GoRoute(
         path: resetPasswordConfirmLocation,
         builder: (context, state) => const ResetPasswordConfirmPage(),
+      ),
+      GoRoute(
+        path: verifyEmailLocation,
+        builder: (context, state) =>
+            CheckYourEmailPage(email: state.uri.queryParameters['email'] ?? ''),
       ),
       GoRoute(
         path: canvasEditorLocation,
@@ -275,6 +289,7 @@ String? authRedirect({
     AppRouter.registerLocation,
     AppRouter.resetPasswordRequestLocation,
     AppRouter.resetPasswordConfirmLocation,
+    AppRouter.verifyEmailLocation,
   };
   final isPublicAuthRoute = publicAuthLocations.contains(matchedLocation);
   if (!isAuthenticated && !isPublicAuthRoute) return AppRouter.loginLocation;
