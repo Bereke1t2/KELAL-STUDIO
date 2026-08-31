@@ -29,7 +29,9 @@ class QuotaBadge extends StatelessWidget {
   const QuotaBadge({
     required this.status,
     this.textRemainingLabel,
+    this.textRemainingShortLabel,
     this.imageRemainingLabel,
+    this.imageRemainingShortLabel,
     this.resetLabel,
     this.errorMessage,
     this.isWarning = false,
@@ -38,10 +40,13 @@ class QuotaBadge extends StatelessWidget {
   }) : assert(
          status != QuotaBadgeStatus.loaded ||
              (textRemainingLabel != null &&
+                 textRemainingShortLabel != null &&
                  imageRemainingLabel != null &&
+                 imageRemainingShortLabel != null &&
                  resetLabel != null),
          'QuotaBadgeStatus.loaded requires textRemainingLabel, '
-         'imageRemainingLabel, and resetLabel',
+         'textRemainingShortLabel, imageRemainingLabel, '
+         'imageRemainingShortLabel, and resetLabel',
        ),
        assert(
          status != QuotaBadgeStatus.error || errorMessage != null,
@@ -50,12 +55,22 @@ class QuotaBadge extends StatelessWidget {
 
   final QuotaBadgeStatus status;
 
-  /// e.g. "3 of 10 text calls remaining today". Required when [status] is
-  /// [QuotaBadgeStatus.loaded].
+  /// e.g. "3 of 10 text calls remaining today" — the full sentence, never
+  /// shown directly (the badge is a single compact row, not a paragraph
+  /// block). Surfaced as [textRemainingShortLabel]'s [Tooltip]/semantic
+  /// label instead, so a screen reader or long-press still gets the whole
+  /// sentence. Required when [status] is [QuotaBadgeStatus.loaded].
   final String? textRemainingLabel;
+
+  /// e.g. "3/10 text" — what's actually painted on screen. Required when
+  /// [status] is [QuotaBadgeStatus.loaded].
+  final String? textRemainingShortLabel;
 
   /// Image-generation equivalent of [textRemainingLabel].
   final String? imageRemainingLabel;
+
+  /// Image-generation equivalent of [textRemainingShortLabel].
+  final String? imageRemainingShortLabel;
 
   /// e.g. "Resets at 6:00 PM". Required when [status] is
   /// [QuotaBadgeStatus.loaded].
@@ -108,9 +123,22 @@ class QuotaBadge extends StatelessWidget {
           style: AppTypography.caption.copyWith(color: colors.errorText),
         ),
       ),
+      // A single slim strip instead of three stacked full-sentence lines —
+      // PRD §6.14 only asks that remaining quota be visible *before* a
+      // generation attempt, not that this badge narrate the full sentence
+      // on screen at all times. The full text/imageRemainingLabel
+      // sentences still exist — each chip below carries one as its
+      // Tooltip/Semantics label — so nothing here is actually less
+      // accessible, just less tall. Wrap (not Row) so an unusually long
+      // reset-time string on a narrow device reflows to a second line
+      // instead of overflowing, rather than assuming everything always
+      // fits one row.
       QuotaBadgeStatus.loaded => Container(
         key: const Key('quota_badge_loaded'),
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         decoration: BoxDecoration(
           color: isWarning ? colors.warningBg : colors.bgSurfaceRaised,
           border: Border.all(
@@ -118,24 +146,23 @@ class QuotaBadge extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: AppSpacing.md,
+          runSpacing: AppSpacing.xxs,
           children: [
-            Text(
-              textRemainingLabel!,
-              style: AppTypography.bodySmall.copyWith(
-                color: isWarning ? colors.warningText : colors.textPrimary,
-              ),
+            _QuotaChip(
+              icon: Icons.edit_note_rounded,
+              label: textRemainingShortLabel!,
+              tooltip: textRemainingLabel!,
+              color: isWarning ? colors.warningText : colors.textPrimary,
             ),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              imageRemainingLabel!,
-              style: AppTypography.bodySmall.copyWith(
-                color: isWarning ? colors.warningText : colors.textPrimary,
-              ),
+            _QuotaChip(
+              icon: Icons.image_outlined,
+              label: imageRemainingShortLabel!,
+              tooltip: imageRemainingLabel!,
+              color: isWarning ? colors.warningText : colors.textPrimary,
             ),
-            const SizedBox(height: AppSpacing.xs),
             Text(
               resetLabel!,
               style: AppTypography.caption.copyWith(
@@ -146,5 +173,46 @@ class QuotaBadge extends StatelessWidget {
         ),
       ),
     };
+  }
+}
+
+/// One "icon + short digits" stat inside [QuotaBadge]'s loaded row. Kept
+/// private — this is purely [QuotaBadge]'s own internal layout unit, not a
+/// reusable primitive anything else should reach for.
+class _QuotaChip extends StatelessWidget {
+  const _QuotaChip({
+    required this.icon,
+    required this.label,
+    required this.tooltip,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+
+  /// The full sentence this chip's [label] compresses — shown on
+  /// hover/long-press and read by a screen reader, so compressing the
+  /// on-screen text never loses the detail, it's just not painted by
+  /// default.
+  final String tooltip;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        label: tooltip,
+        excludeSemantics: true,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: AppSpacing.xxs),
+            Text(label, style: AppTypography.bodySmall.copyWith(color: color)),
+          ],
+        ),
+      ),
+    );
   }
 }

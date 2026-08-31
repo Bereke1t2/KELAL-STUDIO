@@ -24,23 +24,34 @@ void main() {
   });
 
   testWidgets(
-    'loaded state shows both remaining-calls labels and the reset label',
+    'loaded state shows both remaining-calls short labels and the reset '
+    "label, with the full sentences carried as each chip's tooltip",
     (tester) async {
       await tester.pumpWidget(
         _wrap(
           const QuotaBadge(
             status: QuotaBadgeStatus.loaded,
             textRemainingLabel: '7 of 10 text calls remaining today',
+            textRemainingShortLabel: '7/10 text',
             imageRemainingLabel: '4 of 5 image calls remaining today',
+            imageRemainingShortLabel: '4/5 image',
             resetLabel: 'Resets at 6:00 PM',
           ),
         ),
       );
 
       expect(find.byKey(const Key('quota_badge_loaded')), findsOneWidget);
-      expect(find.text('7 of 10 text calls remaining today'), findsOneWidget);
-      expect(find.text('4 of 5 image calls remaining today'), findsOneWidget);
+      expect(find.text('7/10 text'), findsOneWidget);
+      expect(find.text('4/5 image'), findsOneWidget);
       expect(find.text('Resets at 6:00 PM'), findsOneWidget);
+      expect(
+        find.byTooltip('7 of 10 text calls remaining today'),
+        findsOneWidget,
+      );
+      expect(
+        find.byTooltip('4 of 5 image calls remaining today'),
+        findsOneWidget,
+      );
     },
   );
 
@@ -52,7 +63,9 @@ void main() {
         const QuotaBadge(
           status: QuotaBadgeStatus.loaded,
           textRemainingLabel: '0 of 10 text calls remaining today',
+          textRemainingShortLabel: '0/10 text',
           imageRemainingLabel: '0 of 5 image calls remaining today',
+          imageRemainingShortLabel: '0/5 image',
           resetLabel: 'Resets at 6:00 PM',
           isWarning: true,
         ),
@@ -66,9 +79,7 @@ void main() {
     expect(decoration.color, AppColors.light.warningBg);
     expect(decoration.border, Border.all(color: AppColors.light.warningBorder));
 
-    final textStyle = tester
-        .widget<Text>(find.text('0 of 10 text calls remaining today'))
-        .style;
+    final textStyle = tester.widget<Text>(find.text('0/10 text')).style;
     expect(textStyle?.color, AppColors.light.warningText);
   });
 

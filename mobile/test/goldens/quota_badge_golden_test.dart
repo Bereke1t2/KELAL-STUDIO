@@ -20,7 +20,13 @@ void main() {
   goldenThemeTest(
     'Quota badge renders on-brand in light and dark',
     fileName: 'quota_badge',
-    surfaceSize: const Size(320, 140),
+    // Shorter than before — the loaded state is now a single compact row
+    // (see QuotaBadge's doc comment) rather than three stacked full
+    // sentences, so it no longer needs 140px to lay out without clipping.
+    // Each variant gets its own independent surface of this size (see
+    // golden_helpers.dart's `_GoldenSurface`), so this only needs to fit
+    // the tallest *individual* state, not every state stacked together.
+    surfaceSize: const Size(320, 96),
     variants: {
       'loading': (context) => const QuotaBadge(
         status: QuotaBadgeStatus.loading,
@@ -29,19 +35,25 @@ void main() {
       'loaded - english': (context) => const QuotaBadge(
         status: QuotaBadgeStatus.loaded,
         textRemainingLabel: '7 of 10 text calls remaining today',
+        textRemainingShortLabel: '7/10 text',
         imageRemainingLabel: '4 of 5 image calls remaining today',
+        imageRemainingShortLabel: '4/5 image',
         resetLabel: 'Resets at 6:00 PM',
       ),
       'loaded - amharic': (context) => const QuotaBadge(
         status: QuotaBadgeStatus.loaded,
         textRemainingLabel: 'ከ10 የጽሑፍ ጥሪዎች ዛሬ 7 ቀርተዋል',
+        textRemainingShortLabel: '7/10 ጽሑፍ',
         imageRemainingLabel: 'ከ5 የምስል ጥሪዎች ዛሬ 4 ቀርተዋል',
+        imageRemainingShortLabel: '4/5 ምስል',
         resetLabel: 'በ6:00 PM ዳግም ይጀምራል',
       ),
       'warning - at limit': (context) => const QuotaBadge(
         status: QuotaBadgeStatus.loaded,
         textRemainingLabel: '0 of 10 text calls remaining today',
+        textRemainingShortLabel: '0/10 text',
         imageRemainingLabel: '0 of 5 image calls remaining today',
+        imageRemainingShortLabel: '0/5 image',
         resetLabel: 'Resets at 6:00 PM',
         isWarning: true,
       ),

@@ -100,4 +100,30 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    "tapping the banner's dismiss button hides it for the rest of this "
+    'widget instance, without hiding the (already-visible) child',
+    (tester) async {
+      when(
+        () => authRepository.watchEmailVerified(),
+      ).thenAnswer((_) => Stream.value(false));
+
+      await tester.pumpWidget(wrap());
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('email_verification_gate_banner')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const Key('error_banner_dismiss_button')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('email_verification_gate_banner')),
+        findsNothing,
+      );
+      expect(find.text('compose placeholder'), findsOneWidget);
+    },
+  );
 }

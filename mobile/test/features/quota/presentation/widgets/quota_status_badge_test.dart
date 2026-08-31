@@ -86,9 +86,20 @@ void main() {
       await tester.pumpAndSettle();
 
       final expectedTime = DateFormat.jm().format(resetsAt.toLocal());
-      expect(find.text('7 of 10 text calls remaining today'), findsOneWidget);
-      expect(find.text('4 of 5 image calls remaining today'), findsOneWidget);
+      // The full sentences are still supplied (see the assertions on the
+      // QuotaBadge instance itself below) but the on-screen row shows only
+      // the compact digits — see QuotaBadge's doc comment for why.
+      expect(find.text('7/10 text'), findsOneWidget);
+      expect(find.text('4/5 image'), findsOneWidget);
       expect(find.text('Resets at $expectedTime'), findsOneWidget);
+      expect(
+        find.byTooltip('7 of 10 text calls remaining today'),
+        findsOneWidget,
+      );
+      expect(
+        find.byTooltip('4 of 5 image calls remaining today'),
+        findsOneWidget,
+      );
 
       final badge = tester.widget<QuotaBadge>(find.byType(QuotaBadge));
       expect(badge.isWarning, isFalse);
@@ -113,7 +124,7 @@ void main() {
 
     final badge = tester.widget<QuotaBadge>(find.byType(QuotaBadge));
     expect(badge.isWarning, isTrue);
-    expect(find.text('0 of 10 text calls remaining today'), findsOneWidget);
+    expect(find.text('0/10 text'), findsOneWidget);
   });
 
   testWidgets('a failed fetch shows the error badge with the plain-language '

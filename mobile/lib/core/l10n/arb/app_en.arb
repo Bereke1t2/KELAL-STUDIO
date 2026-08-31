@@ -86,6 +86,10 @@
   "@emailVerificationGateMessage": {
     "description": "PRD §6.1: email verification gates content generation. This branch only builds the state plumbing + this banner, not a resend-email flow or deep-link handling for the verification link itself — flagged as a real gap for a future branch."
   },
+  "emailVerificationGateDismissLabel": "Dismiss",
+  "@emailVerificationGateDismissLabel": {
+    "description": "Semantic/tooltip label for the banner's close (×) button — see flutter-review-checklist §5, every interactive element needs one. Dismissing hides the banner for the rest of this page instance (not persisted — a fresh app launch shows it again until the account is actually verified, same as ExportOverlaySeenCubit/DraftsDisclosureSeenCubit's 'seen once, resets next session' shape would if this used a Cubit, which it deliberately doesn't given how cheap it is to just re-derive from watchEmailVerified())."
+  },
   "brandKitBrandNameLabel": "Brand name",
   "brandKitToneOfVoiceLabel": "Tone of voice",
   "brandKitContactInfoLabel": "Contact info",
@@ -115,6 +119,22 @@
   "quotaBadgeImageRemaining": "{remaining} of {limit} image calls remaining today",
   "@quotaBadgeImageRemaining": {
     "description": "QuotaBadge's image-generation row. Same {remaining}/{limit} semantics as quotaBadgeTextRemaining, for imageCallsLimit/imageCallsUsed.",
+    "placeholders": {
+      "remaining": { "type": "int" },
+      "limit": { "type": "int" }
+    }
+  },
+  "quotaBadgeTextRemainingShort": "{remaining}/{limit} text",
+  "@quotaBadgeTextRemainingShort": {
+    "description": "Compact visible label for QuotaBadge's single-row layout — quotaBadgeTextRemaining's full sentence is still passed through as this chip's Tooltip/Semantics text, this is only the on-screen digits so the badge stays a slim strip rather than a multi-line block eating the top of the Compose screen.",
+    "placeholders": {
+      "remaining": { "type": "int" },
+      "limit": { "type": "int" }
+    }
+  },
+  "quotaBadgeImageRemainingShort": "{remaining}/{limit} image",
+  "@quotaBadgeImageRemainingShort": {
+    "description": "Compact counterpart to quotaBadgeTextRemainingShort, for the image-generation chip.",
     "placeholders": {
       "remaining": { "type": "int" },
       "limit": { "type": "int" }
