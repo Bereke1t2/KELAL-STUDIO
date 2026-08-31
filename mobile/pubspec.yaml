@@ -59,6 +59,7 @@ dependencies:
   # already the current-generation share_plus API, not a legacy one.
   share_plus: 12.0.2
   uuid: 4.6.0
+  video_player: 2.14.0
 
 dev_dependencies:
   alchemist: 0.14.0
