@@ -30,6 +30,16 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_bloc: 9.1.1
+  # PRD §6.12/§8.5's Local Post Reminders — schedules the actual OS-level
+  # notification; the runtime permission check/request itself goes through
+  # permission_handler below rather than this plugin's own iOS-only
+  # requestPermissions call, so the same code path covers Android 13+'s
+  # POST_NOTIFICATIONS runtime permission too. Actively maintained
+  # (flutter-community's canonical local-notifications plugin); its access
+  # footprint (schedule/cancel/tap-response local notifications only, no
+  # network/storage/camera permissions) matches exactly what this feature
+  # uses it for.
+  flutter_local_notifications: 22.0.0
   flutter_localizations:
     sdk: flutter
   flutter_secure_storage: 9.2.4
@@ -43,6 +53,11 @@ dependencies:
   intl: 0.20.2
   json_annotation: 4.12.0
   path_provider: 2.1.6
+  # PRD §6.12/§8.5's Local Post Reminders — the standard cross-platform
+  # runtime-permission API (notification permission on Android 13+/iOS),
+  # used only for that one permission; no other permission this app
+  # doesn't already need is requested through it.
+  permission_handler: 11.3.1
   pretty_dio_logger: 1.4.0
   retrofit: 4.10.0
   # Pinned to 12.0.2, not the current pub.dev latest (13.3.0) — verified via
@@ -58,6 +73,12 @@ dependencies:
   # (used by features/export/data/datasources/share_datasource.dart) is
   # already the current-generation share_plus API, not a legacy one.
   share_plus: 12.0.2
+  # Already pulled in transitively by flutter_local_notifications (its
+  # zonedSchedule requires a tz.TZDateTime) — declared directly, exact-pinned
+  # to the version pub already resolves, because LocalNotificationScheduler
+  # imports it by name (`depend_on_referenced_packages` lint) rather than
+  # relying on an undeclared transitive import.
+  timezone: 0.11.1
   uuid: 4.6.0
   video_player: 2.14.0
 

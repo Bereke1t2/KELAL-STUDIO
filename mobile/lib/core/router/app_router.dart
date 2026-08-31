@@ -5,7 +5,6 @@ import 'package:injectable/injectable.dart';
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/core/router/app_shell.dart';
 import 'package:kelal_studio/core/router/go_router_refresh_stream.dart';
-import 'package:kelal_studio/core/router/placeholder_page.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
 import 'package:kelal_studio/features/auth/domain/repositories/auth_repository.dart';
 import 'package:kelal_studio/features/auth/presentation/pages/check_your_email_page.dart';
@@ -17,6 +16,7 @@ import 'package:kelal_studio/features/auth/presentation/widgets/email_verificati
 import 'package:kelal_studio/features/brand_kit/presentation/pages/brand_kit_page.dart';
 import 'package:kelal_studio/features/canvas_editor/presentation/pages/canvas_editor_page.dart';
 import 'package:kelal_studio/features/composer/presentation/pages/composer_page.dart';
+import 'package:kelal_studio/features/drafts/presentation/pages/drafts_page.dart';
 import 'package:kelal_studio/features/export/presentation/pages/export_page.dart';
 import 'package:kelal_studio/features/quota/presentation/widgets/quota_status_badge.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_confirm_page.dart';
@@ -181,8 +181,7 @@ class AppRouter {
               GoRoute(
                 path: homeLocation,
                 // Compose is "the screen a signed-in user lands on" (PRD
-                // §6.1) — gated behind email verification. Every other
-                // branch below stays a bare ComingSoonPage.
+                // §6.1) — gated behind email verification.
                 //
                 // QuotaStatusBadge sits above EmailVerificationGate,
                 // not inside it — remaining quota (PRD §6.14: visible
@@ -223,10 +222,9 @@ class AppRouter {
           StatefulShellBranch(
             routes: [
               GoRoute(
+                // Real DraftsPage — feat/local-drafts (PRD §10.5).
                 path: '/drafts',
-                builder: (context, state) => ComingSoonPage(
-                  title: AppLocalizations.of(context).navDraftsLabel,
-                ),
+                builder: (context, state) => const DraftsPage(),
               ),
             ],
           ),
@@ -236,8 +234,7 @@ class AppRouter {
                 path: '/brand',
                 // Real Brand Kit UI (see BrandKitPage's own doc comment
                 // for why this exists in mobile at all — a deliberate,
-                // documented PRD deviation) — unlike Drafts/Settings,
-                // this branch is no longer a bare ComingSoonPage.
+                // documented PRD deviation).
                 builder: (context, state) => const BrandKitPage(),
               ),
             ],
@@ -245,10 +242,7 @@ class AppRouter {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                // Real SettingsPage — feat/settings-polish (Track C, merged
-                // to main ahead of this branch's rebase) already built it,
-                // so this starts real rather than as another
-                // ComingSoonPage, unlike the three tabs above.
+                // Real SettingsPage — feat/settings-polish (Track C).
                 path: '/settings',
                 builder: (context, state) => const SettingsPage(),
               ),
