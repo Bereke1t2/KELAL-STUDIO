@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import 'package:kelal_studio/core/error/result.dart';
 import 'package:kelal_studio/core/render_engine/canvas_scene.dart';
 import 'package:kelal_studio/features/drafts/domain/entities/draft.dart';
 
@@ -21,7 +22,12 @@ final class DraftsListLoading extends DraftsListState {
 }
 
 final class DraftsListLoaded extends DraftsListState {
-  const DraftsListLoaded(this.drafts, {this.resumedScene, this.resumedDraft});
+  const DraftsListLoaded(
+    this.drafts, {
+    this.resumedScene,
+    this.resumedDraft,
+    this.reminderResult,
+  });
 
   final List<Draft> drafts;
 
@@ -41,8 +47,20 @@ final class DraftsListLoaded extends DraftsListState {
   /// [drafts].
   final Draft? resumedDraft;
 
+  /// Non-null immediately after a `DraftReminderRequested` resolves —
+  /// `DraftsPage`'s listener reacts to this by showing a success/error
+  /// snack bar, then it's cleared the same way [resumedScene] is (the next
+  /// plain `watchAll()` re-emission builds a fresh `DraftsListLoaded` with
+  /// no transient fields set; there's no separate "consumed" event).
+  final Result<Failure, void>? reminderResult;
+
   bool get isEmpty => drafts.isEmpty;
 
   @override
-  List<Object?> get props => [drafts, resumedScene, resumedDraft];
+  List<Object?> get props => [
+    drafts,
+    resumedScene,
+    resumedDraft,
+    reminderResult,
+  ];
 }

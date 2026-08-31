@@ -12,6 +12,13 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Required by flutter_local_notifications 10+ (PRD §6.12/§8.5's
+        // Local Post Reminders) for its scheduled-notification backwards
+        // compatibility on older Android versions — see the plugin's own
+        // README "Adding the desugar dependency" section. Without this,
+        // `checkDebugAarMetadata` fails the build outright (a real, fatal
+        // build error, not a lint warning) the moment the plugin is added.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -47,4 +54,12 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Pinned to the exact version flutter_local_notifications' README
+    // recommends for its desugaring requirement (see compileOptions above)
+    // — kept an exact version like every other dependency in this repo
+    // (mobile/CLAUDE.md), not `+`/a loose range.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

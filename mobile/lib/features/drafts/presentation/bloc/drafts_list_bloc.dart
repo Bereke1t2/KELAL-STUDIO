@@ -10,6 +10,8 @@ import 'package:kelal_studio/features/drafts/domain/usecases/resume_draft_usecas
 import 'package:kelal_studio/features/drafts/domain/usecases/watch_drafts_usecase.dart';
 import 'package:kelal_studio/features/drafts/presentation/bloc/drafts_list_event.dart';
 import 'package:kelal_studio/features/drafts/presentation/bloc/drafts_list_state.dart';
+import 'package:kelal_studio/features/reminders/domain/entities/reminder.dart';
+import 'package:kelal_studio/features/reminders/domain/usecases/schedule_reminder_usecase.dart';
 
 /// Backs `DraftsPage` — subscribes to `WatchDraftsUseCase`'s reactive
 /// stream directly in the constructor (no other Bloc in this codebase
@@ -28,6 +30,7 @@ class DraftsListBloc extends Bloc<DraftsListEvent, DraftsListState> {
     this._watchDraftsUseCase,
     this._deleteDraftUseCase,
     this._resumeDraftUseCase,
+    this._scheduleReminderUseCase,
   ) : super(const DraftsListLoading()) {
     on<DraftsListUpdated>(_onUpdated, transformer: restartable());
     // Deletions are user-initiated, destructive, one-at-a-time taps (a
@@ -47,6 +50,13 @@ class DraftsListBloc extends Bloc<DraftsListEvent, DraftsListState> {
     // first is still in flight should be ignored, not queued
     // (`sequential()`) or allowed to race it (`concurrent()`).
     on<DraftResumeRequested>(_onResumeRequested, transformer: droppable());
+    // `sequential()`: scheduling a reminder is a deliberate, low-frequency
+    // user action (pick a date, pick a time, confirm) — a fast double-tap
+    // on two different cards' reminder actions should schedule both, in
+    // order, same reasoning as `DraftDeleteRequested` above, not drop one
+    // (`droppable()`) or race the two `LocalNotificationScheduler` calls
+    // (`concurrent()`).
+    on<DraftReminderRequested>(_onReminderRequested, transformer: sequential());
 
     _subscription = _watchDraftsUseCase().listen(
       (drafts) => add(DraftsListUpdated(drafts)),
@@ -56,6 +66,7 @@ class DraftsListBloc extends Bloc<DraftsListEvent, DraftsListState> {
   final WatchDraftsUseCase _watchDraftsUseCase;
   final DeleteDraftUseCase _deleteDraftUseCase;
   final ResumeDraftUseCase _resumeDraftUseCase;
+  final ScheduleReminderUseCase _scheduleReminderUseCase;
   late final StreamSubscription<List<Draft>> _subscription;
 
   void _onUpdated(DraftsListUpdated event, Emitter<DraftsListState> emit) {
@@ -97,6 +108,24 @@ class DraftsListBloc extends Bloc<DraftsListEvent, DraftsListState> {
         resumedDraft: draft,
       ),
     );
+  }
+
+  Future<void> _onReminderRequested(
+    DraftReminderRequested event,
+    Emitter<DraftsListState> emit,
+  ) async {
+    final current = state;
+    if (current is! DraftsListLoaded) return;
+
+    final result = await _scheduleReminderUseCase(
+      Reminder(
+        draftLocalId: event.localId,
+        scheduledAtUtc: event.scheduledAtUtc,
+      ),
+      notificationTitle: event.notificationTitle,
+      notificationBody: event.notificationBody,
+    );
+    emit(DraftsListLoaded(current.drafts, reminderResult: result));
   }
 
   @override

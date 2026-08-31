@@ -7,6 +7,18 @@
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="29" />
+    <!-- flutter_local_notifications (features/reminders): Android 13+
+         (API 33) requires this runtime permission to display any
+         notification at all — permission_handler's Permission.notification
+         request (see LocalNotificationScheduler.requestPermission) is a
+         no-op without this manifest declaration present. Deliberately NOT
+         declaring SCHEDULE_EXACT_ALARM/USE_EXACT_ALARM: reminders are
+         scheduled with AndroidScheduleMode.inexactAllowWhileIdle (a
+         "post around this time" reminder has no need for to-the-second
+         exact-alarm precision, which on API 31+ also needs a separate,
+         more invasive user-granted permission this feature's access
+         footprint doesn't justify). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:label="kelal_studio"
         android:name="${applicationName}"

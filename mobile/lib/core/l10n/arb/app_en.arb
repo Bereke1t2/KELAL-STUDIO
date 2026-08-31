@@ -349,5 +349,25 @@
     "placeholders": {
       "days": { "type": "int" }
     }
+  },
+  "remindersCardAction": "Remind me",
+  "@remindersCardAction": {
+    "description": "Tooltip/semantic label on DraftsPage's per-card bell icon button that starts the Local Post Reminder flow (PRD §6.12/§8.5)."
+  },
+  "remindersNotificationTitle": "Time to post!",
+  "@remindersNotificationTitle": {
+    "description": "Title of the local notification LocalNotificationScheduler fires when a reminder's scheduled time arrives."
+  },
+  "remindersNotificationBody": "Your saved draft is ready — open Kelal Studio to publish it.",
+  "@remindersNotificationBody": {
+    "description": "Body of the local notification LocalNotificationScheduler fires when a reminder's scheduled time arrives."
+  },
+  "remindersScheduledSuccessMessage": "Reminder set.",
+  "@remindersScheduledSuccessMessage": {
+    "description": "Success snack bar shown on DraftsPage after DraftReminderRequested resolves with Result.ok."
+  },
+  "remindersPermissionDeniedMessage": "Enable notifications for Kelal Studio in your device settings to get reminders.",
+  "@remindersPermissionDeniedMessage": {
+    "description": "Error snack bar shown when ReminderRepositoryImpl.schedule returns ReminderPermissionDeniedFailure — the OS-level notification permission is off."
   }
 }

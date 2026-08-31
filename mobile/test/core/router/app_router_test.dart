@@ -34,6 +34,7 @@ import 'package:kelal_studio/features/generation/presentation/bloc/image_generat
 import 'package:kelal_studio/features/quota/domain/entities/quota.dart';
 import 'package:kelal_studio/features/quota/domain/usecases/get_quota_usecase.dart';
 import 'package:kelal_studio/features/quota/presentation/bloc/quota_bloc.dart';
+import 'package:kelal_studio/features/reminders/domain/usecases/schedule_reminder_usecase.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
@@ -61,6 +62,9 @@ class MockWatchDraftsUseCase extends Mock implements WatchDraftsUseCase {}
 class MockDeleteDraftUseCase extends Mock implements DeleteDraftUseCase {}
 
 class MockResumeDraftUseCase extends Mock implements ResumeDraftUseCase {}
+
+class MockScheduleReminderUseCase extends Mock
+    implements ScheduleReminderUseCase {}
 
 /// Minimal in-memory [Storage] so the [HydratedCubit]s pulled in via
 /// `LoginPage` (`ThemeCubit`/`LocaleCubit`) can be constructed without
@@ -269,6 +273,7 @@ void main() {
             watchDraftsUseCase,
             MockDeleteDraftUseCase(),
             MockResumeDraftUseCase(),
+            MockScheduleReminderUseCase(),
           ),
         )
         ..registerFactory<DraftsDisclosureSeenCubit>(

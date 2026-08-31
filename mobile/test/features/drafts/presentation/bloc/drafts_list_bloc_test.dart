@@ -14,6 +14,9 @@ import 'package:kelal_studio/features/drafts/domain/usecases/watch_drafts_usecas
 import 'package:kelal_studio/features/drafts/presentation/bloc/drafts_list_bloc.dart';
 import 'package:kelal_studio/features/drafts/presentation/bloc/drafts_list_event.dart';
 import 'package:kelal_studio/features/drafts/presentation/bloc/drafts_list_state.dart';
+import 'package:kelal_studio/features/reminders/domain/entities/reminder.dart';
+import 'package:kelal_studio/features/reminders/domain/entities/reminder_failure.dart';
+import 'package:kelal_studio/features/reminders/domain/usecases/schedule_reminder_usecase.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockWatchDraftsUseCase extends Mock implements WatchDraftsUseCase {}
@@ -22,7 +25,12 @@ class MockDeleteDraftUseCase extends Mock implements DeleteDraftUseCase {}
 
 class MockResumeDraftUseCase extends Mock implements ResumeDraftUseCase {}
 
+class MockScheduleReminderUseCase extends Mock
+    implements ScheduleReminderUseCase {}
+
 class FakeDraft extends Fake implements Draft {}
+
+class FakeReminder extends Fake implements Reminder {}
 
 Future<ui.Image> _testImage() async {
   final recorder = ui.PictureRecorder();
@@ -40,6 +48,7 @@ void main() {
   late MockWatchDraftsUseCase watchDraftsUseCase;
   late MockDeleteDraftUseCase deleteDraftUseCase;
   late MockResumeDraftUseCase resumeDraftUseCase;
+  late MockScheduleReminderUseCase scheduleReminderUseCase;
   late StreamController<List<Draft>> draftsController;
   late ui.Image background;
 
@@ -63,12 +72,14 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue(FakeDraft());
+    registerFallbackValue(FakeReminder());
   });
 
   setUp(() async {
     watchDraftsUseCase = MockWatchDraftsUseCase();
     deleteDraftUseCase = MockDeleteDraftUseCase();
     resumeDraftUseCase = MockResumeDraftUseCase();
+    scheduleReminderUseCase = MockScheduleReminderUseCase();
     draftsController = StreamController<List<Draft>>.broadcast();
     background = await _testImage();
     when(() => watchDraftsUseCase()).thenAnswer((_) => draftsController.stream);
@@ -82,6 +93,7 @@ void main() {
     watchDraftsUseCase,
     deleteDraftUseCase,
     resumeDraftUseCase,
+    scheduleReminderUseCase,
   );
 
   group('DraftsListUpdated (via WatchDraftsUseCase subscription)', () {
@@ -217,6 +229,107 @@ void main() {
       ],
       verify: (_) {
         verify(() => resumeDraftUseCase(any())).called(1);
+      },
+    );
+  });
+
+  group('DraftReminderRequested', () {
+    final scheduledAt = DateTime.utc(2026, 9, 1, 8);
+
+    blocTest<DraftsListBloc, DraftsListState>(
+      'calls ScheduleReminderUseCase with a Reminder built from the event '
+      'and emits the Result as reminderResult',
+      setUp: () {
+        when(
+          () => scheduleReminderUseCase(
+            any(),
+            notificationTitle: any(named: 'notificationTitle'),
+            notificationBody: any(named: 'notificationBody'),
+          ),
+        ).thenAnswer((_) async => const Result.ok(null));
+      },
+      build: buildBloc,
+      seed: () => DraftsListLoaded([draft('d1')]),
+      act: (bloc) => bloc.add(
+        DraftReminderRequested(
+          localId: 'd1',
+          scheduledAtUtc: scheduledAt,
+          notificationTitle: 'Time to post!',
+          notificationBody: 'Your draft is ready.',
+        ),
+      ),
+      expect: () => [
+        isA<DraftsListLoaded>().having(
+          (s) => s.reminderResult,
+          'reminderResult',
+          const Result<Failure, void>.ok(null),
+        ),
+      ],
+      verify: (_) {
+        verify(
+          () => scheduleReminderUseCase(
+            Reminder(draftLocalId: 'd1', scheduledAtUtc: scheduledAt),
+            notificationTitle: 'Time to post!',
+            notificationBody: 'Your draft is ready.',
+          ),
+        ).called(1);
+      },
+    );
+
+    blocTest<DraftsListBloc, DraftsListState>(
+      'a permission-denied failure is surfaced as reminderResult too — '
+      'the Bloc does not branch on the Failure subtype itself',
+      setUp: () {
+        when(
+          () => scheduleReminderUseCase(
+            any(),
+            notificationTitle: any(named: 'notificationTitle'),
+            notificationBody: any(named: 'notificationBody'),
+          ),
+        ).thenAnswer(
+          (_) async =>
+              const Result.err(ReminderPermissionDeniedFailure('denied')),
+        );
+      },
+      build: buildBloc,
+      seed: () => DraftsListLoaded([draft('d1')]),
+      act: (bloc) => bloc.add(
+        DraftReminderRequested(
+          localId: 'd1',
+          scheduledAtUtc: scheduledAt,
+          notificationTitle: 'Time to post!',
+          notificationBody: 'Your draft is ready.',
+        ),
+      ),
+      expect: () => [
+        isA<DraftsListLoaded>().having(
+          (s) => s.reminderResult?.isErr,
+          'reminderResult.isErr',
+          true,
+        ),
+      ],
+    );
+
+    blocTest<DraftsListBloc, DraftsListState>(
+      'requesting a reminder while still DraftsListLoading is a no-op',
+      build: buildBloc,
+      act: (bloc) => bloc.add(
+        DraftReminderRequested(
+          localId: 'd1',
+          scheduledAtUtc: scheduledAt,
+          notificationTitle: 'Time to post!',
+          notificationBody: 'Your draft is ready.',
+        ),
+      ),
+      expect: () => <DraftsListState>[],
+      verify: (_) {
+        verifyNever(
+          () => scheduleReminderUseCase(
+            any(),
+            notificationTitle: any(named: 'notificationTitle'),
+            notificationBody: any(named: 'notificationBody'),
+          ),
+        );
       },
     );
   });

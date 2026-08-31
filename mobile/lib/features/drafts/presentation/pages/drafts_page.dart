@@ -3,16 +3,20 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:kelal_studio/core/di/injection.dart';
+import 'package:kelal_studio/core/error/result.dart';
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
 import 'package:kelal_studio/core/widgets/app_bottom_sheet.dart';
 import 'package:kelal_studio/core/widgets/empty_state.dart';
+import 'package:kelal_studio/core/widgets/error_snack_bar.dart';
 import 'package:kelal_studio/features/canvas_editor/presentation/pages/canvas_editor_page.dart';
 import 'package:kelal_studio/features/drafts/domain/entities/draft.dart';
 import 'package:kelal_studio/features/drafts/presentation/bloc/drafts_list_bloc.dart';
 import 'package:kelal_studio/features/drafts/presentation/bloc/drafts_list_event.dart';
 import 'package:kelal_studio/features/drafts/presentation/bloc/drafts_list_state.dart';
 import 'package:kelal_studio/features/drafts/presentation/cubit/drafts_disclosure_seen_cubit.dart';
+import 'package:kelal_studio/features/reminders/domain/entities/reminder_failure.dart';
+import 'package:kelal_studio/features/reminders/presentation/utils/pick_reminder_date_time.dart';
 
 const _snippetMaxLength = 80;
 
@@ -115,6 +119,55 @@ class _DraftsViewState extends State<_DraftsView> {
     return confirmed ?? false;
   }
 
+  /// Drives the "Remind me" card action end to end: picks a date/time
+  /// (`pickReminderDateTimeUtc`), then dispatches `DraftReminderRequested`
+  /// with already-localized notification copy — see that event's doc
+  /// comment for why the strings travel down as plain args rather than
+  /// being resolved deeper in the stack.
+  Future<void> _requestReminder(BuildContext context, Draft draft) async {
+    final scheduledAtUtc = await pickReminderDateTimeUtc(context);
+    if (scheduledAtUtc == null || !context.mounted) return;
+
+    final l10n = AppLocalizations.of(context);
+    context.read<DraftsListBloc>().add(
+      DraftReminderRequested(
+        localId: draft.localId,
+        scheduledAtUtc: scheduledAtUtc,
+        notificationTitle: l10n.remindersNotificationTitle,
+        notificationBody: l10n.remindersNotificationBody,
+      ),
+    );
+  }
+
+  void _showReminderResultSnackBar(
+    BuildContext context,
+    AppLocalizations l10n,
+    Result<Failure, void> result,
+  ) {
+    final colors = context.colors;
+    result.when(
+      ok: (_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: colors.successBg,
+            content: Text(
+              l10n.remindersScheduledSuccessMessage,
+              style: AppTypography.bodySmall.copyWith(
+                color: colors.successText,
+              ),
+            ),
+          ),
+        );
+      },
+      err: (failure) {
+        final message = failure is ReminderPermissionDeniedFailure
+            ? l10n.remindersPermissionDeniedMessage
+            : l10n.generationErrorUnknown;
+        showErrorSnackBar(context, message);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -125,76 +178,104 @@ class _DraftsViewState extends State<_DraftsView> {
       // AppBar title consistent with the bottom-nav tab it lives under —
       // same convention BrandKitPage/SettingsPage each follow.
       appBar: AppBar(title: Text(l10n.navDraftsLabel)),
-      body: BlocConsumer<DraftsListBloc, DraftsListState>(
-        listenWhen: (previous, current) {
-          if (current is! DraftsListLoaded || current.resumedScene == null) {
-            return false;
-          }
-          return previous is! DraftsListLoaded ||
-              previous.resumedScene != current.resumedScene;
-        },
-        listener: (context, state) {
-          final loaded = state as DraftsListLoaded;
-          final scene = loaded.resumedScene!;
-          final draft = loaded.resumedDraft!;
-          // Resuming a draft only ever carries `inputText` forward — the
-          // original AI-generated captions (`GenerationResult.captionEn`/
-          // `captionAm`) are **not** part of PRD §10.5's draft schema, so
-          // they can't be recovered here. A real, known gap: continuing a
-          // draft into `/export` later will show empty captions rather
-          // than the ones that were showing when the draft was saved. See
-          // `CanvasEditorPageArgs`'s doc comment for the same note from
-          // the other side of this thread.
-          context.push(
-            '/canvas-editor',
-            extra: CanvasEditorPageArgs(
-              scene: scene,
-              captionEn: '',
-              captionAm: '',
-              inputText: draft.inputText,
-              brandKitId: draft.brandKitId,
-            ),
-          );
-        },
-        builder: (context, state) {
-          if (state is DraftsListLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final loaded = state as DraftsListLoaded;
-          if (loaded.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.xxl),
-                child: EmptyState(
-                  icon: Icons.drafts_outlined,
-                  heading: l10n.draftsEmptyHeading,
-                  body: l10n.draftsEmptyBody,
-                ),
-              ),
-            );
-          }
-
-          return ListView.separated(
-            key: const Key('drafts_list'),
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            itemCount: loaded.drafts.length,
-            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
-            itemBuilder: (context, index) {
-              final draft = loaded.drafts[index];
-              return _DraftCard(
-                key: ValueKey(draft.localId),
-                draft: draft,
-                confirmDelete: () => _confirmDelete(context, l10n),
-                onDismissed: () => context.read<DraftsListBloc>().add(
-                  DraftDeleteRequested(draft.localId),
-                ),
-                onTap: () => context.read<DraftsListBloc>().add(
-                  DraftResumeRequested(draft.localId),
+      body: MultiBlocListener(
+        listeners: [
+          BlocListener<DraftsListBloc, DraftsListState>(
+            listenWhen: (previous, current) {
+              if (current is! DraftsListLoaded ||
+                  current.resumedScene == null) {
+                return false;
+              }
+              return previous is! DraftsListLoaded ||
+                  previous.resumedScene != current.resumedScene;
+            },
+            listener: (context, state) {
+              final loaded = state as DraftsListLoaded;
+              final scene = loaded.resumedScene!;
+              final draft = loaded.resumedDraft!;
+              // Resuming a draft only ever carries `inputText` forward —
+              // the original AI-generated captions
+              // (`GenerationResult.captionEn`/`captionAm`) are **not**
+              // part of PRD §10.5's draft schema, so they can't be
+              // recovered here. A real, known gap: continuing a draft
+              // into `/export` later will show empty captions rather
+              // than the ones that were showing when the draft was
+              // saved. See `CanvasEditorPageArgs`'s doc comment for the
+              // same note from the other side of this thread.
+              context.push(
+                '/canvas-editor',
+                extra: CanvasEditorPageArgs(
+                  scene: scene,
+                  captionEn: '',
+                  captionAm: '',
+                  inputText: draft.inputText,
+                  brandKitId: draft.brandKitId,
                 ),
               );
             },
-          );
-        },
+          ),
+          BlocListener<DraftsListBloc, DraftsListState>(
+            listenWhen: (previous, current) {
+              if (current is! DraftsListLoaded ||
+                  current.reminderResult == null) {
+                return false;
+              }
+              return previous is! DraftsListLoaded ||
+                  previous.reminderResult != current.reminderResult;
+            },
+            listener: (context, state) {
+              final loaded = state as DraftsListLoaded;
+              _showReminderResultSnackBar(
+                context,
+                l10n,
+                loaded.reminderResult!,
+              );
+            },
+          ),
+        ],
+        child: BlocBuilder<DraftsListBloc, DraftsListState>(
+          builder: (context, state) {
+            if (state is DraftsListLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final loaded = state as DraftsListLoaded;
+            if (loaded.isEmpty) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.xxl),
+                  child: EmptyState(
+                    icon: Icons.drafts_outlined,
+                    heading: l10n.draftsEmptyHeading,
+                    body: l10n.draftsEmptyBody,
+                  ),
+                ),
+              );
+            }
+
+            return ListView.separated(
+              key: const Key('drafts_list'),
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              itemCount: loaded.drafts.length,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(height: AppSpacing.md),
+              itemBuilder: (context, index) {
+                final draft = loaded.drafts[index];
+                return _DraftCard(
+                  key: ValueKey(draft.localId),
+                  draft: draft,
+                  confirmDelete: () => _confirmDelete(context, l10n),
+                  onDismissed: () => context.read<DraftsListBloc>().add(
+                    DraftDeleteRequested(draft.localId),
+                  ),
+                  onTap: () => context.read<DraftsListBloc>().add(
+                    DraftResumeRequested(draft.localId),
+                  ),
+                  onRemind: () => _requestReminder(context, draft),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -206,6 +287,7 @@ class _DraftCard extends StatelessWidget {
     required this.confirmDelete,
     required this.onDismissed,
     required this.onTap,
+    required this.onRemind,
     super.key,
   });
 
@@ -213,6 +295,10 @@ class _DraftCard extends StatelessWidget {
   final Future<bool> Function() confirmDelete;
   final VoidCallback onDismissed;
   final VoidCallback onTap;
+
+  /// PRD §6.12/§8.5's Local Post Reminder entry point — see
+  /// `_DraftsViewState._requestReminder`.
+  final VoidCallback onRemind;
 
   @override
   Widget build(BuildContext context) {
@@ -254,11 +340,30 @@ class _DraftCard extends StatelessWidget {
                 style: AppTypography.body.copyWith(color: colors.textPrimary),
               ),
               const SizedBox(height: AppSpacing.xs),
-              Text(
-                _relativeSavedLabel(l10n, draft.lastSavedAt),
-                style: AppTypography.caption.copyWith(
-                  color: colors.textSecondary,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _relativeSavedLabel(l10n, draft.lastSavedAt),
+                      style: AppTypography.caption.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  // Own tappable target, deliberately smaller than
+                  // AppSpacing.minTapTarget's 48px floor would suggest —
+                  // IconButton already enforces Material's 48px minimum
+                  // hit-test area via its built-in padding regardless of
+                  // the icon's visual size, so no extra sizing is needed
+                  // here.
+                  IconButton(
+                    key: Key('draft_remind_button_${draft.localId}'),
+                    icon: const Icon(Icons.notifications_outlined),
+                    color: colors.textSecondary,
+                    tooltip: l10n.remindersCardAction,
+                    onPressed: onRemind,
+                  ),
+                ],
               ),
             ],
           ),

@@ -16,6 +16,8 @@ import 'package:kelal_studio/features/drafts/domain/usecases/watch_drafts_usecas
 import 'package:kelal_studio/features/drafts/presentation/bloc/drafts_list_bloc.dart';
 import 'package:kelal_studio/features/drafts/presentation/cubit/drafts_disclosure_seen_cubit.dart';
 import 'package:kelal_studio/features/drafts/presentation/pages/drafts_page.dart';
+import 'package:kelal_studio/features/reminders/domain/entities/reminder.dart';
+import 'package:kelal_studio/features/reminders/domain/usecases/schedule_reminder_usecase.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockWatchDraftsUseCase extends Mock implements WatchDraftsUseCase {}
@@ -23,6 +25,11 @@ class MockWatchDraftsUseCase extends Mock implements WatchDraftsUseCase {}
 class MockDeleteDraftUseCase extends Mock implements DeleteDraftUseCase {}
 
 class MockResumeDraftUseCase extends Mock implements ResumeDraftUseCase {}
+
+class MockScheduleReminderUseCase extends Mock
+    implements ScheduleReminderUseCase {}
+
+class FakeReminder extends Fake implements Reminder {}
 
 /// Same in-memory `Storage` seam as `export_overlay_seen_cubit_test.dart` —
 /// `DraftsDisclosureSeenCubit` is a `HydratedCubit` too.
@@ -49,6 +56,7 @@ void main() {
   late MockWatchDraftsUseCase watchDraftsUseCase;
   late MockDeleteDraftUseCase deleteDraftUseCase;
   late MockResumeDraftUseCase resumeDraftUseCase;
+  late MockScheduleReminderUseCase scheduleReminderUseCase;
   late StreamController<List<Draft>> draftsController;
 
   const snapshot = DraftCanvasSnapshot(
@@ -72,11 +80,16 @@ void main() {
     );
   }
 
+  setUpAll(() {
+    registerFallbackValue(FakeReminder());
+  });
+
   setUp(() {
     HydratedBloc.storage = _InMemoryStorage();
     watchDraftsUseCase = MockWatchDraftsUseCase();
     deleteDraftUseCase = MockDeleteDraftUseCase();
     resumeDraftUseCase = MockResumeDraftUseCase();
+    scheduleReminderUseCase = MockScheduleReminderUseCase();
     draftsController = StreamController<List<Draft>>.broadcast();
     when(() => watchDraftsUseCase()).thenAnswer((_) => draftsController.stream);
 
@@ -86,6 +99,7 @@ void main() {
           watchDraftsUseCase,
           deleteDraftUseCase,
           resumeDraftUseCase,
+          scheduleReminderUseCase,
         ),
       )
       ..registerFactory<DraftsDisclosureSeenCubit>(
@@ -224,6 +238,71 @@ void main() {
 
       expect(find.textContaining('An idea to keep'), findsOneWidget);
       verifyNever(() => deleteDraftUseCase(any()));
+    },
+  );
+
+  testWidgets('tapping the reminder bell, completing both pickers, dispatches '
+      'DraftReminderRequested for the tapped draft and shows a success '
+      'snack bar', (tester) async {
+    DraftsDisclosureSeenCubit().markSeen();
+    when(
+      () => scheduleReminderUseCase(
+        any(),
+        notificationTitle: any(named: 'notificationTitle'),
+        notificationBody: any(named: 'notificationBody'),
+      ),
+    ).thenAnswer((_) async => const Result.ok(null));
+
+    await tester.pumpWidget(wrap());
+    draftsController.add([draft('d1', inputText: 'An idea to remind about')]);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('draft_remind_button_d1')));
+    await tester.pumpAndSettle();
+
+    // Material's default date picker dialog action.
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    // Material's default time picker dialog action.
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    final captured = verify(
+      () => scheduleReminderUseCase(
+        captureAny(),
+        notificationTitle: any(named: 'notificationTitle'),
+        notificationBody: any(named: 'notificationBody'),
+      ),
+    ).captured;
+    expect(captured, hasLength(1));
+    expect((captured.single as Reminder).draftLocalId, 'd1');
+
+    expect(find.text('Reminder set.'), findsOneWidget);
+  });
+
+  testWidgets(
+    'backing out of the date picker never dispatches a reminder request',
+    (tester) async {
+      DraftsDisclosureSeenCubit().markSeen();
+
+      await tester.pumpWidget(wrap());
+      draftsController.add([draft('d1', inputText: 'An idea, not reminded')]);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('draft_remind_button_d1')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      verifyNever(
+        () => scheduleReminderUseCase(
+          any(),
+          notificationTitle: any(named: 'notificationTitle'),
+          notificationBody: any(named: 'notificationBody'),
+        ),
+      );
     },
   );
 }

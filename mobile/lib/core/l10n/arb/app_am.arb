@@ -114,5 +114,10 @@
   "draftsLastSavedJustNow": "አሁን ተቀምጧል",
   "draftsLastSavedMinutesAgo": "ከ{minutes} ደቂቃ በፊት ተቀምጧል",
   "draftsLastSavedHoursAgo": "ከ{hours} ሰዓት በፊት ተቀምጧል",
-  "draftsLastSavedDaysAgo": "ከ{days} ቀን በፊት ተቀምጧል"
+  "draftsLastSavedDaysAgo": "ከ{days} ቀን በፊት ተቀምጧል",
+  "remindersCardAction": "አስታውሰኝ",
+  "remindersNotificationTitle": "የመለጠፍ ጊዜ ደርሷል!",
+  "remindersNotificationBody": "የተቀመጠው ረቂቅዎ ለማተም ዝግጁ ነው — ለማተም ቀላል ስቱዲዮን ይክፈቱ።",
+  "remindersScheduledSuccessMessage": "አስታዋሽ ተቀናብሯል።",
+  "remindersPermissionDeniedMessage": "ማስታወቂያዎችን ለመቀበል በመሳሪያዎ ቅንብሮች ውስጥ ለቀላል ስቱዲዮ ያንቁ።"
 }

@@ -45,3 +45,31 @@ final class DraftResumeRequested extends DraftsListEvent {
   @override
   List<Object?> get props => [localId];
 }
+
+/// Dispatched from `DraftsPage`'s "Remind me" card action, after the user
+/// has picked a date/time via `pickReminderDateTimeUtc` — PRD §6.12/§8.5.
+/// [notificationTitle]/[notificationBody] are already-localized (picked in
+/// `DraftsPage`, which has `AppLocalizations` access) — see
+/// `ReminderRepository.schedule`'s doc comment for why they travel this far
+/// as plain strings rather than being resolved deeper in the stack.
+final class DraftReminderRequested extends DraftsListEvent {
+  const DraftReminderRequested({
+    required this.localId,
+    required this.scheduledAtUtc,
+    required this.notificationTitle,
+    required this.notificationBody,
+  });
+
+  final String localId;
+  final DateTime scheduledAtUtc;
+  final String notificationTitle;
+  final String notificationBody;
+
+  @override
+  List<Object?> get props => [
+    localId,
+    scheduledAtUtc,
+    notificationTitle,
+    notificationBody,
+  ];
+}
