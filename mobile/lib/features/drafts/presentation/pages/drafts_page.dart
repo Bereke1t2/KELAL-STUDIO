@@ -9,6 +9,7 @@ import 'package:kelal_studio/core/theme/app_theme.dart';
 import 'package:kelal_studio/core/widgets/app_bottom_sheet.dart';
 import 'package:kelal_studio/core/widgets/empty_state.dart';
 import 'package:kelal_studio/core/widgets/error_snack_bar.dart';
+import 'package:kelal_studio/core/widgets/skeleton_loader.dart';
 import 'package:kelal_studio/features/canvas_editor/presentation/pages/canvas_editor_page.dart';
 import 'package:kelal_studio/features/drafts/domain/entities/draft.dart';
 import 'package:kelal_studio/features/drafts/presentation/bloc/drafts_list_bloc.dart';
@@ -236,7 +237,7 @@ class _DraftsViewState extends State<_DraftsView> {
         child: BlocBuilder<DraftsListBloc, DraftsListState>(
           builder: (context, state) {
             if (state is DraftsListLoading) {
-              return const Center(child: CircularProgressIndicator());
+              return const _DraftsListSkeleton();
             }
             final loaded = state as DraftsListLoaded;
             if (loaded.isEmpty) {
@@ -275,6 +276,43 @@ class _DraftsViewState extends State<_DraftsView> {
               },
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+/// `DraftsListLoading`'s placeholder — Drift's `.watch()` emits its first
+/// snapshot almost immediately (see `DraftsListLoading`'s own doc comment),
+/// so this is expected to be very short-lived in practice, but still real
+/// enough to be worth a skeleton shaped like `_DraftCard` rather than a
+/// bare spinner, per this branch's task ("skeleton loaders for async
+/// screens"). A fixed 3 placeholder rows — not driven by any real count,
+/// since the actual number of drafts isn't known yet at this point.
+class _DraftsListSkeleton extends StatelessWidget {
+  const _DraftsListSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return ListView.separated(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      itemCount: 3,
+      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+      itemBuilder: (context, _) => Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: colors.bgSurface,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: colors.borderSubtle),
+        ),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SkeletonBox(),
+            SizedBox(height: AppSpacing.xs),
+            SkeletonBox(width: 96, height: 12),
+          ],
         ),
       ),
     );

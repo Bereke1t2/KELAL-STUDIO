@@ -6,6 +6,7 @@ import 'package:kelal_studio/core/di/injection.dart';
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/core/render_engine/canvas_scene.dart';
 import 'package:kelal_studio/core/render_engine/render_engine.dart';
+import 'package:kelal_studio/core/router/app_page_transitions.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
 import 'package:kelal_studio/core/widgets/app_bottom_sheet.dart';
 import 'package:kelal_studio/core/widgets/app_text_field.dart';
@@ -132,7 +133,19 @@ class _CanvasEditorView extends StatelessWidget {
     final colors = context.colors;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.canvasEditorTitle)),
+      appBar: AppBar(
+        title: Hero(
+          tag: heroCreateGraphicTag,
+          // Text has no bounded box of its own to interpolate cleanly, so
+          // this gives the Hero flight a stable-sized target to animate
+          // into — see `heroCreateGraphicTag`'s doc comment for the
+          // composer-side counterpart.
+          child: Material(
+            type: MaterialType.transparency,
+            child: Text(l10n.canvasEditorTitle),
+          ),
+        ),
+      ),
       body: MultiBlocListener(
         listeners: [
           // PRD §10.5's local-draft autosave: every CanvasEditorReady scene

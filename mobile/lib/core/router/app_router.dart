@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
+import 'package:kelal_studio/core/router/app_page_transitions.dart';
 import 'package:kelal_studio/core/router/app_shell.dart';
 import 'package:kelal_studio/core/router/go_router_refresh_stream.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
@@ -121,8 +122,11 @@ class AppRouter {
         // "Create graphic" tap away.
         redirect: (context, state) =>
             state.extra is CanvasEditorPageArgs ? null : homeLocation,
-        builder: (context, state) =>
-            CanvasEditorPage(args: state.extra! as CanvasEditorPageArgs),
+        pageBuilder: (context, state) => buildFadeThroughPage(
+          context: context,
+          state: state,
+          child: CanvasEditorPage(args: state.extra! as CanvasEditorPageArgs),
+        ),
       ),
       GoRoute(
         path: exportLocation,
@@ -131,8 +135,11 @@ class AppRouter {
         // the cast below.
         redirect: (context, state) =>
             state.extra is ExportPageArgs ? null : homeLocation,
-        builder: (context, state) =>
-            ExportPage(args: state.extra! as ExportPageArgs),
+        pageBuilder: (context, state) => buildFadeThroughPage(
+          context: context,
+          state: state,
+          child: ExportPage(args: state.extra! as ExportPageArgs),
+        ),
       ),
       // Pushed from `SettingsPage` (see the `/settings` shell branch below)
       // rather than tabs themselves — kept as top-level routes, same

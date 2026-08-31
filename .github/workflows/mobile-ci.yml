@@ -81,10 +81,34 @@ jobs:
 
       - name: Enforce coverage threshold on core/ and domain/ layers
         run: |
-          # Placeholder threshold check — tune once the app has enough
-          # surface area for a meaningful number. Fails loudly rather than
-          # silently passing if lcov.info is missing.
+          # Real numeric gate, not the old `test -f lcov.info` placeholder.
+          # Threshold (55%) is set a few points below this branch's actual
+          # measured core/+domain/ coverage (~58% as of feat/motion-polish)
+          # — a real floor a future regression can trip, not a number
+          # picked to always pass. `lib/core/**` and any `**/domain/**`
+          # feature directory are in scope (matches this repo's Clean
+          # Architecture split — see mobile/CLAUDE.md); `presentation/`/
+          # `data/` aren't counted here since widget/golden coverage isn't
+          # what this gate is measuring. No external `lcov` CLI dependency
+          # — plain awk over the lcov.info format so this doesn't need an
+          # extra apt-get step on the runner.
           test -f coverage/lcov.info || (echo "::error::coverage/lcov.info missing" && exit 1)
+          awk '
+            /^SF:/ {
+              file = $0; sub(/^SF:/, "", file)
+              in_scope = (file ~ /^lib\/core\// || file ~ /\/domain\//)
+            }
+            /^LF:/ { if (in_scope) { n = $0; sub(/^LF:/, "", n); lf += n } }
+            /^LH:/ { if (in_scope) { n = $0; sub(/^LH:/, "", n); lh += n } }
+            END {
+              pct = (lf > 0) ? 100 * lh / lf : 0
+              printf "core/+domain/ line coverage: %.2f%% (%d/%d lines)\n", pct, lh, lf
+              if (pct < 55) {
+                printf "::error::coverage %.2f%% is below the 55%% threshold\n", pct
+                exit 1
+              }
+            }
+          ' coverage/lcov.info
 
       - uses: actions/upload-artifact@v7.0.1
         with:

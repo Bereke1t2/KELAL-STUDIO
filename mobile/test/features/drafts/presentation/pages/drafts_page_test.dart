@@ -8,6 +8,7 @@ import 'package:kelal_studio/core/di/injection.dart';
 import 'package:kelal_studio/core/error/result.dart';
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/core/theme/app_theme.dart';
+import 'package:kelal_studio/core/widgets/skeleton_loader.dart';
 import 'package:kelal_studio/features/drafts/domain/entities/draft.dart';
 import 'package:kelal_studio/features/drafts/domain/entities/draft_canvas_snapshot.dart';
 import 'package:kelal_studio/features/drafts/domain/usecases/delete_draft_usecase.dart';
@@ -126,13 +127,14 @@ void main() {
     );
   }
 
-  testWidgets('shows a loading indicator before the first watchAll emission', (
-    tester,
-  ) async {
-    await tester.pumpWidget(wrap());
+  testWidgets(
+    'shows a skeleton placeholder list before the first watchAll emission',
+    (tester) async {
+      await tester.pumpWidget(wrap());
 
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-  });
+      expect(find.byType(SkeletonBox), findsWidgets);
+    },
+  );
 
   testWidgets(
     'shows the empty state once watchAll emits an empty list, with no '

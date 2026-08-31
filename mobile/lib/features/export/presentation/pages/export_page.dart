@@ -11,6 +11,7 @@ import 'package:kelal_studio/core/widgets/app_bottom_sheet.dart';
 import 'package:kelal_studio/core/widgets/error_snack_bar.dart';
 import 'package:kelal_studio/core/widgets/primary_button.dart';
 import 'package:kelal_studio/core/widgets/segmented_control.dart';
+import 'package:kelal_studio/core/widgets/success_checkmark.dart';
 import 'package:kelal_studio/features/export/domain/entities/export_failure.dart';
 import 'package:kelal_studio/features/export/presentation/bloc/export_bloc.dart';
 import 'package:kelal_studio/features/export/presentation/bloc/export_event.dart';
@@ -170,11 +171,24 @@ class _ExportViewState extends State<_ExportView> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   backgroundColor: colors.successBg,
-                  content: Text(
-                    l10n.exportGallerySaveSuccessMessage,
-                    style: AppTypography.bodySmall.copyWith(
-                      color: colors.successText,
-                    ),
+                  content: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // The one export success micro-interaction this
+                      // branch's task calls for — a drawn-in checkmark
+                      // rather than a static Icons.check glyph. See
+                      // SuccessCheckmark's own doc comment.
+                      SuccessCheckmark(color: colors.successText),
+                      const SizedBox(width: AppSpacing.sm),
+                      Flexible(
+                        child: Text(
+                          l10n.exportGallerySaveSuccessMessage,
+                          style: AppTypography.bodySmall.copyWith(
+                            color: colors.successText,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );
