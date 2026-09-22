@@ -43,68 +43,62 @@ void main() {
       },
     );
 
-    test(
-      'a call accepted below the quota limit records usage against the '
-      'shared counter — this is what keeps QuotaStatusBadge and Generate '
-      'in agreement (the bug this class was changed to fix)',
-      () async {
-        final quota = FakeQuotaRemoteDataSource();
-        // Drive to one below the limit (3 seeded + 6 = 9), deterministically.
-        for (var i = 0; i < 6; i++) {
-          quota.recordTextCall();
-        }
-        expect(quota.isTextQuotaExceeded, isFalse);
-        final source = FakeGenerationRemoteDataSource(quota);
+    test('a call accepted below the quota limit records usage against the '
+        'shared counter — this is what keeps QuotaStatusBadge and Generate '
+        'in agreement (the bug this class was changed to fix)', () async {
+      final quota = FakeQuotaRemoteDataSource();
+      // Drive to one below the limit (3 seeded + 6 = 9), deterministically.
+      for (var i = 0; i < 6; i++) {
+        quota.recordTextCall();
+      }
+      expect(quota.isTextQuotaExceeded, isFalse);
+      final source = FakeGenerationRemoteDataSource(quota);
 
-        // The call may itself throw one of the unrelated random failures
-        // (moderationRefused, providerTimeout, ...) — that's fine and
-        // expected some of the time; what matters here is that usage was
-        // still recorded on acceptance either way (see generateText's own
-        // doc comment for why acceptance, not eventual success, counts).
-        try {
-          await source.generateText(
-            inputText: 'A sale this weekend',
-            inputLang: 'en',
-            platform: 'instagram',
-          );
-        } on ApiException catch (_) {
-          // Ignored — any non-quota typed failure still means the call was
-          // accepted and should have recorded usage.
-        }
+      // The call may itself throw one of the unrelated random failures
+      // (moderationRefused, providerTimeout, ...) — that's fine and
+      // expected some of the time; what matters here is that usage was
+      // still recorded on acceptance either way (see generateText's own
+      // doc comment for why acceptance, not eventual success, counts).
+      try {
+        await source.generateText(
+          inputText: 'A sale this weekend',
+          inputLang: 'en',
+          platform: 'instagram',
+        );
+      } on ApiException catch (_) {
+        // Ignored — any non-quota typed failure still means the call was
+        // accepted and should have recorded usage.
+      }
 
-        expect(quota.isTextQuotaExceeded, isTrue);
-      },
-    );
+      expect(quota.isTextQuotaExceeded, isTrue);
+    });
   });
 
   group('generateImage quota enforcement', () {
-    test(
-      'throws ApiException(quotaExceeded) once the shared quota counter is '
-      'already at its limit',
-      () async {
-        final quota = FakeQuotaRemoteDataSource();
-        // Seeded at 1; 4 more reaches the placeholder 5 limit.
-        for (var i = 0; i < 4; i++) {
-          quota.recordImageCall();
-        }
-        expect(quota.isImageQuotaExceeded, isTrue);
-        final source = FakeGenerationRemoteDataSource(quota);
+    test('throws ApiException(quotaExceeded) once the shared quota counter is '
+        'already at its limit', () async {
+      final quota = FakeQuotaRemoteDataSource();
+      // Seeded at 1; 4 more reaches the placeholder 5 limit.
+      for (var i = 0; i < 4; i++) {
+        quota.recordImageCall();
+      }
+      expect(quota.isImageQuotaExceeded, isTrue);
+      final source = FakeGenerationRemoteDataSource(quota);
 
-        await expectLater(
-          source.generateImage(
-            captionEn: 'Check out our weekend sale',
-            aspectRatio: '1:1',
-            brandKitId: 'brand-kit-1',
+      await expectLater(
+        source.generateImage(
+          captionEn: 'Check out our weekend sale',
+          aspectRatio: '1:1',
+          brandKitId: 'brand-kit-1',
+        ),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.failure.type,
+            'type',
+            ApiErrorType.quotaExceeded,
           ),
-          throwsA(
-            isA<ApiException>().having(
-              (e) => e.failure.type,
-              'type',
-              ApiErrorType.quotaExceeded,
-            ),
-          ),
-        );
-      },
-    );
+        ),
+      );
+    });
   });
 }

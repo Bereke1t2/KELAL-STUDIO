@@ -35,9 +35,10 @@ bool _looksLikeHeading(String line) {
 /// heading "PREAMBLE" plus its paragraph, instead of both running together
 /// in one undifferentiated block of text.
 List<_LegalBlock> _parseLegalDocumentBlocks(String content) {
-  final chunks = content.split('\n\n').map((c) => c.trim()).where(
-    (c) => c.isNotEmpty,
-  );
+  final chunks = content
+      .split('\n\n')
+      .map((c) => c.trim())
+      .where((c) => c.isNotEmpty);
 
   return [
     for (final chunk in chunks)
@@ -108,9 +109,7 @@ class LegalDocumentPage extends StatelessWidget {
                       if (i > 0) const SizedBox(height: AppSpacing.lg),
                       if (blocks[i].heading != null)
                         Padding(
-                          padding: const EdgeInsets.only(
-                            bottom: AppSpacing.xs,
-                          ),
+                          padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                           child: Text(
                             blocks[i].heading!,
                             style: AppTypography.title.copyWith(
