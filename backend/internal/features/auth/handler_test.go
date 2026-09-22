@@ -127,6 +127,40 @@ func TestHandlerRegisterAndLogin(t *testing.T) {
 	}
 }
 
+// TestHandlerLoginEmailVerified is a regression test for a real
+// mobile/backend contract mismatch: AuthTokens here was missing
+// email_verified entirely (mobile/api_contract/openapi.yaml has always
+// required it), which made the mobile client's AuthTokensDto.fromJson throw
+// on every real login/refresh response — login would succeed server-side
+// (200, valid tokens) but the app showed a generic "something went wrong"
+// and never actually signed in. See dto.go's authTokensResponse doc comment.
+func TestHandlerLoginEmailVerified(t *testing.T) {
+	engine, mgr := newTestHandler()
+
+	rec := do(engine, http.MethodPost, "/v1/auth/register",
+		gin.H{"email": "verifyme@example.com", "password": "password123"}, "")
+	reg := decodeRegister(t, rec)
+
+	tokens := login(t, engine, "verifyme@example.com", "password123")
+	if tokens.EmailVerified {
+		t.Fatalf("login before verification: want email_verified=false, got true")
+	}
+
+	token, err := mgr.GenerateVerify(reg.UserID, time.Hour)
+	if err != nil {
+		t.Fatalf("GenerateVerify: %v", err)
+	}
+	rec = do(engine, http.MethodPost, "/v1/auth/verify-email", gin.H{"token": token}, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("verify-email: want 200, got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	tokens = login(t, engine, "verifyme@example.com", "password123")
+	if !tokens.EmailVerified {
+		t.Fatalf("login after verification: want email_verified=true, got false")
+	}
+}
+
 func TestHandlerVerifyEmail(t *testing.T) {
 	engine, mgr := newTestHandler()
 

@@ -95,10 +95,16 @@ func (s *Service) GetUsage(ctx context.Context, userID uuid.UUID) (UsageResponse
 	}
 
 	return UsageResponse{
-		TextUsed:  textUsed,
-		TextCap:   s.limits.TextDaily,
-		ImageUsed: imageUsed,
-		ImageCap:  s.limits.ImageDaily,
+		TextCallsUsed:   textUsed,
+		TextCallsLimit:  s.limits.TextDaily,
+		ImageCallsUsed:  imageUsed,
+		ImageCallsLimit: s.limits.ImageDaily,
+		// Same "midnight UTC, next day" definition Enforce's own fallback
+		// uses (line ~75 above) — GetTodayUsage doesn't hand back a
+		// per-row resetsAt the way UpsertAndCheck does, but the reset
+		// instant is a pure function of "now" either way, not something
+		// that needs a DB round trip to compute.
+		ResetsAt: time.Now().UTC().Truncate(24 * time.Hour).Add(24 * time.Hour),
 	}, nil
 }
 

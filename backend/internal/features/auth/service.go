@@ -390,7 +390,7 @@ func (s *Service) issueSession(ctx context.Context, u *models.User, rotatedFrom 
 	if err := s.repo.CreateRefreshToken(ctx, rt); err != nil {
 		return Tokens{}, apperror.Internal(err)
 	}
-	return Tokens{Access: access, Refresh: refresh}, nil
+	return Tokens{Access: access, Refresh: refresh, EmailVerified: u.EmailVerifiedAt != nil}, nil
 }
 
 // sendVerificationEmail mints a verification token and emails the link. It

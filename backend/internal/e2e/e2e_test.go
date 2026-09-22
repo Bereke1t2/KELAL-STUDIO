@@ -742,8 +742,11 @@ func TestEndToEndBackendPipeline(t *testing.T) {
 		if err := json.Unmarshal(body, &q); err != nil {
 			t.Fatalf("unmarshal quota response: %v", err)
 		}
-		if q.TextCap != 50 || q.ImageCap != 20 {
+		if q.TextCallsLimit != 50 || q.ImageCallsLimit != 20 {
 			t.Fatalf("unexpected quota limits: %+v", q)
+		}
+		if q.ResetsAt.IsZero() {
+			t.Fatalf("expected a non-zero resets_at (mobile's QuotaDto requires it): %+v", q)
 		}
 	})
 
@@ -867,8 +870,8 @@ func TestEndToEndBackendPipeline(t *testing.T) {
 		resp, body = app.get(t, "/v1/quota/me", userToken)
 		var q quota.UsageResponse
 		_ = json.Unmarshal(body, &q)
-		if q.TextUsed < 1 {
-			t.Fatalf("expected TextUsed >= 1, got %d", q.TextUsed)
+		if q.TextCallsUsed < 1 {
+			t.Fatalf("expected TextCallsUsed >= 1, got %d", q.TextCallsUsed)
 		}
 
 		// 6.3 Image Generation: Invalid aspect ratio rejected

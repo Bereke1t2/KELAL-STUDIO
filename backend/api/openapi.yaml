@@ -85,10 +85,18 @@ components:
 
     AuthTokens:
       type: object
-      required: [access_token, refresh_token]
+      required: [access_token, refresh_token, email_verified]
       properties:
         access_token: { type: string }
         refresh_token: { type: string }
+        email_verified:
+          type: boolean
+          description: >
+            Mirrors mobile/api_contract/openapi.yaml's AuthTokens.email_verified
+            (the mobile client's contract already required this field; this
+            spec had drifted out of sync — see internal/features/auth/dto.go's
+            authTokensResponse doc comment for the real-backend-login breakage
+            that caused).
 
     RegisterResult:
       type: object
