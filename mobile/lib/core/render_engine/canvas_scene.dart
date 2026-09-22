@@ -30,13 +30,14 @@ class TextLayer {
     String? text,
     Offset? normalizedOffset,
     double? normalizedMaxWidth,
+    TextStyle? style,
   }) {
     return TextLayer(
       id: id,
       text: text ?? this.text,
       normalizedOffset: normalizedOffset ?? this.normalizedOffset,
       normalizedMaxWidth: normalizedMaxWidth ?? this.normalizedMaxWidth,
-      style: style,
+      style: style ?? this.style,
       textAlign: textAlign,
     );
   }

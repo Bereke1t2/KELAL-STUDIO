@@ -3,6 +3,7 @@ import 'package:kelal_studio/core/network/fake_backend_support.dart';
 import 'package:kelal_studio/features/generation/data/datasources/generation_remote_data_source.dart';
 import 'package:kelal_studio/features/generation/data/models/generate_image_response_dto.dart';
 import 'package:kelal_studio/features/generation/data/models/generate_text_response_dto.dart';
+import 'package:kelal_studio/features/quota/data/datasources/fake_quota_remote_data_source.dart';
 
 /// Professional fake: realistic latency (via [FakeBackendSupport.latency])
 /// plus deliberate, low-probability failure injection across the
@@ -28,6 +29,25 @@ import 'package:kelal_studio/features/generation/data/models/generate_text_respo
 /// exercise manually, not a realistic simulation of anything this
 /// endpoint itself would produce.
 class FakeGenerationRemoteDataSource implements GenerationRemoteDataSource {
+  /// **Shares the same quota counters `QuotaStatusBadge` reads, instead of
+  /// rolling an independent random `quotaExceeded` chance.** This fixes a
+  /// real, observed inconsistency: the old code injected `quotaExceeded`
+  /// at a flat 5% (`generateText`) / 4% (`generateImage`) chance on every
+  /// call, completely uncorrelated with `FakeQuotaRemoteDataSource`'s own
+  /// counters — a manual run could see the badge show plenty of quota left
+  /// while Generate still threw `quotaExceeded` on the very first tap (the
+  /// dice roll), or the reverse. `_quota` is injected as the same
+  /// `@lazySingleton` instance `QuotaBloc` reads (see
+  /// `generation_datasource_module.dart`), so both surfaces now agree:
+  /// `isTextQuotaExceeded`/`isImageQuotaExceeded` gate the typed error
+  /// below, and `FakeQuotaRemoteDataSource.recordTextCall`/
+  /// `recordImageCall` are called once a call is accepted — see those
+  /// methods' doc comments for why acceptance, not eventual success, is
+  /// what's recorded.
+  FakeGenerationRemoteDataSource(this._quota);
+
+  final FakeQuotaRemoteDataSource _quota;
+
   @override
   Future<GenerateTextResponseDto> generateText({
     required String inputText,
@@ -37,14 +57,23 @@ class FakeGenerationRemoteDataSource implements GenerationRemoteDataSource {
   }) async {
     await FakeBackendSupport.latency();
 
-    FakeBackendSupport.maybeFail(
-      ApiFailure(
-        type: ApiErrorType.quotaExceeded,
-        message: "You've used today's generation quota. It resets soon.",
-        resetsAt: DateTime.now().toUtc().add(const Duration(hours: 6)),
-      ),
-      rate: 0.05,
-    );
+    if (_quota.isTextQuotaExceeded) {
+      throw ApiException(
+        ApiFailure(
+          type: ApiErrorType.quotaExceeded,
+          message: "You've used today's generation quota. It resets soon.",
+          resetsAt: DateTime.now().toUtc().add(const Duration(hours: 6)),
+        ),
+      );
+    }
+    // Recorded on acceptance (quota check passed), not only on eventual
+    // success below — a real provider call that fails moderation or
+    // returns malformed output still consumed a call slot, the same way a
+    // failed API request against a real backend would still count against
+    // a per-minute/per-day rate limit. A judgment call, not a PRD-specified
+    // rule (quota semantics are PRD §2.3's open question too).
+    _quota.recordTextCall();
+
     FakeBackendSupport.maybeFail(
       const ApiFailure(
         type: ApiErrorType.moderationRefused,
@@ -110,6 +139,20 @@ class FakeGenerationRemoteDataSource implements GenerationRemoteDataSource {
   }) async {
     await FakeBackendSupport.latency();
 
+    if (_quota.isImageQuotaExceeded) {
+      throw ApiException(
+        ApiFailure(
+          type: ApiErrorType.quotaExceeded,
+          message:
+              "You've used today's image generation quota. It resets soon.",
+          resetsAt: DateTime.now().toUtc().add(const Duration(hours: 6)),
+        ),
+      );
+    }
+    // See generateText's matching call for why acceptance, not eventual
+    // success, is what's recorded.
+    _quota.recordImageCall();
+
     // Same typed-error taxonomy as generateText, at individually lower
     // rates — image generation is a heavier, more expensive operation
     // than text (PRD §6.14 tracks `image_calls_*` as a separate quota
@@ -117,14 +160,6 @@ class FakeGenerationRemoteDataSource implements GenerationRemoteDataSource {
     // as often as the cheaper text path, but each should still be
     // reachable without a debugger — same judgment-call reasoning as
     // generateText's own rates above.
-    FakeBackendSupport.maybeFail(
-      ApiFailure(
-        type: ApiErrorType.quotaExceeded,
-        message: "You've used today's image generation quota. It resets soon.",
-        resetsAt: DateTime.now().toUtc().add(const Duration(hours: 6)),
-      ),
-      rate: 0.04,
-    );
     FakeBackendSupport.maybeFail(
       const ApiFailure(
         type: ApiErrorType.moderationRefused,
@@ -205,16 +240,14 @@ class FakeGenerationRemoteDataSource implements GenerationRemoteDataSource {
         : inputText.trim();
 
     return GenerateTextResponseDto(
-      captionEn:
-          'Check out $topic — crafted just for your $platform '
-          'audience.',
+      captionEn: 'Check out $topic, crafted just for your $platform audience.',
       // Best-effort, non-native-speaker placeholder translation — pending
       // native-speaker review before shipping, same flagging convention
       // as mobile/CLAUDE.md's Localization section and app_am.arb's
       // file-level note. This is fake/demo data, not app-interface copy,
       // but it renders in the same "Amharic caption" field a real
       // backend response would, so it gets the same disclosure.
-      captionAm: '$topic ይመልከቱ — ለእርስዎ ታዳሚ የተዘጋጀ።',
+      captionAm: '$topic ይመልከቱ፤ ለእርስዎ ታዳሚ የተዘጋጀ።',
       callToAction: 'Tell us what you think in the comments!',
       hashtags: const [
         '#KelalStudio',
@@ -237,12 +270,12 @@ class FakeGenerationRemoteDataSource implements GenerationRemoteDataSource {
   GenerateTextResponseDto _fallbackTemplateResponse() {
     return const GenerateTextResponseDto(
       captionEn:
-          "We're having trouble generating something fresh right now — "
-          "here's a starting point you can edit.",
+          "We're having trouble generating something fresh right now. "
+          "Here's a starting point you can edit.",
       // Same unverified-placeholder-translation flag as _successResponse's
       // captionAm above.
       captionAm:
-          'አሁን ትኩስ ይዘት ማመንጨት ላይ ችግር እያጋጠመን ነው — '
+          'አሁን ትኩስ ይዘት ማመንጨት ላይ ችግር እያጋጠመን ነው። '
           'ሊያርትዑት የሚችሉት መነሻ ነጥብ ይኸውና።',
       callToAction: 'Tell us what you think in the comments!',
       hashtags: [

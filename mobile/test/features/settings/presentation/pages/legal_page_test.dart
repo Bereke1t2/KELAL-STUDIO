@@ -1,11 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/legal_page.dart';
+
+// AppBackButton (used by LegalPage) reads AppLocalizations — every
+// MaterialApp/MaterialApp.router built in this file needs the delegates
+// below or the very first pump throws instead of rendering.
+const _localizationsDelegates = [
+  AppLocalizations.delegate,
+  GlobalMaterialLocalizations.delegate,
+  GlobalWidgetsLocalizations.delegate,
+  GlobalCupertinoLocalizations.delegate,
+];
 
 void main() {
   Widget wrap() {
-    return const MaterialApp(home: LegalPage());
+    return const MaterialApp(
+      localizationsDelegates: _localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: LegalPage(),
+    );
   }
 
   testWidgets('LegalPage renders new UI list items', (tester) async {
@@ -41,7 +57,13 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: router,
+        localizationsDelegates: _localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+      ),
+    );
 
     await tester.tap(find.text('Privacy Policy'));
     await tester.pumpAndSettle();

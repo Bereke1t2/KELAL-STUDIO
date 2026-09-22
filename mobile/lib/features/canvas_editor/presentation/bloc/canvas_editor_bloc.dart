@@ -66,10 +66,28 @@ class CanvasEditorBloc extends Bloc<CanvasEditorEvent, CanvasEditorState> {
 
   /// A freshly-added layer's text-box width, as a fraction of canvas
   /// width — generous enough for a short caption without a resize gesture
-  /// being mandatory.
+  /// being mandatory. Fixed: a pinch resizes font size now (see
+  /// [_minFontSize]/[_maxFontSize] below), not this box width, so there's
+  /// no corresponding min/max pair to clamp it against post-creation.
   static const _defaultNormalizedMaxWidth = 0.8;
-  static const _minNormalizedMaxWidth = 0.2;
-  static const _maxNormalizedMaxWidth = 0.95;
+
+  /// A freshly-added layer's starting font size, in the same raw-pixel
+  /// units `RenderEngine` paints in (i.e. canvas-space pixels, not screen
+  /// logical pixels). `AppTypography.body` (16) was the previous default —
+  /// that's a *screen UI* reading size, sized for a phone held at arm's
+  /// length, not a caption painted onto a 1080px-wide exported image; at
+  /// 16px on a 1080px canvas a caption is under 2% of the image height and
+  /// reads as near-invisible. 64px (~6% of a 1080-wide canvas) matches the
+  /// caption sizes typical social-template tools (Instagram/Canva) default
+  /// to on a same-resolution canvas.
+  static const _defaultCanvasFontSize = 64.0;
+
+  /// Pinch-to-resize clamp range for `TextLayer.style.fontSize`, in the
+  /// same canvas-space pixel units as [_defaultCanvasFontSize] — small
+  /// enough to still be a deliberate caption size (not screen-UI-small),
+  /// large enough that a single word can't swallow the whole canvas.
+  static const _minFontSize = 24.0;
+  static const _maxFontSize = 220.0;
 
   void _onSceneLoaded(
     CanvasEditorSceneLoaded event,
@@ -178,15 +196,18 @@ class CanvasEditorBloc extends Bloc<CanvasEditorEvent, CanvasEditorState> {
     );
   }
 
-  /// "Resize" mutates [TextLayer.normalizedMaxWidth] (the text box's
-  /// width), not a font-size scale. `TextLayer` has no font-size-scale
-  /// field today, and `normalizedMaxWidth` is already a first-class,
-  /// normalized field `RenderEngine` reads directly — reusing it needed no
-  /// change to `core/render_engine`'s model, keeping this branch's touch
-  /// on the "single paint path" purely additive (the new `LogoLayer`
-  /// field) rather than also widening `TextLayer`'s contract. A pinch that
-  /// widens the box lets long text wrap across more/fewer lines, which is
-  /// a reasonable, visible "resize" effect without touching font metrics.
+  /// "Resize" mutates [TextLayer.style]'s `fontSize`, clamped to
+  /// [_minFontSize]/[_maxFontSize] — a pinch on a text layer now behaves
+  /// like the text-resize gesture in Instagram/Canva-style editors, rather
+  /// than only rewrapping the box at a fixed font size. `normalizedMaxWidth`
+  /// (the wrap box) is left alone; a user who wants a narrower wrap can
+  /// still edit the text itself to force a line break.
+  ///
+  /// After changing the font size, the layer's `normalizedOffset.dy` is
+  /// re-clamped via `SafeZoneConstants.clampNormalizedOffsetY` using the
+  /// *new* size's height estimate — otherwise enlarging a layer already
+  /// near the top/bottom of the canvas could push it into (or past) an
+  /// obstruction band without the user ever dragging it there.
   void _onLayerScaled(
     CanvasEditorLayerScaled event,
     Emitter<CanvasEditorState> emit,
@@ -199,11 +220,26 @@ class CanvasEditorBloc extends Bloc<CanvasEditorEvent, CanvasEditorState> {
     if (index == -1) return;
     final layer = current.scene.textLayers[index];
 
-    final newWidth = (layer.normalizedMaxWidth * event.scaleFactor).clamp(
-      _minNormalizedMaxWidth,
-      _maxNormalizedMaxWidth,
+    final currentFontSize = layer.style.fontSize ?? _defaultCanvasFontSize;
+    final newFontSize = (currentFontSize * event.scaleFactor).clamp(
+      _minFontSize,
+      _maxFontSize,
     );
-    final updatedLayer = layer.copyWith(normalizedMaxWidth: newWidth);
+    final newStyle = layer.style.copyWith(fontSize: newFontSize);
+
+    final newHeightFraction = estimateLayerHeightFraction(
+      layer.copyWith(style: newStyle),
+      current.scene.canvasSize,
+    );
+    final clampedY = SafeZoneConstants.clampNormalizedOffsetY(
+      dy: layer.normalizedOffset.dy,
+      layerHeightFraction: newHeightFraction,
+    );
+
+    final updatedLayer = layer.copyWith(
+      style: newStyle,
+      normalizedOffset: Offset(layer.normalizedOffset.dx, clampedY),
+    );
     final updatedLayers = [...current.scene.textLayers];
     updatedLayers[index] = updatedLayer;
 
@@ -272,13 +308,22 @@ class CanvasEditorBloc extends Bloc<CanvasEditorEvent, CanvasEditorState> {
         SafeZoneConstants.clampNormalizedOffsetY(
           dy: baseY,
           layerHeightFraction:
-              AppTypography.body.fontSize! *
+              _defaultCanvasFontSize *
               AppTypography.lineHeightMultiplier /
               current.scene.canvasSize.height,
         ),
       ),
       normalizedMaxWidth: _defaultNormalizedMaxWidth,
-      style: AppTypography.body.copyWith(color: const Color(0xFFFFFFFF)),
+      // Font family/weight/line-height still come from AppTypography.body
+      // (the Ethiopic-safe values `flutter-ethiopic-typography` governs) —
+      // only the size is overridden to [_defaultCanvasFontSize], a
+      // canvas-space size rather than a screen-UI reading size. See that
+      // constant's doc comment for why 16 (AppTypography.body's own size)
+      // read as near-invisible once painted onto a 1080px canvas.
+      style: AppTypography.body.copyWith(
+        fontSize: _defaultCanvasFontSize,
+        color: const Color(0xFFFFFFFF),
+      ),
     );
 
     emit(

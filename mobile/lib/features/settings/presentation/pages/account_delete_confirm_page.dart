@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kelal_studio/core/theme/app_colors.dart';
 import 'package:kelal_studio/core/theme/app_spacing.dart';
 import 'package:kelal_studio/core/theme/app_typography.dart';
+import 'package:kelal_studio/core/widgets/app_back_button.dart';
 import 'package:kelal_studio/features/settings/presentation/bloc/account_bloc.dart';
 import 'package:kelal_studio/features/settings/presentation/bloc/account_event.dart';
 import 'package:kelal_studio/features/settings/presentation/bloc/account_state.dart';
@@ -50,20 +51,7 @@ class _AccountDeleteConfirmPageState extends State<AccountDeleteConfirmPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        GestureDetector(
-                          onTap: () => context.pop(),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: AppSpacing.sm,
-                            ),
-                            child: Text(
-                              '← Back',
-                              style: AppTypography.bodySmall.copyWith(
-                                color: context.colors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ),
+                        const AppBackButton(),
                         const SizedBox(height: AppSpacing.md),
                         Text(
                           'Delete Account',

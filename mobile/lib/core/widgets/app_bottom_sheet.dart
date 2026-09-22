@@ -136,6 +136,21 @@ class AppDialog extends StatelessWidget {
   final String heading;
   final String body;
   final String actionLabel;
+
+  /// Extra business logic to run when the action button is tapped, e.g.
+  /// "restart the app". **Dismissing the dialog is not this callback's
+  /// job** — [build] does that itself, via its own `context`, after
+  /// calling this. A caller that also tries `Navigator.of(callerContext)
+  /// .pop()` here, using the `BuildContext` it had *before* calling
+  /// `showAppDialog`, hits a real bug this app shipped with: `showDialog`
+  /// pushes onto the *root* navigator by default, but that outer,
+  /// pre-dialog context's `Navigator.of(...)` resolves to the *nearest*
+  /// navigator — a different one whenever the dialog is shown from inside
+  /// a nested navigator, such as one of this app's bottom-nav tab
+  /// branches. The mismatch pops the current tab's own (sole) page
+  /// instead of the dialog, which crashes with go_router's "popped the
+  /// last page off of the stack" assertion. See
+  /// `showQuotaExceededDialog`'s history for the real-world repro.
   final VoidCallback onActionPressed;
 
   @override
@@ -171,7 +186,13 @@ class AppDialog extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton(
               key: const Key('app_dialog_action_button'),
-              onPressed: onActionPressed,
+              // Pop with *this* context, not a context the caller captured
+              // before the dialog existed — see [onActionPressed]'s doc
+              // comment for why that distinction is the whole fix here.
+              onPressed: () {
+                onActionPressed();
+                Navigator.of(context).pop();
+              },
               child: Text(actionLabel),
             ),
           ),

@@ -16,16 +16,19 @@ import 'package:path_provider/path_provider.dart';
 /// **Retries are load-bearing here, not incidental.**
 /// `FakeGenerationRemoteDataSource` deliberately injects the `/generate/*`
 /// typed-error taxonomy at low-but-real rates (see its own doc comment —
-/// "reachable without a debugger" for a manual run) — roughly a
-/// combined ~20% chance a single "Generate"/"Create graphic" tap resolves
-/// to a real failure rather than success. That's exactly the right
-/// behavior for the app to have, but it means a single un-retried tap in
-/// this test would be a genuinely flaky assertion, not a bug in the app.
-/// `tapAndRetryOnFailure` tolerates a bounded number of these synthetic
-/// failures the same way a person manually driving the app would just try
-/// again — it does NOT retry past the `quotaExceeded` case blindly; that
-/// dialog is dismissed and counted as a retry too, since it's one of the
-/// same injected outcomes.
+/// "reachable without a debugger" for a manual run) — roughly a combined
+/// ~15% chance a single "Generate"/"Create graphic" tap resolves to a real
+/// failure rather than success. That's exactly the right behavior for the
+/// app to have, but it means a single un-retried tap in this test would be
+/// a genuinely flaky assertion, not a bug in the app. `tapAndRetryOnFailure`
+/// tolerates a bounded number of these synthetic failures the same way a
+/// person manually driving the app would just try again. `quotaExceeded`
+/// is no longer part of that random taxonomy (see
+/// `FakeQuotaRemoteDataSource`'s doc comment) — it's now driven by real
+/// accumulated usage against the seeded 3/10 text and 1/5 image quota, so
+/// it's very unlikely to fire within one flow's worth of attempts, but the
+/// dialog-dismiss-and-retry branch below stays in place in case an
+/// unlucky retry streak does reach it.
 ///
 /// Terminates at "Copy caption" on the Export screen, not "Save to
 /// gallery"/"Share" — both of the latter can involve a real OS-level

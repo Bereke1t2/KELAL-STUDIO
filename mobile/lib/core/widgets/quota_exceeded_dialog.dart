@@ -5,16 +5,9 @@ import 'package:kelal_studio/core/error/result.dart';
 import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/core/widgets/app_bottom_sheet.dart';
 
-/// **Ready-to-use helper, not called from anywhere yet — this is
-/// deliberate, not dead code.** `ApiErrorType.quotaExceeded` (see
-/// `core/error/result.dart`) is only ever produced today by
-/// `ApiExceptionMapper` reacting to a `quota_exceeded` error from
-/// `/generate/*`, and no generation call exists in this codebase yet (it's
-/// `feat/idea-composer-generation`, a later branch in the stack — see
-/// mobile/CLAUDE.md). This helper is wired now so that branch's
-/// `/generate/*` error handler has a ready blocking-dialog UI to call the
-/// moment it receives a `quotaExceeded` `ApiFailure`, instead of having to
-/// build one from scratch.
+/// Shown by `ComposerPage` and `GenerationResultPage` when a
+/// `/generate/*` call fails with `ApiErrorType.quotaExceeded` (see
+/// `core/error/result.dart`).
 ///
 /// Lives in `core/widgets` (not `features/quota/presentation/`) because
 /// its only feature-specific dependency, [ApiFailure], is itself a
@@ -43,7 +36,12 @@ Future<void> showQuotaExceededDialog(BuildContext context, ApiFailure failure) {
       heading: l10n.quotaExceededDialogTitle,
       body: body,
       actionLabel: l10n.quotaExceededDialogAction,
-      onActionPressed: () => Navigator.of(context).pop(),
+      // Dismissing is all this dialog's action needs to do, and AppDialog
+      // handles that itself now (see its onActionPressed doc comment) —
+      // this used to also call `Navigator.of(context).pop()` here, using
+      // the pre-dialog context, which is the exact bug that comment
+      // describes: it crashed the app instead of closing the dialog.
+      onActionPressed: () {},
     ),
   );
 }

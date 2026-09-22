@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kelal_studio/core/theme/app_colors.dart';
 import 'package:kelal_studio/core/theme/app_spacing.dart';
 import 'package:kelal_studio/core/theme/app_typography.dart';
+import 'package:kelal_studio/core/widgets/app_back_button.dart';
 
 class AccountPage extends StatelessWidget {
   const AccountPage({super.key});
@@ -20,18 +21,7 @@ class AccountPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              GestureDetector(
-                onTap: () => context.pop(),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                  child: Text(
-                    '← Back',
-                    style: AppTypography.bodySmall.copyWith(
-                      color: context.colors.textSecondary,
-                    ),
-                  ),
-                ),
-              ),
+              const AppBackButton(),
               const SizedBox(height: AppSpacing.md),
               Text(
                 'Account',

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kelal_studio/core/di/injection.dart';
 import 'package:kelal_studio/core/error/result.dart';
+import 'package:kelal_studio/core/l10n/gen/app_localizations.dart';
 import 'package:kelal_studio/features/auth/domain/usecases/delete_account_usecase.dart';
 import 'package:kelal_studio/features/settings/presentation/bloc/account_bloc.dart';
 import 'package:kelal_studio/features/settings/presentation/pages/account_delete_confirm_page.dart';
@@ -48,7 +50,19 @@ void main() {
       ],
     );
 
-    return MaterialApp.router(routerConfig: router);
+    return MaterialApp.router(
+      routerConfig: router,
+      // AppBackButton (used by every page in this router) reads
+      // AppLocalizations — without this the very first pump throws instead
+      // of rendering.
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
+    );
   }
 
   testWidgets('AccountPage renders UI correctly', (tester) async {

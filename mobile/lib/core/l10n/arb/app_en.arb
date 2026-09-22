@@ -345,7 +345,7 @@
   "@draftsEmptyHeading": {
     "description": "DraftsPage's EmptyState heading (Figma node 45:13, \"Drafts Library — Empty\") shown when WatchDraftsUseCase's stream returns an empty list."
   },
-  "draftsEmptyBody": "Drafts save automatically while you edit — come back anytime to pick up where you left off.",
+  "draftsEmptyBody": "Drafts save automatically while you edit. Come back anytime to pick up where you left off.",
   "@draftsEmptyBody": {
     "description": "DraftsPage's EmptyState body copy — explains PRD §10.5's autosave behavior; no CTA needed since there's nothing to tap from here (a draft is created by editing a graphic, not from this screen)."
   },
@@ -406,7 +406,7 @@
   "@remindersNotificationTitle": {
     "description": "Title of the local notification LocalNotificationScheduler fires when a reminder's scheduled time arrives."
   },
-  "remindersNotificationBody": "Your saved draft is ready — open Kelal Studio to publish it.",
+  "remindersNotificationBody": "Your saved draft is ready. Open Kelal Studio to publish it.",
   "@remindersNotificationBody": {
     "description": "Body of the local notification LocalNotificationScheduler fires when a reminder's scheduled time arrives."
   },
@@ -450,5 +450,9 @@
   },
   "settingsSectionAbout": "ABOUT",
   "settingsLegalItem": "Legal",
-  "settingsSignOutItem": "Sign Out"
+  "settingsSignOutItem": "Sign Out",
+  "backButtonLabel": "Back",
+  "@backButtonLabel": {
+    "description": "Label on the plain back-navigation control used by pushed settings sub-pages (account, legal, legal document, account-delete flow) that don't have a real AppBar of their own — see core/widgets/app_back_button.dart. Was previously a hardcoded English '← Back' literal on every one of those pages, so an Amharic-locale user always saw English here regardless of LocaleCubit's state; this key fixes that."
+  }
 }

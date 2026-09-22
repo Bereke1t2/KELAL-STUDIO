@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kelal_studio/core/theme/app_colors.dart';
 import 'package:kelal_studio/core/theme/app_spacing.dart';
 import 'package:kelal_studio/core/theme/app_typography.dart';
+import 'package:kelal_studio/core/widgets/app_back_button.dart';
 
 class AccountDeleteConsequencePage extends StatelessWidget {
   const AccountDeleteConsequencePage({super.key});
@@ -20,18 +21,7 @@ class AccountDeleteConsequencePage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              GestureDetector(
-                onTap: () => context.pop(),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                  child: Text(
-                    '← Back',
-                    style: AppTypography.bodySmall.copyWith(
-                      color: context.colors.textSecondary,
-                    ),
-                  ),
-                ),
-              ),
+              const AppBackButton(),
               const SizedBox(height: AppSpacing.md),
               Text(
                 'Delete Account',
@@ -98,7 +88,7 @@ class AccountDeleteConsequencePage extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '—  ',
+          '•  ',
           style: AppTypography.body.copyWith(
             color: context.colors.textSecondary,
           ),

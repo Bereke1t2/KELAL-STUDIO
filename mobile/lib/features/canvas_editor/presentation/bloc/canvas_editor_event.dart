@@ -49,9 +49,9 @@ final class CanvasEditorLayerDragUpdated extends CanvasEditorEvent {
 
 /// [scaleFactor] is multiplicative (e.g. `ScaleUpdateDetails.scale`, ~1.0
 /// at gesture start) — applied to the layer's current
-/// `TextLayer.normalizedMaxWidth`, not an absolute value. See
-/// `CanvasEditorBloc`'s doc comment for why "resize" mutates the text
-/// box's width rather than a font-size scale.
+/// `TextLayer.style.fontSize`, not an absolute value. See
+/// `CanvasEditorBloc._onLayerScaled`'s doc comment for the clamp range and
+/// why font size, not `normalizedMaxWidth`, is what a pinch now changes.
 final class CanvasEditorLayerScaled extends CanvasEditorEvent {
   const CanvasEditorLayerScaled({
     required this.layerId,
