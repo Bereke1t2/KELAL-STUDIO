@@ -17,19 +17,24 @@ import 'package:kelal_studio/features/quota/data/models/quota_dto.dart';
 /// resolves OQ (PRD §2.3) should replace these two constants (and the real
 /// backend will supply the real number once it exists).
 ///
-/// **Judgment call on exhaustion-testing (flagged, not silently decided)**:
-/// the task allowed either (a) a small in-memory counter the fake
-/// increments on repeated calls, or (b) leaning on bloc-level tests with a
-/// mocked repository instead. This class does (a) — [getQuota] increments
-/// both counters (clamped at their limits) on every call — because it's a
-/// few lines and it means a developer manually driving the app (or an
-/// integration test) can reach the near-limit/exhausted `QuotaBadge`
-/// states just by triggering a few refreshes, without needing a mocked
-/// repository. The Bloc/widget *unit* tests still use a mocked
-/// `GetQuotaUseCase`/repository directly (see
-/// `test/features/quota/presentation/bloc/quota_bloc_test.dart`) rather
-/// than depending on this fake's counter behavior — this fake's counter is
-/// for manual/exploratory use, not test determinism.
+/// **`getQuota()` no longer increments on every call — this is a fix, not
+/// the original design.** The previous version incremented both counters
+/// on every `getQuota()` read (i.e. every time `QuotaStatusBadge` mounted,
+/// which happens on every visit to `/compose`), specifically so a
+/// developer manually driving the app could reach the near-limit/exhausted
+/// badge states without needing a mocked repository. That made this fake
+/// internally inconsistent with `FakeGenerationRemoteDataSource`: the
+/// badge's "N/10 remaining" and the actual `/generate/*` quota-exceeded
+/// error were two disjoint counters that could — and, once observed
+/// manually, did — disagree (badge shows room left, Generate still throws
+/// `quotaExceeded`, or vice versa). `getQuota()` is now a pure read;
+/// [recordTextCall]/[recordImageCall] are the only way these counters
+/// move, called by `FakeGenerationRemoteDataSource` exactly when it
+/// accepts a `/generate/*` call — see that class for why usage is recorded
+/// on acceptance, not only on eventual success. A developer who wants to
+/// manually walk the badge toward its exhausted state should just make a
+/// few real Generate calls now, which is what a real backend's usage would
+/// require too.
 class FakeQuotaRemoteDataSource implements QuotaRemoteDataSource {
   // PLACEHOLDER pending PRD §2.3 — see class doc comment.
   static const int _textCallsLimit = 10;
@@ -42,12 +47,29 @@ class FakeQuotaRemoteDataSource implements QuotaRemoteDataSource {
   int _textCallsUsed = 3;
   int _imageCallsUsed = 1;
 
+  /// True once a `/generate/text` call would be rejected for quota —
+  /// `FakeGenerationRemoteDataSource.generateText` checks this before
+  /// doing any (fake) work.
+  bool get isTextQuotaExceeded => _textCallsUsed >= _textCallsLimit;
+
+  /// Same as [isTextQuotaExceeded], for `/generate/image`.
+  bool get isImageQuotaExceeded => _imageCallsUsed >= _imageCallsLimit;
+
+  /// Records one accepted `/generate/text` call. Clamped at the limit
+  /// rather than incrementing past it, though callers are expected to
+  /// check [isTextQuotaExceeded] first and never reach this once exceeded.
+  void recordTextCall() {
+    _textCallsUsed = (_textCallsUsed + 1).clamp(0, _textCallsLimit);
+  }
+
+  /// Same as [recordTextCall], for `/generate/image`.
+  void recordImageCall() {
+    _imageCallsUsed = (_imageCallsUsed + 1).clamp(0, _imageCallsLimit);
+  }
+
   @override
   Future<QuotaDto> getQuota() async {
     await FakeBackendSupport.latency();
-
-    _textCallsUsed = (_textCallsUsed + 1).clamp(0, _textCallsLimit);
-    _imageCallsUsed = (_imageCallsUsed + 1).clamp(0, _imageCallsLimit);
 
     return QuotaDto(
       textCallsUsed: _textCallsUsed,

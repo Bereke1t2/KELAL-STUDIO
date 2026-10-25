@@ -233,35 +233,72 @@ void main() {
 
   group('CanvasEditorLayerScaled', () {
     blocTest<CanvasEditorBloc, CanvasEditorState>(
-      'multiplies normalizedMaxWidth by the scale factor',
+      "multiplies the layer's style.fontSize by the scale factor, leaving "
+      'normalizedMaxWidth untouched',
       build: CanvasEditorBloc.new,
       seed: () => CanvasEditorReady(scene: scene),
       act: (bloc) => bloc.add(
-        const CanvasEditorLayerScaled(layerId: 'layer-1', scaleFactor: 1.1),
+        const CanvasEditorLayerScaled(layerId: 'layer-1', scaleFactor: 2),
+      ),
+      expect: () => [
+        isA<CanvasEditorReady>()
+            .having(
+              (s) => s.scene.textLayers.first.style.fontSize,
+              'scaled fontSize',
+              // Seeded layer starts at AppTypography.body's 16; 16 * 2
+              // stays between the 24/220 clamp bounds, so it's unclamped
+              // here — the clamps themselves are covered by the next test.
+              closeTo(16 * 2, 1e-9),
+            )
+            .having(
+              (s) => s.scene.textLayers.first.normalizedMaxWidth,
+              'unchanged width',
+              0.8,
+            ),
+      ],
+    );
+
+    blocTest<CanvasEditorBloc, CanvasEditorState>(
+      'clamps the scaled fontSize to the min/max bounds',
+      build: CanvasEditorBloc.new,
+      seed: () => CanvasEditorReady(scene: scene),
+      act: (bloc) => bloc.add(
+        const CanvasEditorLayerScaled(layerId: 'layer-1', scaleFactor: 20),
       ),
       expect: () => [
         isA<CanvasEditorReady>().having(
-          (s) => s.scene.textLayers.first.normalizedMaxWidth,
-          'scaled width',
-          // 0.8 * 1.1 stays under the 0.95 cap, so it's unclamped here —
-          // the clamp itself is covered by the next test.
-          closeTo(0.8 * 1.1, 1e-9),
+          (s) => s.scene.textLayers.first.style.fontSize,
+          'clamped fontSize',
+          220.0,
         ),
       ],
     );
 
     blocTest<CanvasEditorBloc, CanvasEditorState>(
-      'clamps the scaled width to the min/max bounds',
+      're-clamps normalizedOffset.dy into the safe area when growing the '
+      'font pushes the layer toward the top obstruction band',
       build: CanvasEditorBloc.new,
-      seed: () => CanvasEditorReady(scene: scene),
+      seed: () => CanvasEditorReady(
+        scene: scene.copyWith(
+          textLayers: [
+            _layer(
+              'layer-1',
+              offset: const Offset(
+                0.1,
+                SafeZoneConstants.topObstructionFraction,
+              ),
+            ),
+          ],
+        ),
+      ),
       act: (bloc) => bloc.add(
         const CanvasEditorLayerScaled(layerId: 'layer-1', scaleFactor: 10),
       ),
       expect: () => [
         isA<CanvasEditorReady>().having(
-          (s) => s.scene.textLayers.first.normalizedMaxWidth,
-          'clamped width',
-          0.95,
+          (s) => s.scene.textLayers.first.normalizedOffset.dy,
+          'clamped dy',
+          greaterThanOrEqualTo(SafeZoneConstants.topObstructionFraction),
         ),
       ],
     );

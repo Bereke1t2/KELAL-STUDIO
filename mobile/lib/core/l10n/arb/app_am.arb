@@ -117,7 +117,7 @@
   "exportGalleryWriteFailedMessage": "ወደ ፎቶ ማዕከልዎ ማስቀመጥ አልቻልንም። የመሳሪያዎን ማከማቻ ያረጋግጡና እንደገና ይሞክሩ።",
   "exportShareFailedMessage": "የማጋሪያ ገጹን መክፈት አልቻልንም። እባክዎ እንደገና ይሞክሩ።",
   "draftsEmptyHeading": "እስካሁን ረቂቆች የሉም",
-  "draftsEmptyBody": "ረቂቆች ሲያርትዑ በራስ-ሰር ይቀመጣሉ — ከቆሙበት ለመቀጠል በማንኛውም ጊዜ ይመለሱ።",
+  "draftsEmptyBody": "ረቂቆች ሲያርትዑ በራስ-ሰር ይቀመጣሉ። ከቆሙበት ለመቀጠል በማንኛውም ጊዜ ይመለሱ።",
   "draftsDisclosureHeading": "ረቂቆች በዚህ መሳሪያ ላይ ተከማችተዋል",
   "draftsDisclosureBody": "መተግበሪያውን ማራገፍ ሁሉንም የአካባቢ ረቂቆች በቋሚነት ይሰርዛል። በሌላ ቦታ አልተቀመጡም።",
   "draftsDisclosureAction": "ገባኝ",
@@ -130,7 +130,7 @@
   "draftsLastSavedDaysAgo": "ከ{days} ቀን በፊት ተቀምጧል",
   "remindersCardAction": "አስታውሰኝ",
   "remindersNotificationTitle": "የመለጠፍ ጊዜ ደርሷል!",
-  "remindersNotificationBody": "የተቀመጠው ረቂቅዎ ለማተም ዝግጁ ነው — ለማተም ቀላል ስቱዲዮን ይክፈቱ።",
+  "remindersNotificationBody": "የተቀመጠው ረቂቅዎ ለማተም ዝግጁ ነው። ለማተም ቀላል ስቱዲዮን ይክፈቱ።",
   "remindersScheduledSuccessMessage": "አስታዋሽ ተቀናብሯል።",
   "remindersPermissionDeniedMessage": "ማስታወቂያዎችን ለመቀበል በመሳሪያዎ ቅንብሮች ውስጥ ለቀላል ስቱዲዮ ያንቁ።",
   "settingsTagline": "መለያዎን እና ምርጫዎችዎን ያስተዳድሩ",
@@ -150,5 +150,6 @@
   "settingsQuotaTrailingPlaceholder": "{count} ዛሬ ቀርተዋል",
   "settingsSectionAbout": "ስለ",
   "settingsLegalItem": "ህጋዊ",
-  "settingsSignOutItem": "ውጣ"
+  "settingsSignOutItem": "ውጣ",
+  "backButtonLabel": "ተመለስ"
 }

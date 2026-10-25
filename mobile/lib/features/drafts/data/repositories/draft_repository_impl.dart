@@ -101,7 +101,7 @@ class DraftRepositoryImpl implements DraftsRepository {
     catch (_) {
       return const Result.err(
         CacheFailure(
-          "Couldn't save your draft — your device may be low on storage.",
+          "Couldn't save your draft. Your device may be low on storage.",
         ),
       );
     }
@@ -120,7 +120,7 @@ class DraftRepositoryImpl implements DraftsRepository {
     // ignore: avoid_catches_without_on_clauses
     catch (_) {
       return const Result.err(
-        CacheFailure("Couldn't delete your draft — please try again."),
+        CacheFailure("Couldn't delete your draft. Please try again."),
       );
     }
   }
