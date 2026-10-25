@@ -12,6 +12,7 @@ package quota
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -37,10 +38,20 @@ type Limits struct {
 	ImageDaily int
 }
 
-// UsageResponse is the wire shape for GET /quota/me (openapi.yaml).
+// UsageResponse is the wire shape for GET /quota/me (openapi.yaml). Field
+// names were previously text_used/text_cap/image_used/image_cap with no
+// resets_at at all — that never matched this package's own openapi.yaml
+// Quota schema (text_calls_used/text_calls_limit/image_calls_used/
+// image_calls_limit/resets_at), which mobile/api_contract/openapi.yaml
+// also already specified. The mobile client's QuotaDto.fromJson requires
+// every one of those five fields, so the mismatch broke GET /quota/me
+// against the real backend end to end (the request succeeded, but the
+// mobile client couldn't parse the response) — see auth/dto.go's
+// authTokensResponse doc comment for the same class of bug found first.
 type UsageResponse struct {
-	TextUsed  int `json:"text_used"`
-	TextCap   int `json:"text_cap"`
-	ImageUsed int `json:"image_used"`
-	ImageCap  int `json:"image_cap"`
+	TextCallsUsed   int       `json:"text_calls_used"`
+	TextCallsLimit  int       `json:"text_calls_limit"`
+	ImageCallsUsed  int       `json:"image_calls_used"`
+	ImageCallsLimit int       `json:"image_calls_limit"`
+	ResetsAt        time.Time `json:"resets_at"`
 }

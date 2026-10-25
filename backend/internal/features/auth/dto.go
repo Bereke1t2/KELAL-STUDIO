@@ -61,13 +61,26 @@ func registerResultToResponse(r RegisterResult) registerResponse {
 }
 
 // authTokensResponse is the contract's AuthTokens schema — returned by login and
-// refresh (no longer by register, see registerResponse).
+// refresh (no longer by register, see registerResponse). EmailVerified mirrors
+// the same claim already embedded in the access token (see issueSession) — the
+// mobile client's contract (mobile/api_contract/openapi.yaml) requires this
+// field on every AuthTokens response so it knows whether to show the
+// EmailVerificationGate without decoding the JWT itself; this backend's own
+// api/openapi.yaml had drifted out of sync with that (AuthTokens here was
+// missing email_verified entirely), which broke real-backend login end to end
+// — the mobile client's AuthTokensDto.fromJson treats the field as required
+// and throws on a response missing it.
 type authTokensResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	AccessToken   string `json:"access_token"`
+	RefreshToken  string `json:"refresh_token"`
+	EmailVerified bool   `json:"email_verified"`
 }
 
 // tokensToResponse maps the service result to the wire shape.
 func tokensToResponse(t Tokens) authTokensResponse {
-	return authTokensResponse{AccessToken: t.Access, RefreshToken: t.Refresh}
+	return authTokensResponse{
+		AccessToken:   t.Access,
+		RefreshToken:  t.Refresh,
+		EmailVerified: t.EmailVerified,
+	}
 }

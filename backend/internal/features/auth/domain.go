@@ -40,8 +40,9 @@ var (
 // Tokens is the service-layer result of any auth flow that establishes a
 // session. The DTO layer maps it to the contract's AuthTokens shape.
 type Tokens struct {
-	Access  string
-	Refresh string
+	Access        string
+	Refresh       string
+	EmailVerified bool
 }
 
 // RegisterResult is what registration returns per PRD §11: registration no
